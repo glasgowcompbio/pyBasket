@@ -1,0 +1,26 @@
+name: pyBasket
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - loguru
+  - jupyterlab
+  - ipywidgets
+  - pymc
+  - arviz
+  - flake8
+  - autopep8
+  - pytest
+  - pytest-cov
+  - pip
+  - pip:
+    - twine
+    - build
+    - mkdocs
+    - mkdocstrings
