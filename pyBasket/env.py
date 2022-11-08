@@ -2,20 +2,18 @@ from collections import defaultdict
 
 import arviz as az
 import numpy as np
+import pandas as pd
 import pymc as pm
 from IPython.display import display
 from scipy import stats
+
+from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS
 
 
 class Group():
     '''
     Create a class to respresent a group, i.e. a basket
     '''
-
-    GROUP_OPEN = 'OPEN'
-    GROUP_EARLY_TERMINATED = 'EARLY_TERMINATED'
-    GROUP_EFFECTIVE = 'EFFECTIVE'
-    GROUP_INEFFECTIVE = 'INEFFECTIVE'
 
     def __init__(self, group_id, true_response_rate=None):
         self.idx = group_id
@@ -42,32 +40,60 @@ class Group():
 
 
 class Model():
-    def __init__(self, ns, ks, K):
+    def __init__(self, idx, ns, ks, K, p0, p_mid, futility_cutoff, efficacy_cutoff, last_step,
+                 num_chains):
+        self.idx = idx
         self.ns = ns
         self.ks = ks
         self.num_groups = K
+        self.idata = None
+        self.p0 = p0
+        self.p_mid = p_mid
+        self.last_step = last_step
+        self.futility_cutoff = futility_cutoff
+        self.efficacy_cutoff = efficacy_cutoff
+        self.num_chains = num_chains
+        self.df = None
         self.model = self.model_definition()
-        self.inference_data = None
 
     def model_definition(self):
         pass
 
     def infer(self, num_posterior_samples, num_burn_in):
         with self.model:
-            self.inference_data = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
-                                            return_inferencedata=True)
-            return self.inference_data
+            self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
+                                   return_inferencedata=True, chains=self.num_chains)
+        self.df = self.check_futility_efficacy()
 
     def visualise(self):
         display(pm.model_to_graphviz(self.model))
 
     def plot_trace(self):
-        assert self.inference_data is not None
-        az.plot_trace(self.inference_data)
+        assert self.idata is not None
+        az.plot_trace(self.idata)
 
     def plot_posterior(self):
-        assert self.inference_data is not None
-        az.plot_posterior(self.inference_data)
+        assert self.idata is not None
+        az.plot_posterior(self.idata)
+
+    def check_futility_efficacy(self):
+        post = self.get_posterior_response()
+        data = []
+        to_check = self.p0 if self.last_step else self.p_mid
+        for k in range(self.num_groups):
+            group_response = post[k]
+            prob = np.count_nonzero(group_response > to_check) / len(group_response)
+            futile = prob < DEFAULT_FUTILITY_CUTOFF if not self.last_step else None
+            effective = prob > DEFAULT_EFFICACY_CUTOFF
+            row = [k, prob, futile, effective]
+            data.append(row)
+
+        columns = ['k', 'prob', 'futile', 'effective']
+        df = pd.DataFrame(data, columns=columns).set_index('k')
+        return df
+
+    def get_posterior_response(self):
+        pass
 
 
 class Independent(Model):
@@ -76,6 +102,10 @@ class Independent(Model):
             θ = pm.Beta('θ', alpha=1, beta=1, shape=self.num_groups)
             y = pm.Binomial('y', n=self.ns, p=θ, observed=self.ks)
             return model
+
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.θ.values
 
 
 class Hierarchical(Model):
@@ -89,13 +119,12 @@ class Hierarchical(Model):
 
             return model
 
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.θ.values
+
 
 class BHM(Model):
-
-    def __init__(self, ns, ks, K, p0):
-        self.p0 = p0
-        super().__init__(ns, ks, K)
-
     def model_definition(self):
         mu0 = np.log(self.p0 / (1 - self.p0))
         with pm.Model() as model:
@@ -103,27 +132,36 @@ class BHM(Model):
             theta_0 = pm.Normal('theta0', mu=-mu0, sigma=0.001)
 
             e = pm.Normal('e', mu=0, sigma=tausq, shape=self.num_groups)
-            theta = pm.Deterministic('theta', theta_0 + e)
-            p = pm.Deterministic('p', np.exp(theta) / (1 + np.exp(theta)))
+            θ = pm.Deterministic('θ', theta_0 + e)
+            p = pm.Deterministic('p', np.exp(θ) / (1 + np.exp(θ)))
             y = pm.Binomial('y', n=self.ns, p=p, observed=self.ks)
 
             return model
+
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.p.values
 
 
 class Trial():
     '''
     A class to represent a clinical trial
 
-    Can be called sequentially to enroll patients into groups. Uses pymc to infer groups' response rate
+    Can be called sequentially to enroll patients into groups. Uses pymc to infer groups'
+    response rate
 
     Three models are defined inside the `get_model()` method of this class:
     - `independent`: independent Beta-Binomial models with no parameter sharing.
     - `hierarchical`: Beta-Binomial models with parameter sharing (using Gamma priors).
-    - `bhm`: Normal with hierarchical priors following [Berry et al. 2013](https://journals.sagepub.com/doi/full/10.1177/1740774513497539). Ported to pymc from the JAGS implementation in https://github.com/Jin93/CBHM/blob/master/BHM.txt.
+    - `bhm`: Normal with hierarchical priors following
+    [Berry et al. 2013](https://journals.sagepub.com/doi/full/10.1177/1740774513497539).
+    Ported from the JAGS implementation in https://github.com/Jin93/CBHM/blob/master/BHM.txt.
     '''
 
     def __init__(self, K, p0, p1, true_response_rates, enrollment,
-                 evaluate_interim, num_burn_in, num_posterior_samples, model_names):
+                 evaluate_interim, num_burn_in, num_posterior_samples, model_names,
+                 futility_cutoff=DEFAULT_FUTILITY_CUTOFF, efficacy_cutoff=DEFAULT_EFFICACY_CUTOFF,
+                 num_chains=DEFAULT_NUM_CHAINS):
         self.K = K
         self.p0 = p0
         self.p1 = p1
@@ -131,6 +169,9 @@ class Trial():
         self.num_burn_in = int(num_burn_in)
         self.num_posterior_samples = int(num_posterior_samples)
         self.model_names = model_names
+        self.futility_cutoff = futility_cutoff
+        self.efficacy_cutoff = efficacy_cutoff
+        self.num_chains = num_chains
 
         assert len(true_response_rates) == K
         assert len(enrollment) == len(evaluate_interim)
@@ -140,13 +181,13 @@ class Trial():
 
         self.current_stage = 0
         self.total_enrolled = 0
-        self.inference_results = None
+        self.iresults = None
         self.groups = []
 
     def reset(self):
         self.current_stage = 0
         self.total_enrolled = 0
-        self.inference_results = defaultdict(list)
+        self.iresults = defaultdict(list)
         self.groups = [Group(k, self.true_response_rates[k]) for k in range(self.K)]
         return False
 
@@ -168,31 +209,21 @@ class Trial():
             group_idx.extend(group.response_indices)
         print()
 
+        last_step = self.current_stage == (len(self.enrollment) - 1)
         if self.evaluate_interim[self.current_stage]:
             ns, ks, num_groups = self.prepare_data(group_idx, observed_data)
 
             # do inference at this stage
             for model_name in self.model_names:
-                model = self.get_model(model_name, ns, ks, num_groups)
+                model = self.get_model(self.current_stage, model_name, ns, ks, num_groups, self.p0,
+                                       self.p_mid, self.futility_cutoff, self.efficacy_cutoff,
+                                       last_step)
                 model.infer(self.num_posterior_samples, self.num_burn_in)
-                self.inference_results[model_name].append(model)
-        else:
-            for model_name in self.model_names:
-                self.inference_results[model_name].append(None)
+                display(model.df)
+                self.iresults[model_name].append(model)
 
-        # final termination check
         self.current_stage += 1
-        return True if self.current_stage == len(self.enrollment) else False
-
-    def get_model(self, model_name, ns, ks, num_groups):
-        assert model_name in ['independent', 'hierarchical', 'bhm']
-        print('\nmodel_name', model_name)
-        if model_name == 'independent':
-            return Independent(ns, ks, num_groups)
-        elif model_name == 'hierarchical':
-            return Hierarchical(ns, ks, num_groups)
-        elif model_name == 'bhm':
-            return BHM(ns, ks, num_groups, self.p0)
+        return last_step
 
     def prepare_data(self, group_idx, observed_data):
         observed_data = np.array(observed_data)
@@ -203,14 +234,28 @@ class Trial():
         ks = [np.sum(observed_data[group_idx == idx]) for idx in unique_group_idx]
         return ns, ks, num_groups
 
+    def get_model(self, idx, model_name, ns, ks, num_groups,
+                  p0, p_mid, futility_cutoff, efficacy_cutoff, last_step):
+        assert model_name in ['independent', 'hierarchical', 'bhm']
+        print('\nmodel_name', model_name)
+        if model_name == 'independent':
+            return Independent(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff,
+                               efficacy_cutoff, last_step, self.num_chains)
+        elif model_name == 'hierarchical':
+            return Hierarchical(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff,
+                                efficacy_cutoff, last_step, self.num_chains)
+        elif model_name == 'bhm':
+            return BHM(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff, efficacy_cutoff,
+                       last_step, self.num_chains)
+
     def visualise_model(self, model_name):
-        last_model = self.inference_results[model_name][-1]
+        last_model = self.iresults[model_name][-1]
         last_model.visualise()
 
     def plot_trace(self, model_name, pos):
-        model = self.inference_results[model_name][pos]
+        model = self.iresults[model_name][pos]
         model.plot_trace()
 
     def plot_posterior(self, model_name, pos):
-        model = self.inference_results[model_name][pos]
+        model = self.iresults[model_name][pos]
         model.plot_posterior()
