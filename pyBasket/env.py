@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import arviz as az
@@ -7,7 +8,10 @@ import pymc as pm
 from IPython.display import display
 from scipy import stats
 
-from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS
+from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
+    GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
+    GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
+    GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE
 
 
 class Site():
@@ -36,6 +40,7 @@ class Group():
     def __init__(self, group_id):
         self.idx = group_id
         self.responses = []
+        self.status = GROUP_STATUS_OPEN
 
     def register(self, responses):
         self.responses.extend(responses)
@@ -46,74 +51,125 @@ class Group():
         return [self.idx] * len(self.responses)
 
     def __repr__(self):
-        return 'Group %d: %s' % (self.idx, self.responses)
+        nnz = np.count_nonzero(self.responses)
+        total = len(self.responses)
+        return 'Group %d (%s): %d/%d' % (self.idx, self.status, nnz, total)
 
 
-
-
-
-class Model():
-    def __init__(self, idx, ns, ks, K, p0, p_mid, futility_cutoff, efficacy_cutoff, last_step,
+class Analysis(ABC):
+    def __init__(self, K, total_steps, p0, p_mid,
+                 futility_cutoff, efficacy_cutoff,
+                 early_futility_stop, early_efficacy_stop,
                  num_chains):
-        self.idx = idx
-        self.ns = ns
-        self.ks = ks
-        self.num_groups = K
+        self.K = K
+        self.total_steps = total_steps
         self.idata = None
         self.p0 = p0
         self.p_mid = p_mid
-        self.last_step = last_step
         self.futility_cutoff = futility_cutoff
         self.efficacy_cutoff = efficacy_cutoff
+        self.early_futility_stop = early_futility_stop
+        self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
-        self.df = None
-        self.model = self.model_definition()
 
-    def model_definition(self):
+        self.groups = [Group(k) for k in range(self.K)]
+        self.df = None
+        self.model = None
+
+    @abstractmethod
+    def model_definition(self, ns, ks):
         pass
 
-    def infer(self, num_posterior_samples, num_burn_in):
+    @abstractmethod
+    def get_posterior_response(self):
+        pass
+
+    def infer(self, current_step, num_posterior_samples, num_burn_in):
+        # prepare data in the right format for inference
+        observed_data = []
+        group_idx = []
+        for k in range(self.K):
+            group = self.groups[k]
+            observed_data.extend(group.responses)
+            group_idx.extend(group.response_indices)
+        ns, ks, num_groups = self._prepare_data(group_idx, observed_data)
+
+        # create model and draw posterior samples
+        self.model = self.model_definition(ns, ks)
         with self.model:
             self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
                                    return_inferencedata=True, chains=self.num_chains)
-        self.df = self.check_futility_efficacy()
 
-    def visualise(self):
-        display(pm.model_to_graphviz(self.model))
+        # generate df to report the futility and efficacy
+        self.df = self._check_futility_efficacy(current_step)
+        return self.df
 
-    def plot_trace(self):
-        assert self.idata is not None
-        az.plot_trace(self.idata)
+    def group_report(self):
+        data = []
+        for k in range(len(self.groups)):
+            group = self.groups[k]
+            nnz = np.count_nonzero(group.responses)
+            total = len(group.responses)
+            row = [k, group.status, nnz, total]
+            data.append(row)
+        columns = ['k', 'status', 'nnz', 'total']
+        df = pd.DataFrame(data, columns=columns).set_index('k')
+        return df
 
-    def plot_posterior(self):
-        assert self.idata is not None
-        az.plot_posterior(self.idata)
-
-    def check_futility_efficacy(self):
+    def _check_futility_efficacy(self, current_step):
         post = self.get_posterior_response()
         data = []
-        to_check = self.p0 if self.last_step else self.p_mid
-        for k in range(self.num_groups):
+
+        last_step = current_step == self.total_steps
+        final_threshold = self.p0 if last_step else self.p_mid
+        for k in range(self.K):
             group_response = post[k]
-            prob = np.count_nonzero(group_response > to_check) / len(group_response)
-            futile = prob < DEFAULT_FUTILITY_CUTOFF if not self.last_step else None
-            effective = prob > DEFAULT_EFFICACY_CUTOFF
+            prob = np.count_nonzero(group_response > final_threshold) / len(group_response)
+            futile = prob < self.futility_cutoff if not last_step else None
+            effective = prob > self.efficacy_cutoff
             row = [k, prob, futile, effective]
             data.append(row)
+
+            if not last_step: # update interim stage status
+                if futile:
+                    new_status = GROUP_STATUS_EARLY_STOP_FUTILE
+                    if self.early_futility_stop:
+                        self._update_open_group_status(self.groups[k], new_status)
+                elif effective:
+                    new_status = GROUP_STATUS_EARLY_STOP_EFFECTIVE
+                    if self.early_efficacy_stop:
+                        self._update_open_group_status(self.groups[k], new_status)
+
+            else: # final stage update
+                if effective:
+                    new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
+                else:
+                    new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
+                self._update_open_group_status(self.groups[k], new_status)
 
         columns = ['k', 'prob', 'futile', 'effective']
         df = pd.DataFrame(data, columns=columns).set_index('k')
         return df
 
-    def get_posterior_response(self):
-        pass
+    def _update_open_group_status(self, group, new_status):
+        if group.status == GROUP_STATUS_OPEN:
+            group.status = new_status
+
+    def _prepare_data(self, group_idx, observed_data):
+        observed_data = np.array(observed_data)
+        group_idx = np.array(group_idx)
+        unique_group_idx = np.unique(group_idx)
+        num_groups = len(unique_group_idx)
+        ns = [len(observed_data[group_idx == idx]) for idx in unique_group_idx]
+        ks = [np.sum(observed_data[group_idx == idx]) for idx in unique_group_idx]
+        return ns, ks, num_groups
 
 
-class Independent(Model):
-    def model_definition(self):
+class Independent(Analysis):
+    def model_definition(self, ns, ks):
         with pm.Model() as model:
-            θ = pm.Beta('θ', alpha=1, beta=1, shape=self.num_groups)
-            y = pm.Binomial('y', n=self.ns, p=θ, observed=self.ks)
+            θ = pm.Beta('θ', alpha=1, beta=1, shape=self.K)
+            y = pm.Binomial('y', n=ns, p=θ, observed=ks)
             return model
 
     def get_posterior_response(self):
@@ -121,14 +177,14 @@ class Independent(Model):
         return stacked.θ.values
 
 
-class Hierarchical(Model):
-    def model_definition(self):
+class Hierarchical(Analysis):
+    def model_definition(self, ns, ks):
         with pm.Model() as model:
             α = pm.Gamma('α', alpha=4, beta=0.5)
             β = pm.Gamma('β', alpha=4, beta=0.5)
 
-            θ = pm.Beta('θ', alpha=α, beta=β, shape=self.num_groups)
-            y = pm.Binomial('y', n=self.ns, p=θ, observed=self.ks)
+            θ = pm.Beta('θ', alpha=α, beta=β, shape=self.K)
+            y = pm.Binomial('y', n=ns, p=θ, observed=ks)
 
             return model
 
@@ -137,17 +193,17 @@ class Hierarchical(Model):
         return stacked.θ.values
 
 
-class BHM(Model):
-    def model_definition(self):
+class BHM(Analysis):
+    def model_definition(self, ns, ks):
         mu0 = np.log(self.p0 / (1 - self.p0))
         with pm.Model() as model:
             tausq = pm.Gamma('tausq', alpha=0.001, beta=0.001)
             theta_0 = pm.Normal('theta0', mu=-mu0, sigma=0.001)
 
-            e = pm.Normal('e', mu=0, sigma=tausq, shape=self.num_groups)
+            e = pm.Normal('e', mu=0, sigma=tausq, shape=self.K)
             θ = pm.Deterministic('θ', theta_0 + e)
             p = pm.Deterministic('p', np.exp(θ) / (1 + np.exp(θ)))
-            y = pm.Binomial('y', n=self.ns, p=p, observed=self.ks)
+            y = pm.Binomial('y', n=ns, p=p, observed=ks)
 
             return model
 
@@ -171,9 +227,12 @@ class Trial():
     Ported from the JAGS implementation in https://github.com/Jin93/CBHM/blob/master/BHM.txt.
     '''
 
-    def __init__(self, K, p0, p1, true_response_rates, enrollment,
-                 evaluate_interim, num_burn_in, num_posterior_samples, model_names,
+    def __init__(self, K, p0, p1, enrollment,
+                 evaluate_interim, num_burn_in, num_posterior_samples, analysis_names,
+                 true_response_rates=None, sites=None,
                  futility_cutoff=DEFAULT_FUTILITY_CUTOFF, efficacy_cutoff=DEFAULT_EFFICACY_CUTOFF,
+                 early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
+                 early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
                  num_chains=DEFAULT_NUM_CHAINS):
         self.K = K
         self.p0 = p0
@@ -181,105 +240,119 @@ class Trial():
         self.p_mid = (self.p0 + self.p1) / 2
         self.num_burn_in = int(num_burn_in)
         self.num_posterior_samples = int(num_posterior_samples)
-        self.model_names = model_names
+        self.analysis_names = analysis_names
         self.futility_cutoff = futility_cutoff
         self.efficacy_cutoff = efficacy_cutoff
+        self.early_futility_stop = early_futility_stop
+        self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
 
-        assert len(true_response_rates) == K
         assert len(enrollment) == len(evaluate_interim)
-        self.true_response_rates = true_response_rates
         self.enrollment = enrollment
         self.evaluate_interim = evaluate_interim
+
+        if true_response_rates is not None:
+            assert len(true_response_rates) == K
+            assert sites is None
+        self.true_response_rates = true_response_rates
+
+        if sites is not None:
+            assert len(sites) == K
+            assert true_response_rates is None
+        self.sites = sites
 
         self.current_stage = 0
         self.total_enrolled = 0
         self.iresults = None
         self.sites = []
-        self.groups = []
+        self.analyses = {}
 
     def reset(self):
         self.current_stage = 0
         self.total_enrolled = 0
         self.iresults = defaultdict(list)
 
-        # initialise K sites and K groups
-        for k in range(self.K):
-            site = Site(k, self.true_response_rates[k])
-            group = Group(k)
-            self.sites.append(site)
-            self.groups.append(group)
+        # initialise K sites
+        if self.true_response_rates is not None:
+            self.sites = [Site(k, self.true_response_rates[k]) for k in range(self.K)]
+
+        # initialise all the models
+        for analysis_name in self.analysis_names:
+            analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid,
+                                         self.futility_cutoff, self.efficacy_cutoff,
+                                         self.early_futility_stop, self.early_efficacy_stop)
+            self.analyses[analysis_name] = analysis
 
         return False
 
     def step(self):
         num_patient = self.enrollment[self.current_stage]
         self.total_enrolled += num_patient
-        print('\n########## Stage=%d Enrolled = %d ##########' % (
+        print('\n########## Stage=%d Enrolled = %d ##########\n' % (
             self.current_stage, self.total_enrolled))
 
         # simulate enrollment
-        observed_data = []
-        group_idx = []
         for k in range(self.K):
             site = self.sites[k]
-            group = self.groups[k]
             responses = site.enroll(num_patient)
-            group.register(responses)
-            print(group)
 
-            observed_data.extend(group.responses)
-            group_idx.extend(group.response_indices)
-        print()
+            # register new patients to the right group in each model
+            for analysis_name in self.analysis_names:
+                model = self.analyses[analysis_name]
+                group = model.groups[k]
+                if group.status == GROUP_STATUS_OPEN:
+                    group.register(responses)
+                print('Analysis', analysis_name, group)
+            print()
 
         # evaluate interim stages if needed
         last_step = self.current_stage == (len(self.enrollment) - 1)
         if self.evaluate_interim[self.current_stage]:
-            ns, ks, num_groups = self.prepare_data(group_idx, observed_data)
 
             # do inference at this stage
-            for model_name in self.model_names:
-                model = self.get_model(self.current_stage, model_name, ns, ks, num_groups, self.p0,
-                                       self.p_mid, self.futility_cutoff, self.efficacy_cutoff,
-                                       last_step)
-                model.infer(self.num_posterior_samples, self.num_burn_in)
-                display(model.df)
-                self.iresults[model_name].append(model)
+            for analysis_name in self.analysis_names:
+                print('Running inference for:', analysis_name)
+                model = self.analyses[analysis_name]
+                df = model.infer(self.current_stage, self.num_posterior_samples, self.num_burn_in)
+                display(df)
+                self.iresults[analysis_name].append(model.idata)
 
         self.current_stage += 1
         return last_step
 
-    def prepare_data(self, group_idx, observed_data):
-        observed_data = np.array(observed_data)
-        group_idx = np.array(group_idx)
-        unique_group_idx = np.unique(group_idx)
-        num_groups = len(unique_group_idx)
-        ns = [len(observed_data[group_idx == idx]) for idx in unique_group_idx]
-        ks = [np.sum(observed_data[group_idx == idx]) for idx in unique_group_idx]
-        return ns, ks, num_groups
+    def get_analysis(self, analysis_name, K, p0, p_mid,
+                     futility_cutoff, efficacy_cutoff,
+                     early_futility_stop, early_efficacy_stop):
+        assert analysis_name in ['independent', 'hierarchical', 'bhm']
+        total_steps = len(self.enrollment) - 1
+        if analysis_name == 'independent':
+            return Independent(K, total_steps, p0, p_mid,
+                               futility_cutoff, efficacy_cutoff,
+                               early_futility_stop, early_efficacy_stop,
+                               self.num_chains)
+        elif analysis_name == 'hierarchical':
+            return Hierarchical(K, total_steps, p0, p_mid,
+                                futility_cutoff, efficacy_cutoff,
+                                early_futility_stop, early_efficacy_stop,
+                                self.num_chains)
+        elif analysis_name == 'bhm':
+            return BHM(K, total_steps, p0, p_mid,
+                       futility_cutoff, efficacy_cutoff,
+                       early_futility_stop, early_efficacy_stop,
+                       self.num_chains)
 
-    def get_model(self, idx, model_name, ns, ks, num_groups,
-                  p0, p_mid, futility_cutoff, efficacy_cutoff, last_step):
-        assert model_name in ['independent', 'hierarchical', 'bhm']
-        print('\nmodel_name', model_name)
-        if model_name == 'independent':
-            return Independent(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff,
-                               efficacy_cutoff, last_step, self.num_chains)
-        elif model_name == 'hierarchical':
-            return Hierarchical(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff,
-                                efficacy_cutoff, last_step, self.num_chains)
-        elif model_name == 'bhm':
-            return BHM(idx, ns, ks, num_groups, p0, p_mid, futility_cutoff, efficacy_cutoff,
-                       last_step, self.num_chains)
+    def visualise_model(self, analysis_name):
+        analysis = self.analyses[analysis_name]
+        display(pm.model_to_graphviz(analysis.model))
 
-    def visualise_model(self, model_name):
-        last_model = self.iresults[model_name][-1]
-        last_model.visualise()
+    def plot_trace(self, analysis_name, pos):
+        idata = self.iresults[analysis_name][pos]
+        az.plot_trace(idata)
 
-    def plot_trace(self, model_name, pos):
-        model = self.iresults[model_name][pos]
-        model.plot_trace()
+    def plot_posterior(self, analysis_name, pos):
+        idata = self.iresults[analysis_name][pos]
+        az.plot_posterior(idata)
 
-    def plot_posterior(self, model_name, pos):
-        model = self.iresults[model_name][pos]
-        model.plot_posterior()
+    def final_report(self, analysis_name):
+        analysis = self.analyses[analysis_name]
+        display(analysis.group_report())
