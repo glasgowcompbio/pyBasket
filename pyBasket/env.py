@@ -10,33 +10,46 @@ from scipy import stats
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS
 
 
-class Group():
+class Site():
     '''
-    Create a class to respresent a group, i.e. a basket
+    A class to represent enrollment site.
+    Will continuously generate patients with each call to enroll
     '''
 
-    def __init__(self, group_id, true_response_rate=None):
-        self.idx = group_id
+    def __init__(self, site_id, true_response_rate):
+        self.idx = site_id
         self.true_response_rate = true_response_rate
-        self.responses = []
 
     def enroll(self, num_patient):
-        responses = self.sample(num_patient)
+        responses = stats.binom.rvs(1, self.true_response_rate, size=num_patient)
+        return responses
+
+    def __repr__(self):
+        return 'Site %d: true θ=%.2f' % (self.idx, self.true_response_rate)
+
+
+class Group():
+    '''
+    A class to represent a patient group, or basket, or arm
+    '''
+
+    def __init__(self, group_id):
+        self.idx = group_id
+        self.responses = []
+
+    def register(self, responses):
         self.responses.extend(responses)
         return self.responses
-
-    def sample(self, num_patient):
-        if self.true_response_rate is None:
-            return None
-        else:
-            return stats.binom.rvs(1, self.true_response_rate, size=num_patient)
 
     @property
     def response_indices(self):
         return [self.idx] * len(self.responses)
 
     def __repr__(self):
-        return 'Group %d (true θ=%.2f) %s' % (self.idx, self.true_response_rate, self.responses)
+        return 'Group %d: %s' % (self.idx, self.responses)
+
+
+
 
 
 class Model():
@@ -182,13 +195,21 @@ class Trial():
         self.current_stage = 0
         self.total_enrolled = 0
         self.iresults = None
+        self.sites = []
         self.groups = []
 
     def reset(self):
         self.current_stage = 0
         self.total_enrolled = 0
         self.iresults = defaultdict(list)
-        self.groups = [Group(k, self.true_response_rates[k]) for k in range(self.K)]
+
+        # initialise K sites and K groups
+        for k in range(self.K):
+            site = Site(k, self.true_response_rates[k])
+            group = Group(k)
+            self.sites.append(site)
+            self.groups.append(group)
+
         return False
 
     def step(self):
@@ -200,15 +221,18 @@ class Trial():
         # simulate enrollment
         observed_data = []
         group_idx = []
-
-        for group in self.groups:
-            group.enroll(num_patient)
+        for k in range(self.K):
+            site = self.sites[k]
+            group = self.groups[k]
+            responses = site.enroll(num_patient)
+            group.register(responses)
             print(group)
 
             observed_data.extend(group.responses)
             group_idx.extend(group.response_indices)
         print()
 
+        # evaluate interim stages if needed
         last_step = self.current_stage == (len(self.enrollment) - 1)
         if self.evaluate_interim[self.current_stage]:
             ns, ks, num_groups = self.prepare_data(group_idx, observed_data)
