@@ -14,22 +14,55 @@ from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DE
     GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE
 
 
-class Site():
+class Site(ABC):
+
+    @abstractmethod
+    def enroll(self):
+        pass
+
+    @abstractmethod
+    def reset(self):
+        pass
+
+
+class TrueResponseSite(Site):
     '''
     A class to represent enrollment site.
     Will continuously generate patients with each call to enroll
     '''
 
-    def __init__(self, site_id, true_response_rate):
+    def __init__(self, site_id, true_response_rate, enrollment):
         self.idx = site_id
         self.true_response_rate = true_response_rate
+        self.enrollment = enrollment
+        self.pos = 0
 
-    def enroll(self, num_patient):
+    def enroll(self):
+        num_patient = self.enrollment[self.pos]
         responses = stats.binom.rvs(1, self.true_response_rate, size=num_patient)
+        self.pos += 1
         return responses
+
+    def reset(self):
+        self.pos = 0
 
     def __repr__(self):
         return 'Site %d: true θ=%.2f' % (self.idx, self.true_response_rate)
+
+
+class EmpiricalSite(Site):
+
+    def __init__(self, site_id, num_response, sample_size):
+        self.idx = site_id
+        self.num_response = num_response
+        self.sample_size = sample_size
+        self.responses = np.array([1] * num_response + [0] * (sample_size - num_response))
+
+    def enroll(self):
+        return self.responses
+
+    def reset(self):
+        pass
 
 
 class Group():
@@ -130,7 +163,7 @@ class Analysis(ABC):
             row = [k, prob, futile, effective]
             data.append(row)
 
-            if not last_step: # update interim stage status
+            if not last_step:  # update interim stage status
                 if futile:
                     new_status = GROUP_STATUS_EARLY_STOP_FUTILE
                     if self.early_futility_stop:
@@ -140,7 +173,7 @@ class Analysis(ABC):
                     if self.early_efficacy_stop:
                         self._update_open_group_status(self.groups[k], new_status)
 
-            else: # final stage update
+            else:  # final stage update
                 if effective:
                     new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
                 else:
@@ -227,9 +260,8 @@ class Trial():
     Ported from the JAGS implementation in https://github.com/Jin93/CBHM/blob/master/BHM.txt.
     '''
 
-    def __init__(self, K, p0, p1, enrollment,
+    def __init__(self, K, p0, p1, sites,
                  evaluate_interim, num_burn_in, num_posterior_samples, analysis_names,
-                 true_response_rates=None, sites=None,
                  futility_cutoff=DEFAULT_FUTILITY_CUTOFF, efficacy_cutoff=DEFAULT_EFFICACY_CUTOFF,
                  early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
                  early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
@@ -247,34 +279,20 @@ class Trial():
         self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
 
-        assert len(enrollment) == len(evaluate_interim)
-        self.enrollment = enrollment
+        self.sites = sites
         self.evaluate_interim = evaluate_interim
 
-        if true_response_rates is not None:
-            assert len(true_response_rates) == K
-            assert sites is None
-        self.true_response_rates = true_response_rates
-
-        if sites is not None:
-            assert len(sites) == K
-            assert true_response_rates is None
-        self.sites = sites
-
         self.current_stage = 0
-        self.total_enrolled = 0
         self.iresults = None
-        self.sites = []
         self.analyses = {}
 
     def reset(self):
         self.current_stage = 0
-        self.total_enrolled = 0
         self.iresults = defaultdict(list)
 
-        # initialise K sites
-        if self.true_response_rates is not None:
-            self.sites = [Site(k, self.true_response_rates[k]) for k in range(self.K)]
+        # reset sites
+        for k in range(self.K):
+            self.sites[k].reset()
 
         # initialise all the models
         for analysis_name in self.analysis_names:
@@ -286,15 +304,13 @@ class Trial():
         return False
 
     def step(self):
-        num_patient = self.enrollment[self.current_stage]
-        self.total_enrolled += num_patient
-        print('\n########## Stage=%d Enrolled = %d ##########\n' % (
-            self.current_stage, self.total_enrolled))
+        print('\n########## Stage=%d ##########\n' % (
+            self.current_stage))
 
         # simulate enrollment
         for k in range(self.K):
             site = self.sites[k]
-            responses = site.enroll(num_patient)
+            responses = site.enroll()
 
             # register new patients to the right group in each model
             for analysis_name in self.analysis_names:
@@ -306,7 +322,7 @@ class Trial():
             print()
 
         # evaluate interim stages if needed
-        last_step = self.current_stage == (len(self.enrollment) - 1)
+        last_step = self.current_stage == (len(self.evaluate_interim) - 1)
         if self.evaluate_interim[self.current_stage]:
 
             # do inference at this stage
@@ -324,7 +340,7 @@ class Trial():
                      futility_cutoff, efficacy_cutoff,
                      early_futility_stop, early_efficacy_stop):
         assert analysis_name in ['independent', 'hierarchical', 'bhm']
-        total_steps = len(self.enrollment) - 1
+        total_steps = len(self.evaluate_interim) - 1
         if analysis_name == 'independent':
             return Independent(K, total_steps, p0, p_mid,
                                futility_cutoff, efficacy_cutoff,
