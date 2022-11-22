@@ -1,6 +1,7 @@
 name: pyBasket
 channels:
   - conda-forge
+  - pytorch
   - defaults
 dependencies:
   - numpy
@@ -14,6 +15,8 @@ dependencies:
   - ipywidgets
   - pymc
   - arviz
+  - pytorch
+  - torchvision
   - flake8
   - autopep8
   - pytest

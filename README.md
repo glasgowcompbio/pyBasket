@@ -13,7 +13,7 @@ Bayesian basket trial simulation in Python.
 4. In this environment, you could develop run the environment, train models etc by running
    notebooks (`$ jupyter lab`).
 
-***B. Managing Dependencies using Pipenv***
+***B. Managing Dependencies using Anaconda Python***
 
 1. Install Anaconda Python (https://www.anaconda.com/products/individual).
 2. In the cloned Github repo, run `$ conda env create --file environment.yml` to create a new
