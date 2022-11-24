@@ -114,4 +114,6 @@ dmypy.json
 .pyre/
 misc.xml
 .idea/*
-Velodrome_Test/Data
+Data
+Velodrome_Test/Velodrome
+Velodrome Train/Velodrome
