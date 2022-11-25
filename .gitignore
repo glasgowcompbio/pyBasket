@@ -115,5 +115,7 @@ dmypy.json
 misc.xml
 .idea/*
 Data
-Velodrome/VelodromeTrain
+Velodrome/TrainVelodrome
+Velodrome/TestVelodrome
 Velodrome/VelodromeTest
+Velodrome/VelodromeTrain

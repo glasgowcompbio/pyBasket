@@ -11,10 +11,11 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from FuncVelov3 import validate_workflow, train, plots, heldout_testF, \
-    set_best_params_from_paper
+from FuncVelov3 import validate_workflow, train, plots, \
+    heldout_test, heldout_testv3, \
+    set_best_params_from_paper, heldout_testF
 from NetVelo import get_network
-from TestLoadData import prep_data
+from LoadData import prep_train_data, prep_test_data
 
 # import sys
 # sys.setrecursionlimit(1000000)
@@ -24,17 +25,20 @@ from TestLoadData import prep_data
 # torch.set_num_threads(64)
 # matplotlib.use('Agg')
 
+
 def main():
     train_arg_parser = argparse.ArgumentParser()
-    train_arg_parser.add_argument("--drug", type=str, default='Erlotinib',
-                                  help='input drug to train a model')
+
+    choices = ['Docetaxel', 'Gemcitabine', 'Erlotinib', 'Paclitaxel']
+    train_arg_parser.add_argument("--drug", type=str, choices=choices,
+                                  help='input drug to train a model', required=True)
     train_arg_parser.add_argument("--data_root", type=str, default='../Data/',
                                   help="path to molecular and pharmacological data")
-    train_arg_parser.add_argument("--save_logs", type=str, default='./VelodromeTest/logs/',
+    train_arg_parser.add_argument("--save_logs", type=str, default='./logs/',
                                   help='path of folder to write log')
-    train_arg_parser.add_argument("--save_models", type=str, default='./VelodromeTest/models/',
+    train_arg_parser.add_argument("--save_models", type=str, default='./models/',
                                   help='folder for saving model')
-    train_arg_parser.add_argument("--save_results", type=str, default='./VelodromeTest/results/',
+    train_arg_parser.add_argument("--save_results", type=str, default='./results/',
                                   help='folder for saving model')
     train_arg_parser.add_argument("--hd", type=int, default=2, help='strcuture of the network')
     train_arg_parser.add_argument("--bs", type=int, default=64, help='strcuture of the network')
@@ -50,11 +54,12 @@ def main():
     train_arg_parser.add_argument("--epoch", type=int, default=30, help='number of epochs')
     train_arg_parser.add_argument("--seed", type=int, default=42, help='set the random seed')
     train_arg_parser.add_argument('--gpu', type=int, default=0, help='set using GPU or not')
-    train_arg_parser.add_argument('--best_params', type=int, default=0,
-                                  help='use best parameters from paper')
+    train_arg_parser.add_argument('--best_params', action='store_true', help='use best parameters from paper')
 
+    choices = ['train', 'test']
+    train_arg_parser.add_argument("--stage", choices=choices, required=True)
     args = train_arg_parser.parse_args()
-    set_best_params_from_paper(args, out_dir='VelodromeTest')
+    set_best_params_from_paper(args)
 
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -70,10 +75,19 @@ def main():
 
     device = torch.device("cuda:" + str(args.gpu) if torch.cuda.is_available() else "cpu")
 
-    if args.drug == "Docetaxel":
-        X_tr, Y_tr, X_U, TCGA_PRAD, TCGA_KIRC, gCSI_exprs_drug, gCSI_aac_drug = prep_data(args)
-    else:
-        X_tr, Y_tr, X_U, TCGA_PRAD, TCGA_KIRC, gCSI_exprs_drug, gCSI_aac_drug = prep_data(args)
+    if args.stage == 'train':
+        if args.drug == "Docetaxel":
+            X_tr, Y_tr, X_ts_1, Y_ts_1, X_ts_2, Y_ts_2, X_U = prep_train_data(args)
+        else:
+            X_tr, Y_tr, X_ts_1, Y_ts_1, X_ts_2, Y_ts_2, X_ts_3, Y_ts_3, X_U = prep_train_data(args)
+
+    elif args.stage == 'test':
+        if args.drug == "Docetaxel":
+            X_tr, Y_tr, X_U, TCGA_PRAD, TCGA_KIRC, gCSI_exprs_drug, gCSI_aac_drug = prep_test_data(
+                args)
+        else:
+            X_tr, Y_tr, X_U, TCGA_PRAD, TCGA_KIRC, gCSI_exprs_drug, gCSI_aac_drug = prep_test_data(
+                args)
 
     X_tr1 = X_tr[0]
     Y_tr1 = Y_tr[0]
@@ -109,10 +123,6 @@ def main():
     X1_train_N = scaler.transform(X1_train)
     X2_train_N = scaler.transform(X2_train)
     X_U_N = scaler.transform(X_U)
-
-    PRAD_N = torch.FloatTensor(scaler.transform(TCGA_PRAD.values))
-    KIRC_N = torch.FloatTensor(scaler.transform(TCGA_KIRC.values))
-    gCSI_N = torch.FloatTensor(scaler.transform(gCSI_exprs_drug.values))
 
     TX_val_N = torch.FloatTensor(scaler.transform(X_val))
     Ty_val = torch.FloatTensor(y_val)
@@ -187,8 +197,8 @@ def main():
     predict_1.eval()
     predict_2.eval()
 
-    _, _, preds = validate_workflow(args, model, predict_1, predict_2,
-                                    [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))],
+    ws = [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))]
+    _, _, preds = validate_workflow(args, model, predict_1, predict_2, ws,
                                     loss_fun, TX_val_N, Ty_val)
     total_val.append(preds.detach().numpy().flatten())
     total_aac.append(Ty_val.detach().numpy())
@@ -206,20 +216,57 @@ def main():
     f.write('---------------------------------\n')
     f.close()
 
-    ws = [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))]
-    r_gCSI_N, pval1, sr_gCSI_N, pval2, pred_PRAD, pred_KIRC = heldout_testF(
-        args, model, predict_1, predict_2, ws, PRAD_N, KIRC_N, gCSI_N, gCSI_aac_drug)
+    if args.stage == 'train':
 
-    f = open(os.path.join(args.save_results, 'gCSI-nonSolid.txt'), mode='a')
-    f.write('Test Pearson gCSI:{}\n'.format(r_gCSI_N))
-    f.write('P value Pearson gCSI:{}\n'.format(pval1))
-    f.write('---------------------------------\n')
-    f.close()
+        if args.drug == "Docetaxel":
+            ws = [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))]
+            test_1, test_s1, test_roc2, test_aupr2 = heldout_test(
+                args, model, predict_1, predict_2, ws, X_ts_1, Y_ts_1, X_ts_2, Y_ts_2, scaler)
 
-    np.savetxt(os.path.join(args.save_results, 'TCGA_PRAD.txt'), pred_PRAD)
+            f = open(os.path.join(args.save_results, 'Target.txt'), mode='a')
+            f.write('Test Pearson gCSI:{}\n'.format(test_1))
+            f.write('Test Spearman gCSI:{}\n'.format(test_s1))
+            f.write('---------------------------------\n')
+            f.write('ROC Patient:{}\n'.format(test_roc2))
+            f.write('AUPR Patient:{}\n'.format(test_aupr2))
+            f.write('---------------------------------\n')
+            f.close()
 
-    np.savetxt(os.path.join(args.save_results, 'TCGA_KIRC.txt'), pred_KIRC)
+        else:
+            ws = [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))]
+            test_1, test_s1, test_roc2, test_aupr2, test_roc3, test_aupr3 = heldout_testv3(
+                args, model, predict_1, predict_2, ws,
+                X_ts_1, Y_ts_1, X_ts_2, Y_ts_2, X_ts_3, Y_ts_3, scaler)
 
+            f = open(os.path.join(args.save_results, 'Target.txt'), mode='a')
+            f.write('Test Pearson gCSI:{}\n'.format(test_1))
+            f.write('Test Spearman gCSI:{}\n'.format(test_s1))
+            f.write('---------------------------------\n')
+            f.write('ROC Patient:{}\n'.format(test_roc2))
+            f.write('AUPR Patient:{}\n'.format(test_aupr2))
+            f.write('---------------------------------\n')
+            f.write('ROC PDX:{}\n'.format(test_roc3))
+            f.write('AUPR PDX:{}\n'.format(test_aupr3))
+            f.close()
+
+    elif args.stage == 'test':
+
+        PRAD_N = torch.FloatTensor(scaler.transform(TCGA_PRAD.values))
+        KIRC_N = torch.FloatTensor(scaler.transform(TCGA_KIRC.values))
+        gCSI_N = torch.FloatTensor(scaler.transform(gCSI_exprs_drug.values))
+
+        ws = [torch.mean(torch.stack(w1)), torch.mean(torch.stack(w2))]
+        r_gCSI_N, pval1, sr_gCSI_N, pval2, pred_PRAD, pred_KIRC = heldout_testF(
+            args, model, predict_1, predict_2, ws, PRAD_N, KIRC_N, gCSI_N, gCSI_aac_drug)
+
+        f = open(os.path.join(args.save_results, 'gCSI-nonSolid.txt'), mode='a')
+        f.write('Test Pearson gCSI:{}\n'.format(r_gCSI_N))
+        f.write('P value Pearson gCSI:{}\n'.format(pval1))
+        f.write('---------------------------------\n')
+        f.close()
+
+        np.savetxt(os.path.join(args.save_results, 'TCGA_PRAD.txt'), pred_PRAD)
+        np.savetxt(os.path.join(args.save_results, 'TCGA_KIRC.txt'), pred_KIRC)
 
 if __name__ == "__main__":
     main()

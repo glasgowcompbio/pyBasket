@@ -1,9 +1,9 @@
-import matplotlib.pyplot as plt
 import os
 from itertools import cycle
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.utils.data
@@ -121,7 +121,7 @@ def train(args, model, predict_1, predict_2, loss, opt, opt1, opt2, dataLoader_t
 def validate_workflow(args, model, predict_1, predict_2, ws, loss, TX_val_N, Ty_val):
     model.eval()
 
-    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=None)
+    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=0)
     w1 = w_n[0]
     w2 = w_n[1]
 
@@ -140,7 +140,7 @@ def validate_workflow(args, model, predict_1, predict_2, ws, loss, TX_val_N, Ty_
 
 def heldout_test(args, best_model, predict_1, predict_2, ws, X_ts_1, Y_ts_1, X_ts_2, Y_ts_2,
                  scaler):
-    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=None)
+    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=0)
     w1 = w_n[0]
     w2 = w_n[1]
 
@@ -213,7 +213,7 @@ def heldout_testv3(args, best_model, predict_1, predict_2, ws, X_ts_1, Y_ts_1, X
 
 def heldout_testF(args, best_model, predict_1, predict_2, ws, PRAD_N, KIRC_N, gCSI_N,
                   gCSI_aac_drug):
-    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=None)
+    w_n = torch.nn.functional.softmax(torch.stack(ws), dim=0)
     w1 = w_n[0]
     w2 = w_n[1]
 
@@ -322,7 +322,7 @@ def compute_covariance(input_data):
     else:
         device = torch.device('cpu')
 
-    id_row = torch.ones(n).resize(1, n).to(device=device)
+    id_row = torch.ones(n).reshape(1, n).to(device=device)
     sum_column = torch.mm(id_row, input_data)
     mean_column = torch.div(sum_column, n)
     term_mul_2 = torch.mm(mean_column.t(), mean_column)
@@ -332,10 +332,11 @@ def compute_covariance(input_data):
     return c
 
 
-def set_best_params_from_paper(args, out_dir='Velodrome'):
-    if args.best_params == 1:  # best parameters from paper
+def set_best_params_from_paper(args):
+    if args.best_params:  # best parameters from paper
         print('Using best parameters from the paper for %s' % args.drug)
 
+        out_dir = 'VelodromeTrain' if args.stage == 'train' else 'VelodromeTest'
         if args.drug == "Docetaxel":
             args.save_logs = './%s/%s/logs/' % (out_dir, args.drug)
             args.save_models = './%s/%s/models/' % (out_dir, args.drug)
