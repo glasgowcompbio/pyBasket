@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def Network(args, X):
+def get_network(args, X):
     IE_dim = X.shape[1]
 
     class Net1(nn.Module):
@@ -83,13 +83,13 @@ def Network(args, X):
             return out        
         
     if args.hd == 1:
-        Model = Net1(args)
+        model = Net1(args)
     elif args.hd == 2:
-        Model = Net2(args)
+        model = Net2(args)
     elif args.hd == 3:
-        Model = Net3(args)
+        model = Net3(args)
     elif args.hd == 4:
-        Model = Net4(args)        
+        model = Net4(args)
 
     class Pred(nn.Module):
         def __init__(self, args):
@@ -107,11 +107,12 @@ def Network(args, X):
 
         def forward(self, x):
             out = self.pred(x)
-            return out     
+            return out
+
     torch.manual_seed(args.seed)    
-    Predict_1 = Pred(args)
+    predict_1 = Pred(args)
     torch.manual_seed(args.seed*2)
-    Predict_2 = Pred(args)
+    predict_2 = Pred(args)
     torch.manual_seed(args.seed)
         
-    return Model, Predict_1, Predict_2
+    return model, predict_1, predict_2

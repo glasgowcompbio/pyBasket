@@ -134,8 +134,8 @@ def prep_data(args):
         PDX_Erlotinib = mapping(args.data_root + "PDX_exprs.Erlotinib.tsv", mapping_table)        
         idx_PDXErlo = PDX_Erlotinib.index
         
-        GSE33072R = pd.read_csv("../Data/GSE33072_response.Erlotinib.tsv", sep ="\t", index_col=0, decimal =",")
-        PDX_ErloR = pd.read_csv("../Data/PDX_response.multi-OMICS.Erlotinib.tsv", sep ="\t", index_col=0, decimal =",")
+        GSE33072R = pd.read_csv(args.data_root + "GSE33072_response.Erlotinib.tsv", sep = "\t", index_col=0, decimal = ",")
+        PDX_ErloR = pd.read_csv(args.data_root + "PDX_response.multi-OMICS.Erlotinib.tsv", sep = "\t", index_col=0, decimal = ",")
         
         idx = idx.intersection(idx_GSE33072)
         idx = idx.intersection(idx_PDXErlo)
