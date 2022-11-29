@@ -17,6 +17,7 @@ dependencies:
   - tqdm
   - pymc
   - arviz
+  - python-graphviz
   - pytorch
   - torchvision
   - mkl < 2022 # https://stackoverflow.com/questions/70830755/intel-mkl-fatal-error-this-system-does-not-meet-the-minimum-requirements-for-us/71640311#71640311
