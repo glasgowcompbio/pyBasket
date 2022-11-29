@@ -25,6 +25,15 @@ class Site(ABC):
         pass
 
 
+class PatientData():
+    def __init__(self, responses, features=None):
+        self.responses = responses
+        self.features = features
+
+    def __repr__(self):
+        return 'PatientData:\nresponses %s\nfeatures\n%s' % (self.responses, self.features)
+
+
 class TrueResponseSite(Site):
     '''
     A class to represent enrollment site.
@@ -41,13 +50,25 @@ class TrueResponseSite(Site):
         num_patient = self.enrollment[self.pos]
         responses = stats.binom.rvs(1, self.true_response_rate, size=num_patient)
         self.pos += 1
-        return responses
+        return PatientData(responses)
 
     def reset(self):
         self.pos = 0
 
     def __repr__(self):
         return 'Site %d: true θ=%.2f' % (self.idx, self.true_response_rate)
+
+
+class TrueResponseSiteWithFeatures(TrueResponseSite):
+    def __init__(self, site_id, true_response_rate, enrollment, n, pvals):
+        super().__init__(site_id, true_response_rate, enrollment)
+        self.n = n
+        self.pvals = pvals
+
+    def enroll(self):
+        patient_data = super().enroll()
+        features = np.random.multinomial(self.n, self.pvals, size=len(patient_data.responses)).T
+        return PatientData(patient_data.responses, features=features)
 
 
 class EmpiricalSite(Site):
@@ -59,7 +80,7 @@ class EmpiricalSite(Site):
         self.responses = np.array([1] * num_response + [0] * (sample_size - num_response))
 
     def enroll(self):
-        return self.responses
+        return PatientData(self.responses)
 
     def reset(self):
         pass
@@ -73,11 +94,15 @@ class Group():
     def __init__(self, group_id):
         self.idx = group_id
         self.responses = []
+        self.features = None
         self.status = GROUP_STATUS_OPEN
 
-    def register(self, responses):
-        self.responses.extend(responses)
-        return self.responses
+    def register(self, patient_data):
+        self.responses.extend(patient_data.responses)
+        if self.features is None:
+            self.features = patient_data.features
+        else:
+            self.features = np.concatenate([self.features, patient_data.features], axis=1)
 
     @property
     def response_indices(self):
@@ -310,14 +335,14 @@ class Trial():
         # simulate enrollment
         for k in range(self.K):
             site = self.sites[k]
-            responses = site.enroll()
+            patient_data = site.enroll()
 
             # register new patients to the right group in each model
             for analysis_name in self.analysis_names:
                 model = self.analyses[analysis_name]
                 group = model.groups[k]
                 if group.status == GROUP_STATUS_OPEN:
-                    group.register(responses)
+                    group.register(patient_data)
                 print('Analysis', analysis_name, group)
             print()
 
