@@ -67,7 +67,7 @@ class TrueResponseSiteWithFeatures(TrueResponseSite):
 
     def enroll(self):
         patient_data = super().enroll()
-        features = np.random.multinomial(self.n, self.pvals, size=len(patient_data.responses)).T
+        features = np.random.multinomial(self.n, self.pvals, size=len(patient_data.responses))
         return PatientData(patient_data.responses, features=features)
 
 
@@ -102,7 +102,7 @@ class Group():
         if self.features is None:
             self.features = patient_data.features
         else:
-            self.features = np.concatenate([self.features, patient_data.features], axis=1)
+            self.features = np.concatenate([self.features, patient_data.features], axis=0)
 
     @property
     def response_indices(self):
