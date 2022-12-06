@@ -8,6 +8,15 @@ import pymc as pm
 from IPython.display import display
 from scipy import stats
 
+import pylab as plt
+import seaborn as sns
+from loguru import logger
+
+from sklearn.decomposition import PCA
+from scipy.cluster.hierarchy import fclusterdata, fcluster, linkage, dendrogram
+from scipy.spatial.distance import squareform
+import scipy.cluster.hierarchy as shc
+
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
     GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
     GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
@@ -114,6 +123,103 @@ class Group():
         return 'Group %d (%s): %d/%d' % (self.idx, self.status, nnz, total)
 
 
+class ClusteringData():
+    def __init__(self, groups, true_response_rates):
+        self.groups = groups
+
+        all_features = []
+        all_classes = []
+        all_responses = []
+        for group in self.groups:
+            features = group.features
+            all_features.append(features)
+
+            N = group.features.shape[0]
+            group_class = [group.idx] * N
+            all_classes.extend(group_class)
+
+            all_responses.extend(group.responses)
+
+        self.features = np.concatenate(all_features)
+        self.classes = np.array(all_classes)
+        self.responses = np.array(all_responses)
+        self.dist = None
+        self.clusters = None
+
+    def PCA(self, n_components=5, plot_PCA=False):
+        pca = PCA(n_components=n_components)
+        pcs = pca.fit_transform(self.features)
+        pc1_values = pcs[:, 0]
+        pc2_values = pcs[:, 1]
+
+        if plot_PCA:
+            sns.set_context('poster')
+            plt.figure(figsize=(5, 5))
+            g = sns.scatterplot(x=pc1_values, y=pc2_values, hue=self.classes, palette='bright')
+            g.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
+            plt.show()
+            print('PCA explained variance', pca.explained_variance_ratio_.cumsum())
+
+    def compute_distance_matrix(self):
+        # a custom function that computes:
+        # the Euclidean distance if p1 and p2 are in different baskets
+        # or, returns 0 distance if p1 and p2 are in the same basket
+        def mydist(p1, p2, c1, c2):
+            if c1 == c2:
+                return 0
+            diff = p1 - p2
+            return np.vdot(diff, diff) ** 0.5
+
+        N = self.features.shape[0]
+        dist = np.zeros((N, N))
+        for i in range(N):
+            for j in range(N):
+                p1 = self.features[i]
+                p2 = self.features[j]
+                c1 = self.classes[i]
+                c2 = self.classes[j]
+                dist[i, j] = mydist(p1, p2, c1, c2)
+        self.dist = dist
+        return self.dist
+
+    def plot_distance_matrix(self):
+        sns.set_context('poster')
+        plt.matshow(self.dist)
+        plt.colorbar()
+        plt.show()
+
+    def cluster(self, plot_dendrogram=False, max_d=70):
+        condensed_dist = squareform(self.dist)
+        Z = linkage(condensed_dist, method='ward')
+        clusters = fcluster(Z, max_d, criterion='distance')
+
+        if plot_dendrogram:
+            plt.figure(figsize=(30, 10))
+            plt.title('Hierarchical Clustering Dendrogram')
+            plt.xlabel('sample index')
+            plt.ylabel('distance')
+            dendrogram(
+                Z,
+                leaf_rotation=90.,  # rotates the x axis labels
+                leaf_font_size=18,  # font size for the x axis labels
+            )
+            plt.ylim([-5, 120])
+            plt.axhline(y=max_d, color='r', linestyle='--')
+            for text in plt.gca().get_xticklabels():
+                pos = int(text.get_text())
+                if self.responses[pos] == 1:
+                    text.set_color('blue')
+                else:
+                    text.set_color('red')
+            plt.show()
+
+        self.clusters = clusters
+        return self.clusters
+
+    def __repr__(self):
+        return 'ClusteringData: %s %s' % (str(self.features.shape), str(self.classes.shape))
+
+
 class Analysis(ABC):
     def __init__(self, K, total_steps, p0, p_mid,
                  futility_cutoff, efficacy_cutoff,
@@ -133,6 +239,7 @@ class Analysis(ABC):
         self.groups = [Group(k) for k in range(self.K)]
         self.df = None
         self.model = None
+        self.clustering_data = None
 
     @abstractmethod
     def model_definition(self, ns, ks):
@@ -140,6 +247,10 @@ class Analysis(ABC):
 
     @abstractmethod
     def get_posterior_response(self):
+        pass
+
+    @abstractmethod
+    def clustering(self, **kwargs):
         pass
 
     def infer(self, current_step, num_posterior_samples, num_burn_in):
@@ -230,9 +341,25 @@ class Independent(Analysis):
             y = pm.Binomial('y', n=ns, p=θ, observed=ks)
             return model
 
+    def clustering(self, **kwargs):
+        pass
+
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
         return stacked.θ.values
+
+
+class IndependentWithClustering(Independent):
+    def clustering(self, plot_PCA=True, n_components=5, plot_distance=True, plot_dendrogram=True,
+                   max_d=60):
+        self.clustering_data = ClusteringData(self.groups, None)
+        self.clustering_data.PCA(n_components=n_components, plot_PCA=plot_PCA)
+
+        self.clustering_data.compute_distance_matrix()
+        if plot_distance:
+            self.clustering_data.plot_distance_matrix()
+
+        self.clustering_data.cluster(plot_dendrogram=plot_dendrogram, max_d=max_d)
 
 
 class Hierarchical(Analysis):
@@ -245,6 +372,9 @@ class Hierarchical(Analysis):
             y = pm.Binomial('y', n=ns, p=θ, observed=ks)
 
             return model
+
+    def clustering(self, **kwargs):
+        pass
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
@@ -264,6 +394,9 @@ class BHM(Analysis):
             y = pm.Binomial('y', n=ns, p=p, observed=ks)
 
             return model
+
+    def clustering(self, **kwargs):
+        pass
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
@@ -290,7 +423,8 @@ class Trial():
                  futility_cutoff=DEFAULT_FUTILITY_CUTOFF, efficacy_cutoff=DEFAULT_EFFICACY_CUTOFF,
                  early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
                  early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
-                 num_chains=DEFAULT_NUM_CHAINS):
+                 num_chains=DEFAULT_NUM_CHAINS, plot_PCA=True, n_components=5,
+                 plot_distance=True, plot_dendrogram = True, max_d = 60):
         self.K = K
         self.p0 = p0
         self.p1 = p1
@@ -303,6 +437,13 @@ class Trial():
         self.early_futility_stop = early_futility_stop
         self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
+
+        # clustering params
+        self.plot_PCA = plot_PCA
+        self.n_components = n_components
+        self.plot_distance = plot_distance
+        self.plot_dendrogram = plot_dendrogram
+        self.max_d = max_d
 
         self.sites = sites
         self.evaluate_interim = evaluate_interim
@@ -339,12 +480,20 @@ class Trial():
 
             # register new patients to the right group in each model
             for analysis_name in self.analysis_names:
-                model = self.analyses[analysis_name]
-                group = model.groups[k]
+                analysis = self.analyses[analysis_name]
+                group = analysis.groups[k]
                 if group.status == GROUP_STATUS_OPEN:
                     group.register(patient_data)
-                print('Analysis', analysis_name, group)
+                print('Registering', group, 'for Analysis', analysis_name)
             print()
+
+        # perform clustering if necessary
+        for analysis_name in self.analysis_names:
+            print('Clustering for', analysis_name)
+            analysis = self.analyses[analysis_name]
+            analysis.clustering(plot_PCA=self.plot_PCA, n_components=self.n_components,
+                                plot_distance=self.plot_distance, plot_dendrogram=self.plot_dendrogram,
+                                max_d=self.max_d)
 
         # evaluate interim stages if needed
         last_step = self.current_stage == (len(self.evaluate_interim) - 1)
@@ -353,10 +502,11 @@ class Trial():
             # do inference at this stage
             for analysis_name in self.analysis_names:
                 print('Running inference for:', analysis_name)
-                model = self.analyses[analysis_name]
-                df = model.infer(self.current_stage, self.num_posterior_samples, self.num_burn_in)
+                analysis = self.analyses[analysis_name]
+                df = analysis.infer(self.current_stage, self.num_posterior_samples,
+                                    self.num_burn_in)
                 display(df)
-                self.iresults[analysis_name].append(model.idata)
+                self.iresults[analysis_name].append(analysis.idata)
 
         self.current_stage += 1
         return last_step
@@ -364,13 +514,19 @@ class Trial():
     def get_analysis(self, analysis_name, K, p0, p_mid,
                      futility_cutoff, efficacy_cutoff,
                      early_futility_stop, early_efficacy_stop):
-        assert analysis_name in ['independent', 'hierarchical', 'bhm']
+        assert analysis_name in ['independent', 'independent_with_clustering',
+                                 'hierarchical', 'bhm']
         total_steps = len(self.evaluate_interim) - 1
         if analysis_name == 'independent':
             return Independent(K, total_steps, p0, p_mid,
                                futility_cutoff, efficacy_cutoff,
                                early_futility_stop, early_efficacy_stop,
                                self.num_chains)
+        if analysis_name == 'independent_with_clustering':
+            return IndependentWithClustering(K, total_steps, p0, p_mid,
+                                             futility_cutoff, efficacy_cutoff,
+                                             early_futility_stop, early_efficacy_stop,
+                                             self.num_chains)
         elif analysis_name == 'hierarchical':
             return Hierarchical(K, total_steps, p0, p_mid,
                                 futility_cutoff, efficacy_cutoff,
@@ -383,16 +539,25 @@ class Trial():
                        self.num_chains)
 
     def visualise_model(self, analysis_name):
-        analysis = self.analyses[analysis_name]
-        display(pm.model_to_graphviz(analysis.model))
+        try:
+            analysis = self.analyses[analysis_name]
+            display(pm.model_to_graphviz(analysis.model))
+        except TypeError:
+            print('No model to visualise')
 
     def plot_trace(self, analysis_name, pos):
-        idata = self.iresults[analysis_name][pos]
-        az.plot_trace(idata)
+        try:
+            idata = self.iresults[analysis_name][pos]
+            az.plot_trace(idata)
+        except IndexError:
+            print('No model to visualise')
 
     def plot_posterior(self, analysis_name, pos):
-        idata = self.iresults[analysis_name][pos]
-        az.plot_posterior(idata)
+        try:
+            idata = self.iresults[analysis_name][pos]
+            az.plot_posterior(idata)
+        except IndexError:
+            print('No model to visualise')
 
     def final_report(self, analysis_name):
         analysis = self.analyses[analysis_name]
