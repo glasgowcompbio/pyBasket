@@ -20,7 +20,8 @@ import scipy.cluster.hierarchy as shc
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
     GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
     GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
-    GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE
+    GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, \
+    MODEL_INDEPENDENT, MODEL_HIERARCHICAL, MODEL_BHM, MODEL_CLUSTERING, save_obj
 
 
 class Site(ABC):
@@ -124,7 +125,7 @@ class Group():
 
 
 class ClusteringData():
-    def __init__(self, groups, true_response_rates):
+    def __init__(self, groups):
         self.groups = groups
 
         all_features = []
@@ -215,6 +216,15 @@ class ClusteringData():
 
         self.clusters = clusters
         return self.clusters
+
+    def to_df(self):
+        N = self.responses.shape[0]
+        data = []
+        for n in range(N):
+            row = [self.responses[n], self.classes[n], self.clusters[n], self.features[n]]
+            data.append(row)
+        df = pd.DataFrame(data, columns=['response', 'class', 'cluster', 'features'])
+        return df
 
     def __repr__(self):
         return 'ClusteringData: %s %s' % (str(self.features.shape), str(self.classes.shape))
@@ -349,10 +359,10 @@ class Independent(Analysis):
         return stacked.θ.values
 
 
-class IndependentWithClustering(Independent):
+class HierarchicalWithClustering(Independent):
     def clustering(self, plot_PCA=True, n_components=5, plot_distance=True, plot_dendrogram=True,
                    max_d=60):
-        self.clustering_data = ClusteringData(self.groups, None)
+        self.clustering_data = ClusteringData(self.groups)
         self.clustering_data.PCA(n_components=n_components, plot_PCA=plot_PCA)
 
         self.clustering_data.compute_distance_matrix()
@@ -424,7 +434,8 @@ class Trial():
                  early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
                  early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
                  num_chains=DEFAULT_NUM_CHAINS, plot_PCA=True, n_components=5,
-                 plot_distance=True, plot_dendrogram = True, max_d = 60):
+                 plot_distance=True, plot_dendrogram=True, max_d=60,
+                 save_analysis=False):
         self.K = K
         self.p0 = p0
         self.p1 = p1
@@ -447,6 +458,7 @@ class Trial():
 
         self.sites = sites
         self.evaluate_interim = evaluate_interim
+        self.save_analysis = save_analysis
 
         self.current_stage = 0
         self.iresults = None
@@ -485,6 +497,7 @@ class Trial():
                 if group.status == GROUP_STATUS_OPEN:
                     group.register(patient_data)
                 print('Registering', group, 'for Analysis', analysis_name)
+
             print()
 
         # perform clustering if necessary
@@ -508,31 +521,35 @@ class Trial():
                 display(df)
                 self.iresults[analysis_name].append(analysis.idata)
 
+        for analysis_name in self.analysis_names:
+            if self.save_analysis:
+                save_obj(analysis, '%s_%d.p' % (analysis_name, self.current_stage))
+
         self.current_stage += 1
         return last_step
 
     def get_analysis(self, analysis_name, K, p0, p_mid,
                      futility_cutoff, efficacy_cutoff,
                      early_futility_stop, early_efficacy_stop):
-        assert analysis_name in ['independent', 'independent_with_clustering',
-                                 'hierarchical', 'bhm']
+        assert analysis_name in [MODEL_INDEPENDENT, MODEL_CLUSTERING,
+                                 MODEL_HIERARCHICAL, MODEL_BHM]
         total_steps = len(self.evaluate_interim) - 1
-        if analysis_name == 'independent':
+        if analysis_name == MODEL_INDEPENDENT:
             return Independent(K, total_steps, p0, p_mid,
                                futility_cutoff, efficacy_cutoff,
                                early_futility_stop, early_efficacy_stop,
                                self.num_chains)
-        if analysis_name == 'independent_with_clustering':
-            return IndependentWithClustering(K, total_steps, p0, p_mid,
+        if analysis_name == MODEL_CLUSTERING:
+            return HierarchicalWithClustering(K, total_steps, p0, p_mid,
                                              futility_cutoff, efficacy_cutoff,
                                              early_futility_stop, early_efficacy_stop,
                                              self.num_chains)
-        elif analysis_name == 'hierarchical':
+        elif analysis_name == MODEL_HIERARCHICAL:
             return Hierarchical(K, total_steps, p0, p_mid,
                                 futility_cutoff, efficacy_cutoff,
                                 early_futility_stop, early_efficacy_stop,
                                 self.num_chains)
-        elif analysis_name == 'bhm':
+        elif analysis_name == MODEL_BHM:
             return BHM(K, total_steps, p0, p_mid,
                        futility_cutoff, efficacy_cutoff,
                        early_futility_stop, early_efficacy_stop,

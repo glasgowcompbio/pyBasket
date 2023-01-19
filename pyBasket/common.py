@@ -1,4 +1,11 @@
-DEFAULT_NUM_CHAINS = None # let pymc decide
+import gzip
+import os
+import pathlib
+import pickle
+
+from loguru import logger
+
+DEFAULT_NUM_CHAINS = None  # let pymc decide
 DEFAULT_EFFICACY_CUTOFF = 0.90
 DEFAULT_FUTILITY_CUTOFF = 0.05
 DEFAULT_EARLY_FUTILITY_STOP = False
@@ -9,3 +16,68 @@ GROUP_STATUS_EARLY_STOP_FUTILE = 'EARLY_STOP_FUTILE'
 GROUP_STATUS_EARLY_STOP_EFFECTIVE = 'EARLY_STOP_EFFECTIVE'
 GROUP_STATUS_COMPLETED_INEFFECTIVE = 'COMPLETED_INEFFECTIVE'
 GROUP_STATUS_COMPLETED_EFFECTIVE = 'COMPLETED_EFFECTIVE'
+
+MODEL_INDEPENDENT = 'independent'
+MODEL_HIERARCHICAL = 'hierarchical'
+MODEL_BHM = 'bhm'
+MODEL_CLUSTERING = 'clustering'
+
+
+def create_if_not_exist(out_dir):
+    """
+    Creates a directory if it doesn't already exist
+    Args:
+        out_dir: the directory to create, if it doesn't exist
+
+    Returns: None.
+
+    """
+    if not pathlib.Path(out_dir).exists():
+        logger.info('Created %s' % out_dir)
+        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+
+def save_obj(obj, filename):
+    """
+    Save object to file. This is useful for storing simulation results and other objects.
+
+    If the directory containing the specified filename doesn't exist, it will be created first.
+    The object will be saved using gzip + pickle (highest protocol).
+
+    Args:
+        obj: the Python object to save
+        filename: the output filename to use
+
+    Returns: None
+    """
+
+    # workaround for
+    # TypeError: can't pickle _thread.lock objects
+    # when trying to pickle a progress bar
+    if hasattr(obj, 'bar'):
+        obj.bar = None
+
+    out_dir = os.path.dirname(filename)
+    create_if_not_exist(out_dir)
+    logger.info('Saving %s to %s' % (type(obj), filename))
+    with gzip.GzipFile(filename, 'w') as f:
+        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def load_obj(filename):
+    """
+    Load saved object from file
+
+    Args:
+        filename: The filename to load. Should be saved using the `save_obj` method.
+
+    Returns: the loaded object
+
+    """
+    try:
+        with gzip.GzipFile(filename, 'rb') as f:
+            return pickle.load(f)
+    except OSError:
+        logger.warning('Old, invalid or missing pickle in %s. '
+                       'Please regenerate this file.' % filename)
+        raise
