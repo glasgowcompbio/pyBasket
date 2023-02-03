@@ -9,17 +9,17 @@ import pandas as pd
 import arviz as az
 
 from pyBasket.env import Trial, TrueResponseSiteWithFeatures
-from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF
+from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, MODEL_LOGRES
 
 DEBUG = True
 
-num_burn_in = 1E5
-num_posterior_samples = 1E5
+num_burn_in = 5E4
+num_posterior_samples = 5E4
 num_chains = None # let pymc decide
 
 if DEBUG:
-    num_burn_in = 5E4
-    num_posterior_samples = 5E4
+    num_burn_in = 1E4
+    num_posterior_samples = 1E4
     num_chains = 1
 
 K = 6    # the number of groups
@@ -42,8 +42,8 @@ for k in range(K):
     site = TrueResponseSiteWithFeatures(k, true_response_rate, enrollment, n, pvals)
     sites.append(site)
 
-evaluate_interim = [True, True] # evaluate every interim stage
-analysis_names = ['independent', 'hierarchical', 'bhm']
+evaluate_interim = [True] # evaluate every interim stage
+analysis_names = [MODEL_LOGRES]
 
 futility_cutoff = DEFAULT_FUTILITY_CUTOFF
 efficacy_cutoff = DEFAULT_EFFICACY_CUTOFF
