@@ -106,7 +106,7 @@ def get_model_logres_nc(data_df):
         z_β = pm.Normal('z_beta', mu=0, sigma=1, dims='cluster')
 
         # Define hyper-priors
-        μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)
+        μ_α = pm.Normal('mu_alpha', mu=0, sigma=3)
         σ_α = pm.HalfNormal('sigma_alpha', sigma=3)
         σ_β = pm.HalfNormal('sigma_beta', sigma=3, dims='cluster')
 
