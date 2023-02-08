@@ -25,7 +25,7 @@ def get_model_bhm(data_df):
     with pm.Model(coords=coords) as model:
         # hyper-priors
         μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)
-        σ_α = pm.HalfNormal('sigma_alpha', sigma=10)
+        σ_α = pm.InverseGamma('sigma_alpha', alpha=0.0005, beta=0.000005)
 
         # priors
         α = pm.Normal('alpha', mu=μ_α, sigma=σ_α, dims='basket')
@@ -51,7 +51,7 @@ def get_model_bhm_nc(data_df):
 
         # Define hyper-priors
         μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)
-        σ_α = pm.HalfNormal('sigma_alpha', sigma=10)
+        σ_α = pm.InverseGamma('sigma_alpha', alpha=0.0005, beta=0.000005)
 
         # Define priors
         α = pm.Deterministic('alpha', μ_α + (z_α * σ_α), dims='basket')
