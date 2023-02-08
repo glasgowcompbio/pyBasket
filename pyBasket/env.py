@@ -7,7 +7,7 @@ import pymc as pm
 from IPython.display import display
 from scipy import stats
 
-from pyBasket.model import Simple, BHM, LogisticRegression
+from pyBasket.analysis import Simple, BHM, LogisticRegression
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
     GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
     MODEL_SIMPLE, MODEL_BHM, MODEL_LOGRES, save_obj, DEFAULT_TARGET_ACCEPT
