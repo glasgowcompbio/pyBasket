@@ -75,9 +75,9 @@ def get_model_logres(data_df):
         s_k = pm.ConstantData('data', df, dims=('basket', 'cluster'))
 
         # hyper-priors
-        μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)
-        σ_α = pm.HalfNormal('sigma_alpha', sigma=10)
-        σ_β = pm.HalfNormal('sigma_beta', sigma=10, dims='cluster')
+        μ_α = pm.Normal('mu_alpha', mu=0, sigma=3)
+        σ_α = pm.HalfNormal('sigma_alpha', sigma=3)
+        σ_β = pm.HalfNormal('sigma_beta', sigma=3, dims='cluster')
 
         # priors
         α = pm.Normal('alpha', mu=μ_α, sigma=σ_α, dims='basket')
@@ -107,8 +107,8 @@ def get_model_logres_nc(data_df):
 
         # Define hyper-priors
         μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)
-        σ_α = pm.HalfNormal('sigma_alpha', sigma=10)
-        σ_β = pm.HalfNormal('sigma_beta', sigma=10, dims='cluster')
+        σ_α = pm.HalfNormal('sigma_alpha', sigma=3)
+        σ_β = pm.HalfNormal('sigma_beta', sigma=3, dims='cluster')
 
         # Define priors
         α = pm.Deterministic('alpha', μ_α + (z_α * σ_α), dims='basket')
