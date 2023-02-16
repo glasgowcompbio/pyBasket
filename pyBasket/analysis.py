@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 
-from model import model_simple, model_bhm, model_logres
+from pyBasket.model import get_model_simple, get_model_bhm, get_model_logres
 from pyBasket.clustering import SameBasketClustering
 from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
     GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
@@ -71,7 +71,7 @@ class Analysis(ABC):
 
             cluster_df = cluster_df.fillna(0)
             data_df = pd.concat([cluster_df, data_df], axis=1)
-        print(data_df)
+        # print(data_df)
 
         # create model and draw posterior samples
         self.model = self.model_definition(data_df)
@@ -150,7 +150,7 @@ class Analysis(ABC):
 
 class Simple(Analysis):
     def model_definition(self, data_df):
-        return model_simple(data_df)
+        return get_model_simple(data_df)
 
     def clustering(self, **kwargs):
         pass
@@ -162,7 +162,7 @@ class Simple(Analysis):
 
 class LogisticRegression(Analysis):
     def model_definition(self, data_df):
-        return model_logres(data_df)
+        return get_model_logres(data_df)
 
     def clustering(self, plot_PCA=True, n_components=5, plot_distance=True, plot_dendrogram=True,
                    max_d=60):
@@ -186,7 +186,7 @@ class LogisticRegression(Analysis):
 
 class BHM(Analysis):
     def model_definition(self, data_df):
-        return model_bhm(data_df)
+        return get_model_bhm(data_df)
 
     def clustering(self, **kwargs):
         pass
