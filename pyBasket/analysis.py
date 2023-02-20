@@ -59,17 +59,7 @@ class Analysis(ABC):
             # print(classes)
             # print(clusters)
 
-            unique_clusters = np.unique(clusters)
-            unique_classes = np.unique(classes)
-
-            cluster_df = pd.DataFrame(index=unique_classes)
-            for i, cluster in enumerate(unique_clusters):
-                cluster_members = classes[clusters == cluster]
-                unique_class_counts, counts = np.unique(cluster_members, return_counts=True)
-                proportion = counts / cluster_members.shape[0]
-                cluster_df['sk_' + str(i)] = pd.Series(dict(zip(unique_class_counts, proportion)))
-
-            cluster_df = cluster_df.fillna(0)
+            cluster_df = self.get_cluster_df(classes, clusters)
             data_df = pd.concat([cluster_df, data_df], axis=1)
         # print(data_df)
 
@@ -83,6 +73,20 @@ class Analysis(ABC):
         # generate df to report the futility and efficacy
         self.df = self._check_futility_efficacy(current_step)
         return self.df
+
+    def get_cluster_df(self, class_labels, cluster_labels):
+        unique_clusters = np.unique(cluster_labels)
+        unique_classes = np.unique(class_labels)
+        cluster_df = pd.DataFrame(index=unique_classes)
+
+        for i, cluster in enumerate(unique_clusters):
+            cluster_members = class_labels[cluster_labels == cluster]
+            unique_class_counts, counts = np.unique(cluster_members, return_counts=True)
+            proportion = counts / cluster_members.shape[0]
+            cluster_df['sk_' + str(i)] = pd.Series(dict(zip(unique_class_counts, proportion)))
+
+        cluster_df = cluster_df.fillna(0)
+        return cluster_df
 
     def group_report(self):
         data = []
