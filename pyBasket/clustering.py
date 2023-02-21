@@ -111,3 +111,60 @@ class SameBasketClustering():
 
     def __repr__(self):
         return 'ClusteringData: %s %s' % (str(self.features.shape), str(self.classes.shape))
+
+
+def get_cluster_df_by_cluster(class_labels, cluster_labels):
+    # for each cluster, count the proportions of basket containing its member
+    unique_clusters = np.unique(cluster_labels)
+    unique_classes = np.unique(class_labels)
+    cluster_df = pd.DataFrame(index=unique_classes)
+
+    for i, cluster in enumerate(unique_clusters):
+        cluster_members = class_labels[cluster_labels == cluster]
+        unique_class_counts, counts = np.unique(cluster_members, return_counts=True)
+        proportion = counts / cluster_members.shape[0]
+        cluster_df['s_k' + str(cluster)] = pd.Series(dict(zip(unique_class_counts, proportion)))
+
+    cluster_df = cluster_df.fillna(0)
+    return cluster_df
+
+
+def get_cluster_df_by_basket(class_labels, cluster_labels):
+    # for each basket, count the proportions of clusters containing its member
+
+    unique_class_labels = np.unique(class_labels)  # get the unique class labels
+    unique_cluster_labels = np.unique(cluster_labels)  # get the unique cluster labels
+
+    result = {class_label: {cluster_label: 0 for cluster_label in unique_cluster_labels} for
+              class_label in unique_class_labels}
+
+    for class_label in unique_class_labels:
+        indices = np.where(class_labels == class_label)[
+            0]  # get the indices of the elements with this class label
+        total_members = len(indices)  # get the total number of members of this class
+        for cluster_label in np.unique(cluster_labels):
+            count = np.sum(cluster_labels[
+                               indices] == cluster_label)  # count how many members are in this cluster
+            proportion = count / total_members  # compute the proportion of members in this cluster
+            result[class_label][cluster_label] = proportion
+
+    df = pd.DataFrame(result)
+    df = df.transpose()
+    df.index = unique_class_labels
+    df.columns = ['sk_%d' % cl for cl in unique_cluster_labels]
+    return df
+
+
+def plot_PCA(df, n_components=10, hue=None, style=None):
+    pca = PCA(n_components=n_components)
+    pcs = pca.fit_transform(df)
+    pc1_values = pcs[:, 0]
+    pc2_values = pcs[:, 1]
+
+    sns.set_context('poster')
+    plt.figure(figsize=(10, 5))
+    g = sns.scatterplot(x=pc1_values, y=pc2_values, hue=hue, style=style, palette='bright')
+    g.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1, fontsize=12)
+    plt.show()
+    print('PCA explained variance', pca.explained_variance_ratio_.cumsum())
+    return pc1_values, pc2_values
