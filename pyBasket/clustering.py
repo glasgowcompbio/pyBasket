@@ -129,7 +129,7 @@ def get_cluster_df_by_cluster(class_labels, cluster_labels):
     return cluster_df
 
 
-def get_cluster_df_by_basket(class_labels, cluster_labels):
+def get_cluster_df_by_basket(class_labels, cluster_labels, normalise=True):
     # for each basket, count the proportions of clusters containing its member
 
     unique_class_labels = np.unique(class_labels)  # get the unique class labels
@@ -145,7 +145,10 @@ def get_cluster_df_by_basket(class_labels, cluster_labels):
         for cluster_label in np.unique(cluster_labels):
             count = np.sum(cluster_labels[
                                indices] == cluster_label)  # count how many members are in this cluster
-            proportion = count / total_members  # compute the proportion of members in this cluster
+            if normalise:
+                proportion = count / total_members  # compute the proportion of members in this cluster
+            else:
+                proportion = count
             result[class_label][cluster_label] = proportion
 
     df = pd.DataFrame(result)
