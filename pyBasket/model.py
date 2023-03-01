@@ -121,3 +121,107 @@ def get_model_logres_nc(data_df):
         # Define the likelihood
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
         return model
+
+
+def get_patient_model_simple(data_df):
+    n_baskets = len(data_df['basket_number'].unique())
+    n_clusters = len(data_df['cluster_number'].unique())
+
+    with pm.Model() as model:
+        # prior probability of each basket being responsive
+        basket_p = pm.Beta('basket_p', alpha=2, beta=5, shape=n_baskets)
+
+        # prior probability of each cluster being responsive
+        cluster_p = pm.Beta('cluster_p', alpha=5, beta=2, shape=n_clusters)
+
+        # responsive is a product of each combination of basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+        y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[cluster_idx],
+                         observed=is_responsive)
+        return model
+
+
+def get_patient_model_hierarchical(data_df):
+    n_baskets = len(data_df['basket_number'].unique())
+    n_clusters = len(data_df['cluster_number'].unique())
+
+    with pm.Model() as model:
+        # hyperpriors for basket_p and cluster_p
+        basket_alpha = pm.Beta('basket_alpha', alpha=1, beta=1)
+        basket_beta = pm.Beta('basket_beta', alpha=1, beta=1)
+        cluster_alpha = pm.Beta('cluster_alpha', alpha=1, beta=1)
+        cluster_beta = pm.Beta('cluster_beta', alpha=1, beta=1)
+
+        # prior probability of each basket being responsive
+        basket_p = pm.Beta('basket_p', alpha=basket_alpha, beta=basket_beta, shape=n_baskets)
+
+        # prior probability of each cluster being responsive
+        cluster_p = pm.Beta('cluster_p', alpha=cluster_alpha, beta=cluster_beta, shape=n_clusters)
+
+        # responsive is a product of each combination of basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+        y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[cluster_idx],
+                         observed=is_responsive)
+        return model
+
+
+def get_patient_model_hierarchical_log_odds(data_df):
+    n_baskets = len(data_df['basket_number'].unique())
+    n_clusters = len(data_df['cluster_number'].unique())
+
+    with pm.Model() as model:
+        # Define hyper-priors
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=1.5)
+        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=1.5)
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1)
+
+        # Define priors
+        basket_θ = pm.Normal('basket_theta', mu=μ_basket, sigma=σ_basket, shape=n_baskets)
+        cluster_θ = pm.Normal('cluster_theta', mu=μ_cluster, sigma=σ_cluster, shape=n_clusters)
+
+        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ))
+        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ))
+
+        # responsive is a product of each combination of basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+
+        p = basket_p[basket_idx] * cluster_p[cluster_idx]
+        y = pm.Bernoulli('y', p=p, observed=is_responsive)
+        return model
+
+def get_patient_model_hierarchical_log_odds_nc(data_df):
+    n_baskets = len(data_df['basket_number'].unique())
+    n_clusters = len(data_df['cluster_number'].unique())
+
+    with pm.Model() as model:
+        z_basket = pm.Normal('z_basket', mu=0, sigma=1, shape=n_baskets)
+        z_cluster = pm.Normal('z_cluster', mu=0, sigma=1, shape=n_clusters)
+
+        # Define hyper-priors
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=3)
+        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=3)
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1)
+
+        # Define priors
+        α = μ_basket + (z_basket * σ_basket)
+        β = μ_cluster + (z_cluster * σ_cluster)
+
+        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(α))
+        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(β))
+
+        # responsive is a product of each combination of basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+
+        p = basket_p[basket_idx] * cluster_p[cluster_idx]
+        y = pm.Bernoulli('y', p=p, observed=is_responsive)
+        return model

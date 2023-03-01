@@ -171,3 +171,15 @@ def plot_PCA(df, n_components=10, hue=None, style=None):
     plt.show()
     print('PCA explained variance', pca.explained_variance_ratio_.cumsum())
     return pc1_values, pc2_values
+
+
+def get_patient_df(df_filtered, cluster_labels):
+    data = df_filtered.set_index('samples')
+
+    data['basket_number'] = pd.factorize(df_filtered['tissues'])[0]
+    data['cluster_number'] = cluster_labels
+
+    aac_thresh = df_filtered['responses'].median()
+    data['responsive'] = data['responses'] < aac_thresh
+    data['responsive'] = data['responsive'].astype(int)
+    return data
