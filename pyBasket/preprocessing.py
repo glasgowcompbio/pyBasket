@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import KFold
@@ -78,6 +79,13 @@ def check_rf(expr_df_selected, drug_response, test_size=0.2):
     mse_test = mean_squared_error(y_test, y_test_pred)
     r2_test = r2_score(y_test, y_test_pred)
 
+    # Rank the importance of each gene based on the decrease in the impurity measure
+    importance_score = rf_final.feature_importances_
+
     print('Test set results using selected features:')
     print('MSE:', mse_test)
     print('R^2:', r2_test)
+
+    importance_df = pd.DataFrame({'importance_score': importance_score}).set_index(
+        expr_df_selected.columns.values)
+    return importance_df
