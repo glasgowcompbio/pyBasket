@@ -158,14 +158,14 @@ def get_cluster_df_by_basket(class_labels, cluster_labels, normalise=True):
     return df
 
 
-def plot_PCA(df, n_components=10, hue=None, style=None, palette='bright'):
+def plot_PCA(df, n_components=10, hue=None, style=None, palette='bright', return_fig=False):
     pca = PCA(n_components=n_components)
     pcs = pca.fit_transform(df)
     pc1_values = pcs[:, 0]
     pc2_values = pcs[:, 1]
 
     sns.set_context('poster')
-    plt.figure(figsize=(10, 5))
+    fig = plt.figure(figsize=(10, 5))
 
     palette = None if hue is None else palette
     g = sns.scatterplot(x=pc1_values, y=pc2_values, hue=hue, style=style, palette=palette)
@@ -173,7 +173,11 @@ def plot_PCA(df, n_components=10, hue=None, style=None, palette='bright'):
         g.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1, fontsize=12)
 
     print('PCA explained variance', pca.explained_variance_ratio_.cumsum())
-    return pc1_values, pc2_values
+
+    if return_fig:
+        return pc1_values, pc2_values, fig
+    else:
+        return pc1_values, pc2_values
 
 
 def get_patient_df(df_filtered, cluster_labels):

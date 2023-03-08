@@ -23,12 +23,15 @@ def get_predicted_basket_df(save_data):
     return predicted_basket_df
 
 
-def plot_basket_probs(df):
-    plt.figure(figsize=(12, 3))
+def plot_basket_probs(df, return_fig=False):
+    fig = plt.figure(figsize=(12, 3))
     ax = sns.barplot(data=df, x=df.index, y='prob')
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     plt.title('Inferred basket response')
     plt.ylabel('Response probability')
+    plt.ylim([0, 1])
+    if return_fig:
+        return fig
 
 
 def get_basket_cluster_prob_df(save_data):
@@ -43,16 +46,21 @@ def get_basket_cluster_prob_df(save_data):
     return inferred_df
 
 
-def plot_basket_cluster_heatmap(df, x_highlight, y_highlight):
-    plt.figure(figsize=(7, 7))
-    sns.heatmap(data=df, cmap='Blues')
+def plot_basket_cluster_heatmap(df, x_highlight=None, y_highlight=None, return_fig=False):
+    fig = plt.figure(figsize=(10, 10))
+    sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
     plt.title('Inferred basket/cluster combination')
     plt.xlabel('Clusters')
     plt.ylabel('Baskets')
+    plt.yticks(fontsize=8)
 
     # Highlight a single cell by drawing a rectangle around it
-    plt.gca().add_patch(
-        plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+    if x_highlight is not None and y_highlight is not None:
+        plt.gca().add_patch(
+            plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+
+    if return_fig:
+        return fig
 
 
 def find_top_k_indices(save_data, k):
@@ -137,7 +145,7 @@ def get_member_counts(save_data, df):
     return count_df
 
 
-def plot_responsive_count(selected_df):
+def plot_responsive_count(selected_df, return_fig=False):
     non_responsive_count = np.sum(selected_df['responsive'] == 0)
     responsive_count = np.sum(selected_df['responsive'] == 1)
     count_df = pd.DataFrame({
@@ -145,11 +153,14 @@ def plot_responsive_count(selected_df):
         'count': [non_responsive_count, responsive_count]
     })
 
-    plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(5, 5))
     ax = sns.barplot(data=count_df, x='response', y='count')
     ax.set_xticklabels([0, 1])
     plt.title('Sample count')
     plt.xlabel(None)
+
+    if return_fig:
+        return fig
 
 
 def get_member_expression(selected_df, save_data):
@@ -159,7 +170,7 @@ def get_member_expression(selected_df, save_data):
     return member_df
 
 
-def plot_bicluster_partition(member_df):
+def plot_bicluster_partition(member_df, return_fig=False):
     # perform biclustering using Spectral Co-Clustering
     model = SpectralCoclustering(n_clusters=10, random_state=0)
     model.fit(member_df.values)
@@ -167,7 +178,11 @@ def plot_bicluster_partition(member_df):
     # reorder rows and columns based on bicluster assignments
     member_df_reorder = member_df.iloc[np.argsort(model.row_labels_)]
     member_df_reorder = member_df_reorder.iloc[:, np.argsort(model.column_labels_)]
+
+    fig = plt.figure()
     sns.heatmap(member_df_reorder)
+    if return_fig:
+        return fig
 
 
 def df_diff(df1, df2):
@@ -203,11 +218,13 @@ def ttest_dataframe(df1, df2, only_significant=False):
     return results_df.set_index('Feature')
 
 
-def plot_expression_boxplot(selected_feature, member_df, all_expr_df):
+def plot_expression_boxplot(selected_feature, member_df, all_expr_df, return_fig=False):
     fig, ax = plt.subplots(figsize=(5, 5))
     data = [member_df[selected_feature].values, all_expr_df[selected_feature].values]
     positions = [1, 2]
 
-    ax.boxplot(data, positions=positions, labels=['Members', 'All'])
+    ax.boxplot(data, positions=positions, labels=['Members', 'Non-members'])
     ax.set_title(selected_feature)
     ax.set_ylabel('Normalised Count')
+    if return_fig:
+        return fig
