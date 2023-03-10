@@ -183,7 +183,7 @@ def get_patient_model_hierarchical_log_odds(data_df):
         # Define hyper-priors
         μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
         μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1, dims='basket')
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
         σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
 
         # Define priors
@@ -218,7 +218,7 @@ def get_patient_model_hierarchical_log_odds_nc(data_df):
         # Define hyper-priors
         μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
         μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1, dims='basket')
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
         σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
 
         # Define priors
