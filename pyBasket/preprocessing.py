@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 
 
 def select_rf(expr_df_filtered, drug_response, n_splits=5, percentile_threshold=90, top_genes=500):
-
     # Initialize the KFold object
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
@@ -89,3 +88,20 @@ def check_rf(expr_df_selected, drug_response, test_size=0.2):
     importance_df = pd.DataFrame({'importance_score': importance_score}).set_index(
         expr_df_selected.columns.values)
     return importance_df
+
+
+def get_pivot_count_df(patient_df):
+    # Pivot the dataframe to get the desired format
+    df_pivot = pd.pivot_table(patient_df, values='responsive', index='basket_number',
+                              columns='cluster_number', aggfunc=[sum, len], fill_value=0)
+
+    # Calculate the n_success and n_trial columns
+    df_pivot['n_success'] = df_pivot[('sum',)].sum(axis=1)
+    df_pivot['n_trial'] = df_pivot[('len',)].sum(axis=1)
+
+    # Drop the multi-level column index
+    df_pivot.columns = df_pivot.columns.droplevel(1)
+
+    # Reorder the columns to match the desired format
+    df_pivot = df_pivot[['n_success', 'n_trial']]
+    return df_pivot

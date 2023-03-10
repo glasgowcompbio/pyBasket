@@ -161,7 +161,7 @@ class Simple(Analysis):
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
-        return stacked.theta.values
+        return stacked.basket_p.values
 
 
 class LogisticRegression(Analysis):
@@ -185,7 +185,7 @@ class LogisticRegression(Analysis):
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
-        return stacked.theta.values
+        return stacked.basket_p.values
 
 
 class BHM(Analysis):
@@ -197,4 +197,4 @@ class BHM(Analysis):
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
-        return stacked.theta.values
+        return stacked.basket_p.values

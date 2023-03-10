@@ -10,7 +10,7 @@ def get_model_simple(data_df):
     with pm.Model(coords=coords) as model:
         α = pm.Gamma('alpha', alpha=2, beta=0.5)
         β = pm.Gamma('beta', alpha=2, beta=0.5)
-        θ = pm.Beta('theta', alpha=α, beta=β, dims='basket')
+        θ = pm.Beta('basket_p', alpha=α, beta=β, dims='basket')
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
         return model
 
@@ -31,7 +31,7 @@ def get_model_bhm(data_df):
 
         # linear model
         p = α
-        θ = pm.Deterministic('theta', pm.math.invlogit(p), dims='basket')
+        θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # likelihood
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
@@ -57,7 +57,7 @@ def get_model_bhm_nc(data_df):
 
         # Define the linear model using dot product
         p = α
-        θ = pm.Deterministic('theta', pm.math.invlogit(p), dims='basket')
+        θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # Define the likelihood
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
@@ -84,7 +84,7 @@ def get_model_logres(data_df):
 
         # linear model
         p = pm.math.dot(s_k, β) + α
-        θ = pm.Deterministic('theta', pm.math.invlogit(p), dims='basket')
+        θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # likelihood
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
@@ -115,7 +115,7 @@ def get_model_logres_nc(data_df):
 
         # Define the linear model using dot product
         p = pm.math.dot(s_k, β) + α
-        θ = pm.Deterministic('theta', pm.math.invlogit(p), dims='basket')
+        θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # Define the likelihood
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
@@ -181,9 +181,9 @@ def get_patient_model_hierarchical_log_odds(data_df):
 
     with pm.Model(coords=coords) as model:
         # Define hyper-priors
-        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2)
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
         μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1, dims='basket')
         σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
 
         # Define priors
@@ -216,9 +216,9 @@ def get_patient_model_hierarchical_log_odds_nc(data_df):
         z_cluster = pm.Normal('z_cluster', mu=0, sigma=1, dims=('basket', 'cluster'))
 
         # Define hyper-priors
-        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2)
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
         μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1, dims='basket')
         σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
 
         # Define priors

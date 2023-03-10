@@ -246,7 +246,7 @@ class Trial():
     def plot_forest(self, analysis_name, pos):
         try:
             idata = self.iresults[analysis_name][pos]
-            az.plot_forest(idata, var_names='theta')
+            az.plot_forest(idata, var_names='basket_p')
         except IndexError:
             print('No model to visualise')
 
