@@ -1,6 +1,5 @@
 name: pyBasket
 channels:
-  - conda-forge
   - defaults
 dependencies:
   - python==3.9
@@ -14,15 +13,15 @@ dependencies:
   - jupyterlab
   - ipywidgets
   - tqdm
-  - pymc
-  - arviz
-  - python-graphviz
   - flake8
   - autopep8
   - pytest
   - pytest-cov
   - pip
   - pip:
+    - pymc
+    - arviz
+    - graphviz
     - twine
     - build
     - mkdocs
