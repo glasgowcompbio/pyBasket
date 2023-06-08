@@ -249,8 +249,8 @@ class Analysis():
     def heatmapNum(self,results,x_highlight=None, y_highlight=None):
         clusters = results.setClusters()
         baskets = results.setBaskets()
-        cols_clusters = []
-        rows_baskets = []
+        x_highlight = clusters.index(x_highlight)
+        y_highlight = baskets.index(y_highlight)
         data = []
         for basket in baskets:
             clus = []
@@ -270,3 +270,7 @@ class Analysis():
                 plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
         return fig
 
+    def heatmapTranscripts(self,df):
+        fig = plt.figure(figsize=(10, 10))
+        sns.heatmap(data=df, cmap = "RdBu_r", yticklabels='auto')
+        return fig

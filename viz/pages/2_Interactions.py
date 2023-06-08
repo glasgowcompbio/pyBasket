@@ -84,13 +84,19 @@ if "data" in st.session_state:
 
             basket = st.selectbox("Select how to group samples", data.setBaskets(),
                                   key="basket")
-        st.write("#### Samples")
+
         subgroup,size = analysis_data.findInteraction(cluster,basket)
-        st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster,basket,size))
-        saveRawDInt(subgroup)
-        #st.dataframe(subgroup,use_container_width = True)
-        heatmap = analysis_data.heatmapNum(data)
+        heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
         st.pyplot(heatmap)
+        st.write("#### Samples")
+        st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
+        RawD = st.checkbox("Show raw data", key="raw-data-HM1")
+        if RawD:
+            saveRawDInt(subgroup)
+            st.dataframe(subgroup, use_container_width=True)
+        else:
+            fig= analysis_data.heatmapTranscripts(subgroup)
+            st.pyplot(fig)
 
     with tab2:
         st.subheader("Advanced PCA")
