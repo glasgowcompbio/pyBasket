@@ -274,3 +274,27 @@ class Analysis():
         fig = plt.figure(figsize=(10, 10))
         sns.heatmap(data=df, cmap = "RdBu_r", yticklabels='auto')
         return fig
+
+    def heatmapResponse(self,results,x_highlight=None, y_highlight=None):
+        clusters = results.setClusters()
+        baskets = results.setBaskets()
+        x_highlight = clusters.index(x_highlight)
+        y_highlight = baskets.index(y_highlight)
+        data = []
+        for basket in baskets:
+            response = []
+            for cluster in clusters:
+                sub = len(self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)& (self.patient_df['responsive'] == 1)])
+                response.append(sub)
+            data.append(response)
+        df = pd.DataFrame(data, baskets,clusters)
+        fig = plt.figure(figsize=(10, 10))
+        sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
+        plt.title('Number of responsive samples per basket')
+        plt.xlabel('Clusters')
+        plt.ylabel('Baskets')
+        plt.yticks(fontsize=8)
+        if x_highlight is not None and y_highlight is not None:
+            plt.gca().add_patch(
+                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+        return fig

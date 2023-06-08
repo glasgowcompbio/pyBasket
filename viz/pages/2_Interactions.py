@@ -86,8 +86,15 @@ if "data" in st.session_state:
                                   key="basket")
 
         subgroup,size = analysis_data.findInteraction(cluster,basket)
-        heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
-        st.pyplot(heatmap)
+
+        variable = st.selectbox("Select info", ['Number of samples', 'Rate of response'],
+                                key="info")
+        if variable == 'Number of samples':
+            heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
+            st.pyplot(heatmap)
+        elif variable == 'Rate of response':
+            heat = analysis_data.heatmapResponse(data, int(cluster), basket)
+            st.pyplot(heat)
         st.write("#### Samples")
         st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
         RawD = st.checkbox("Show raw data", key="raw-data-HM1")
