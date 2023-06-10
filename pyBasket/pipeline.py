@@ -3,6 +3,7 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+import logging    # first of all import the module
 
 sys.path.append('..')
 sys.path.append('.')
@@ -15,18 +16,7 @@ from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_
 import pymc as pm
 import arviz as az
 
-"""
-
-
-import matplotlib.pyplot as plt
-
-
-import seaborn as sns
-from pyBasket.model import get_patient_model_simple, get_patient_model_hierarchical
-
-
-
-"""
+logging.basicConfig(filename='std.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 #data_dir = os.path.abspath(os.path.join('../pyBasket/pyBasket/', 'Data'))
 data_dir = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/'
@@ -104,21 +94,29 @@ except FileNotFoundError:  # if not found, then re-run feature selection
 
 importance_df = check_rf(expr_df_selected, drug_response, test_size=0.2)
 #%%
-features_EN = expr_df_selected.columns.tolist()
-matching_genes = genes_df[genes_df['ensg_v99'].isin(features_EN)].reset_index(drop=True)
-matching_genesEN = matching_genes['ensg_v99'].tolist()
-genes = []
-for col in features_EN:
-    found_match = False
-    for i in range(len(matching_genesEN)):
-        if col == matching_genesEN[i]:
-            genes.append(matching_genes['gene_name_v99'][i])
-            found_match = True
-            break
-    if not found_match:
-        genes.append(col)
 
-expr_df_selected.columns = genes
+#Function to change Ensemble IDs for genes names
+def IdGenes(df):
+    features_EN = df.columns.tolist()
+    matching_genes = genes_df[genes_df['ensg_v99'].isin(features_EN)].reset_index(drop=True)
+    matching_genesEN = matching_genes['ensg_v99'].tolist()
+    genes = []
+    for col in features_EN:
+        found_match = False
+        for i in range(len(matching_genesEN)):
+            if col == matching_genesEN[i]:
+                genes.append(matching_genes['gene_name_v99'][i])
+                found_match = True
+                break
+        if not found_match:
+            genes.append(col)
+    return genes
+
+selected_genes = IdGenes(expr_df_selected)
+filtered_genes = IdGenes(expr_df_filtered)
+expr_df_selected.columns = selected_genes
+importance_df.index = selected_genes
+expr_df_filtered.columns = filtered_genes
 
 #%%
 classes = df_filtered.set_index('samples')
@@ -175,3 +173,5 @@ save_data = {
     'importance_df': importance_df
 }
 save_obj(save_data, os.path.join(data_dir+'results', 'patient_analysis_%s_cluster_%d.p' % (drug_name, C)))
+#%%
+patient_df.to_csv(os.path.join(data_dir+'results', 'patient_analysis_%s_cluster_%d.csv' % (drug_name, C)))
