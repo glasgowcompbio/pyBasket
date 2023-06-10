@@ -10,22 +10,26 @@ sys.path.append('.')
 from pyBasket.common import load_obj, save_obj
 from pyBasket.preprocessing import select_rf, check_rf
 from sklearn.cluster import KMeans
-"""
+from pyBasket.clustering import get_cluster_df_by_basket, plot_PCA, get_patient_df
+from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_model_hierarchical_log_odds_nc
 import pymc as pm
 import arviz as az
+
+"""
+
+
 import matplotlib.pyplot as plt
 
 
 import seaborn as sns
-
-
 from pyBasket.model import get_patient_model_simple, get_patient_model_hierarchical
-from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_model_hierarchical_log_odds_nc
-from pyBasket.clustering import get_cluster_df_by_basket, plot_PCA, get_patient_df
+
+
 
 """
 
-data_dir = os.path.abspath(os.path.join('../pyBasket/', 'Data'))
+#data_dir = os.path.abspath(os.path.join('../pyBasket/pyBasket/', 'Data'))
+data_dir = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/'
 
 """
 argParser = parser = argparse.ArgumentParser(
@@ -36,10 +40,10 @@ argParser.add_argument("-d", "--data", help="Data to be analysed")
 args = argParser.parse_args()
 print(args.data)
 """
-
+#%%
 """Processing of raw data"""
-expr_file = os.path.join(data_dir, 'GDSCv2.exprsALL.tsv')
-genes_file = os.path.join(data_dir, 'Entrez_to_Ensg99.mapping_table.tsv')
+expr_file = os.path.join(data_dir, 'Data/GDSCv2.exprsALL.tsv')
+genes_file = os.path.join(data_dir, 'Data/Entrez_to_Ensg99.mapping_table.tsv')
 genes_df = pd.read_csv(genes_file,sep='\t')
 
 df = pd.read_csv(expr_file, sep='\t')
@@ -56,9 +60,10 @@ sample_dict = flat_list['tissue'].to_dict()
 #Tissue assigned to each sample
 tissues = np.array([sample_dict[s] for s in expr_df.index.values])
 
+
 """Load drug response
 There is data for 11 drugs"""
-response_file = os.path.join(data_dir, 'GDSCv2.aacALL.tsv')
+response_file = os.path.join(data_dir, 'Data/GDSCv2.aacALL.tsv')
 response_df = pd.read_csv(response_file, sep='\t').transpose()
 #Collect the data for the chosen drug
 """turn this into a command-line parameter"""
@@ -90,7 +95,7 @@ drug_response = df_filtered.set_index('samples').drop(columns=['tissues'])
 #%%
 """Feature selection using random forest"""
 try:  # try to load previously selected features
-    fname = os.path.join('results', '%s_expr_df_selected.p' % drug_name)
+    fname = os.path.join(data_dir+'results', '%s_expr_df_selected.p' % drug_name)
     expr_df_selected = load_obj(fname)
 
 except FileNotFoundError:  # if not found, then re-run feature selection
@@ -114,6 +119,7 @@ for col in features_EN:
         genes.append(col)
 
 expr_df_selected.columns = genes
+
 #%%
 classes = df_filtered.set_index('samples')
 C = 5 #parameter to choose
@@ -122,8 +128,50 @@ kmeans.fit(expr_df_selected)
 
 cluster_labels = kmeans.labels_
 
+#%%
+
+#Create clustering dataframe
+class_labels = classes.tissues.values
+len(class_labels), len(cluster_labels)
+
+cluster_df = get_cluster_df_by_basket(class_labels, cluster_labels, normalise=False)
 
 
+#Prepare patient data: dataframe with sample information for tissues, responses, cluster number and responsive
+patient_df = get_patient_df(df_filtered, cluster_labels)
 
+#%%
 
+"""Hierarchical Bayesian model """
+n_burn_in = int(5E3)
+n_sample = int(5E3)
+target_accept = 0.99
+model_h2 = get_patient_model_hierarchical_log_odds(patient_df)
+model_h2_nc = get_patient_model_hierarchical_log_odds_nc(patient_df)
+with model_h2_nc:
+    trace_h2 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True})
 
+#%%
+#summary of model
+az.summary(trace_h2).round(2)
+stacked_h2 = az.extract(trace_h2)
+inferred_basket_h2 = np.mean(stacked_h2.basket_p.values, axis=1)
+inferred_cluster_h2 = np.mean(stacked_h2.cluster_p.values, axis=2)
+inferred_basket_h2_tiled = np.tile(inferred_basket_h2, (C, 1)).T
+inferred_mat_h2 = inferred_basket_h2_tiled * inferred_cluster_h2
+
+#Save results
+drug_name, C
+#%%
+save_data = {
+    'expr_df_filtered': expr_df_filtered,
+    'expr_df_selected': expr_df_selected,
+    'drug_response': drug_response,
+    'class_labels': class_labels,
+    'cluster_labels': cluster_labels,
+    'patient_df': patient_df,
+    'stacked_posterior': stacked_h2,
+    'trace': trace_h2,
+    'importance_df': importance_df
+}
+save_obj(save_data, os.path.join(data_dir+'results', 'patient_analysis_%s_cluster_%d.p' % (drug_name, C)))
