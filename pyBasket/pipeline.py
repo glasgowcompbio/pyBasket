@@ -1,24 +1,39 @@
 import os
 import sys
-import argparse
 import pandas as pd
 import numpy as np
-sys.path.append('/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket')
+import pymc as pm
+import arviz as az
+import yaml
+sys.path.append('..')
 
 from pyBasket.common import load_obj, save_obj
 from pyBasket.preprocessing import select_rf, check_rf
 from sklearn.cluster import KMeans
 from pyBasket.clustering import get_cluster_df_by_basket, get_patient_df
 from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_model_hierarchical_log_odds_nc
-import pymc as pm
-import arviz as az
 
-#sys.path.append('..')
-#sys.path.append('.')
 
 os.chdir('/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket')
 data_dir = os.path.abspath(os.path.join('..','pyBasket/Data'))
 current_dir =os.getcwd()
+
+"""
+argParser = parser = argparse.ArgumentParser(
+                    prog='pyBasket pipeline',
+                    epilog='Text at the bottom of help')
+argParser.add_argument("-d", "--data", help="Data to be analysed")
+
+args = argParser.parse_args()
+print(args.data)
+"""
+
+with open('parameters.yml', 'r') as file:
+    parameters = yaml.safe_load(file)
+    drug_name = parameters['drug']
+    C = parameters['clusters']
+    num_genes = parameters['feature_selection']['top_genes']
+    splits = parameters['feature_selection']['n_splits']
 
 #Function to change Ensemble IDs for genes names
 def IdGenes(df):
@@ -51,10 +66,11 @@ with open('log.txt', 'w') as file:
     flat_list = flat_list.set_index('index')
     sample_dict = flat_list['tissue'].to_dict()
     tissues = np.array([sample_dict[s] for s in expr_df.index.values])
+
     """Load drug response.There is data for 11 drugs"""
     response_file = os.path.join(data_dir, 'GDSCv2.aacALL.tsv')
     response_df = pd.read_csv(response_file, sep='\t').transpose()
-    drug_name = 'Docetaxel'
+
     file.write('The drug being tested is: {}\n'.format(drug_name))
     samples = tissue_df.index.values
     response_dict = response_df[drug_name].to_dict()
@@ -71,7 +87,7 @@ with open('log.txt', 'w') as file:
     df = df.dropna(subset=['responses'])
     # List of tissues
     basket_names = df['tissues'].unique()
-    #file.write(basket_names.tolist())
+
     """Select baskets for trials"""
     df_filtered = df[df['tissues'].isin(basket_names)].reset_index(drop=True)
     sample_list = df_filtered['samples'].tolist()
@@ -80,14 +96,15 @@ with open('log.txt', 'w') as file:
     # Change the index to be the samples names
     drug_response = df_filtered.set_index('samples').drop(columns=['tissues'])
     #Select all baskets for analysis
+
     """Feature selection using random forest"""
     try:  # try to load previously selected features
         fname = os.path.join(current_dir + '/results', '%s_expr_df_selected.p' % drug_name)
         expr_df_selected = load_obj(fname)
 
     except FileNotFoundError:  # if not found, then re-run feature selection
-        expr_df_selected = select_rf(expr_df_filtered, drug_response, n_splits=5, percentile_threshold=90,
-                                     top_genes=500)
+        expr_df_selected = select_rf(expr_df_filtered, drug_response, n_splits=splits, percentile_threshold=90,
+                                     top_genes=num_genes)
         save_obj(expr_df_selected, fname)
 
     importance_df = check_rf(expr_df_selected, drug_response, test_size=0.2)
@@ -98,7 +115,7 @@ with open('log.txt', 'w') as file:
     expr_df_filtered.columns = filtered_genes
 
     classes = df_filtered.set_index('samples')
-    C = 5  # parameter to choose
+
     file.write("Number of clusters: {}\n".format(C))
     kmeans = KMeans(n_clusters=C, random_state=42)
     kmeans.fit(expr_df_selected)
@@ -143,13 +160,3 @@ with open('log.txt', 'w') as file:
     save_obj(save_data, results)
     patient_df.to_csv(results)
     file.write("All results are stored in: {}".format(results))
-
-"""
-argParser = parser = argparse.ArgumentParser(
-                    prog='pyBasket pipeline',
-                    epilog='Text at the bottom of help')
-argParser.add_argument("-d", "--data", help="Data to be analysed")
-
-args = argParser.parse_args()
-print(args.data)
-"""
