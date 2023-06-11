@@ -85,19 +85,12 @@ class Results():
         clusters = len(np.unique(self.cluster_labels))
         tissues = len(np.unique(self.class_labels))
         name = self.file_name
-        info = """ 
-                **File name:** {}
-                
-                **Number of samples:** {}
-                
-                **Number of transcripts (after filtering):** {}
-                
-                **Number of transcripts (after feature selection):** {}
-                
-                **Number of clusters:** {}
-                
-                **Number of tissues/baskets:** {}""".format(name, num_samples,num_feat_filt,num_feat_select, clusters, tissues)
-        return st.markdown(info)
+        info = {'File name: ': {'information': name},'Number of samples: ': {'information': num_samples}, 'Num. transcripts (after filtering): ': {'information': num_feat_filt},
+                'Num. transcripts (after feature selection): ': {'information': num_feat_select}, 'Num.clusters: ': {'information': clusters}, 'Num. tissues/baskets: ' : {'information': tissues} }
+        df = pd.DataFrame(data=info).T
+        style = df.style.hide_index()
+        style.hide_columns()
+        return st.dataframe(df,use_container_width = True)
 
     def count_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 6))
