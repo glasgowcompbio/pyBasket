@@ -29,6 +29,7 @@ if input_file is not None:
             st.success('The file was successfully uploaded!', icon="✅")
         save_data = readPickle(tmp_file.name)
         dict = Results(save_data,input_file.name)
+        dict.setFeatures()
         st.session_state["data"] = dict
         print(input_file.name)
         st.session_state["File Name"] = input_file.name

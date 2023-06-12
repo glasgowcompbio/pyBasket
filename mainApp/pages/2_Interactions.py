@@ -7,6 +7,7 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
+from interpretation import Kmedoids, pseudoMedoids
 
 
 add_logo()
@@ -42,6 +43,19 @@ def saveRawDInt_varPCA(tab):
         st.info('Data saved as .csv in working directory', icon="ℹ️")
     else:
         st.write("")
+def saveheatmap(df,c,b):
+    if st.button('Save plot', key="heatmapFull_png"):  # Update the key to a unique value
+        df.to_csv('raw_data_'+c+'_'+b+'.png', index=False)
+        st.info('Data saved as .png file in working directory', icon="ℹ️")
+    else:
+        st.write("")
+
+def saveheatmap_transpt(df,c,b):
+    if st.button('Save plot', key="heatmaptranspt_png"):  # Update the key to a unique value
+        df.to_csv('raw_data_'+c+'_'+b+'.png', index=False)
+        st.info('Data saved as .png file in working directory', icon="ℹ️")
+    else:
+        st.write("")
 
 def adv_PCA(sub_df, RawD):
     try:
@@ -69,7 +83,7 @@ def adv_PCA(sub_df, RawD):
 if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
-    tab1, tab2,tab3, tab4= st.tabs(["Interactions","PCA","Heatmap", "Subgroups analysis"])
+    tab1, tab2,tab3= st.tabs(["Interactions","PCA","Prototypes"])
     with tab1:
         st.subheader("Explore interactions")
         col11, col12 = st.columns((2, 2))
@@ -87,11 +101,13 @@ if "data" in st.session_state:
 
         subgroup,size = analysis_data.findInteraction(cluster,basket)
 
-        variable = st.selectbox("Select info", ['Number of samples', 'Rate of response'],
+        variable = st.selectbox("Select information", ['Number of samples', 'Rate of response'],
                                 key="info")
         if variable == 'Number of samples':
             heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
+            saveheatmap(heatmap, cluster, basket)
             st.pyplot(heatmap)
+
         elif variable == 'Rate of response':
             heat = analysis_data.heatmapResponse(data, int(cluster), basket)
             st.pyplot(heat)
@@ -102,14 +118,18 @@ if "data" in st.session_state:
             saveRawDInt(subgroup)
             st.dataframe(subgroup, use_container_width=True)
         else:
-            fig= analysis_data.heatmapTranscripts(subgroup)
-            st.pyplot(fig)
-
+            try:
+                heatmap2= analysis_data.heatmapTranscripts(subgroup)
+                saveheatmap_transpt(heatmap2,cluster,basket)
+                st.pyplot(heatmap2)
+            except:
+                st.warning("Not enough samples. Please try a different combination.")
     with tab2:
         st.subheader("Advanced PCA")
         st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
         adv_PCA(subgroup,RawD)
-
     with tab3:
-        st.subheader("Basket*Cluster interaction")
+        st.subheader("Prototypes")
+        #Kmedoids()
+        pseudoMedoids()
