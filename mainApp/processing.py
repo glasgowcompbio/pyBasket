@@ -330,8 +330,17 @@ class Analysis():
         feature = fulldf['responsive'].values
         fig = plt.figure(figsize=(2, 2))  # Set the size of the figure
         sns.countplot(data=subgroup, x=feature, palette= ["#F72585", "#4CC9F0"])  # Use a specific color palette
-        plt.xlabel('Responsive', fontsize=8)  # Add x-axis label
-        plt.ylabel('Count',fontsize=8)  # Add y-axis label
-        plt.title('Count of Samples in Each Category',fontsize=8)
-
+        plt.xlabel('Responsive', fontsize=5)  # Add x-axis label
+        plt.ylabel('Count',fontsize=5)
+        plt.xticks(fontsize=5)  # Set the font size of x-axis tick labels
+        plt.yticks(fontsize=5)
+        # Add y-axis label
+        plt.title('Count of Samples in Each Category',fontsize=6)
         return fig
+
+    def responseSamples(self,subgroup):
+        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        feature = fulldf['responsive'].values
+        fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
+        fulldf = fulldf.sort_values(by='responses')
+        return fulldf

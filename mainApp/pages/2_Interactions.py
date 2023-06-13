@@ -97,43 +97,52 @@ if "data" in st.session_state:
 
             basket = st.selectbox("Select how to group samples", data.setBaskets(),
                                   key="basket")
-
         subgroup,size = analysis_data.findInteraction(cluster,basket)
-
         variable = st.selectbox("Select information to display", ['Number of samples', 'Number of responsive samples'],
                                 key="info")
         if variable == 'Number of samples':
             heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
             saveheatmap(heatmap, cluster, basket)
             st.pyplot(heatmap)
-
         elif variable == 'Number of responsive samples':
             heat = analysis_data.heatmapResponse(data, int(cluster), basket)
             st.pyplot(heat)
-        st.write("#### Samples")
-        st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
-        count =analysis_data.samplesCount(subgroup)
-        st.pyplot(count,use_container_width=False)
-        RawD = st.checkbox("Show raw data", key="raw-data-HM1")
-        if RawD:
-            saveRawDInt(subgroup)
-            st.dataframe(subgroup, use_container_width=True)
-        else:
-            try:
+        try:
+            st.write("#### Response to drug")
+            st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
+            col21, col22 = st.columns((2,2))
+            with col21:
+                    count =analysis_data.samplesCount(subgroup)
+                    st.pyplot(count,use_container_width=False)
+            with col22:
+
+                df = analysis_data.responseSamples(subgroup)
+                st.dataframe(df)
+                st.caption("Samples ordered from most to least responsive (lower AAC response)")
+            st.write("#### Transcriptional expression")
+            RawD = st.checkbox("Show raw data", key="raw-data-HM1")
+            if RawD:
+                saveRawDInt(subgroup)
+                st.dataframe(subgroup, use_container_width=True)
+            else:
                 heatmap2= analysis_data.heatmapTranscripts(subgroup)
                 saveheatmap_transpt(heatmap2,cluster,basket)
                 st.pyplot(heatmap2)
-            except:
-                st.warning("Not enough samples. Please try a different combination.")
+        except:
+            st.warning("Not enough samples. Please try a different combination.")
+
     with tab2:
         st.subheader("Advanced PCA")
         st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
         adv_PCA(subgroup,RawD)
     with tab3:
-        st.subheader("Prototypes of subgroup")
-        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
-        sub_prototypes = Prototypes(data)
-        sub_prototypes.findPrototypes_sub(subgroup)
+        try:
+            st.subheader("Prototypes of subgroup")
+            st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
+            sub_prototypes = Prototypes(data)
+            sub_prototypes.findPrototypes_sub(subgroup)
+        except:
+            st.warning("Not enough samples. Please try a different combination.")
 
 
