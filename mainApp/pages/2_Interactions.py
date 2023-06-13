@@ -7,8 +7,7 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
-from interpretation import Kmedoids, pseudoMedoids
-
+from interpretation import Prototypes
 
 add_logo()
 hide_rows = hideRows()
@@ -101,18 +100,20 @@ if "data" in st.session_state:
 
         subgroup,size = analysis_data.findInteraction(cluster,basket)
 
-        variable = st.selectbox("Select information", ['Number of samples', 'Rate of response'],
+        variable = st.selectbox("Select information to display", ['Number of samples', 'Number of responsive samples'],
                                 key="info")
         if variable == 'Number of samples':
             heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
             saveheatmap(heatmap, cluster, basket)
             st.pyplot(heatmap)
 
-        elif variable == 'Rate of response':
+        elif variable == 'Number of responsive samples':
             heat = analysis_data.heatmapResponse(data, int(cluster), basket)
             st.pyplot(heat)
         st.write("#### Samples")
         st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
+        count =analysis_data.samplesCount(subgroup)
+        st.pyplot(count,use_container_width=False)
         RawD = st.checkbox("Show raw data", key="raw-data-HM1")
         if RawD:
             saveRawDInt(subgroup)
@@ -130,6 +131,9 @@ if "data" in st.session_state:
         RawD = st.checkbox("Show raw data", key="raw-data")
         adv_PCA(subgroup,RawD)
     with tab3:
-        st.subheader("Prototypes")
-        #Kmedoids()
-        pseudoMedoids()
+        st.subheader("Prototypes of subgroup")
+        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
+        sub_prototypes = Prototypes(data)
+        sub_prototypes.findPrototypes_sub(subgroup)
+
+

@@ -5,6 +5,7 @@ import numpy as np
 import seaborn as sns
 import mpld3
 import streamlit.components.v1 as components
+from interpretation import Prototypes, Kmedoids
 
 hide_rows = hideRows()
 add_logo()
@@ -49,7 +50,7 @@ def PCA_analysis(feature, RawD):
         fig = analysis_data.plot_PCA(df, feature)
         savePlot_PCA(fig, option)
         fig_html = mpld3.fig_to_html(fig)
-        components.html(fig_html, height=650, width=3000)
+        components.html(fig_html, height=650, width=1000)
         #st.divider()
     #interactive_legend = mpld3.plugins.InteractiveLegendPlugin(scatter, labels = labels,start_visible=True)
     #mpld3.plugins.connect(fig, interactive_legend)
@@ -116,7 +117,7 @@ if "data" in st.session_state:
         components.html(fig_html, height=600, width=1000)
 
 
-    tab1, tab2,tab3 = st.tabs(["Number of samples", "AAC response", "PCA analysis"])
+    tab1, tab2,tab3, tab4 = st.tabs(["Number of samples", "AAC response", "PCA analysis", "Prototypes"])
     with tab1:
         st.subheader("Number of samples")
         col11, col12 = st.columns((1, 1))
@@ -166,6 +167,13 @@ if "data" in st.session_state:
         elif option == 'Baskets/Tissues':
             PCA_analysis("tissues", RawD)
             choices = analysis_data.patient_df["tissues"].unique()
+    with tab4:
+        st.subheader("Prototypes")
+        option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="Prototypes")
+        prototype = Prototypes(data)
+        prototype.findPrototypes(option)
+        #Kmedoids()
+
 
 
 

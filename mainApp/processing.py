@@ -10,6 +10,9 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+
+genes_path = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/Data/Entrez_to_Ensg99.mapping_table.tsv'
+
 def add_logo():
     st.markdown(
         """
@@ -35,6 +38,7 @@ def hideRows():
                 </style>
                 """
     return hide_table_row_index
+
 def readPickle(pick_file):
     try:
         with gzip.GzipFile(pick_file, 'rb') as f:
@@ -67,6 +71,7 @@ class Results():
         self.class_labels = pickle_data[list(pickle_data)[3]]
         self.cluster_labels = pickle_data[list(pickle_data)[4]]
         self.patient_df = pickle_data[list(pickle_data)[5]]
+        self.importance_df = pickle_data[list(pickle_data)[8]]
 
     def setClusters(self):
         clusters = list(self.patient_df['cluster_number'].unique())
@@ -77,8 +82,14 @@ class Results():
         tissues = list(self.patient_df['tissues'].unique())
         return tissues
 
-    def fileInfo(self):
+    def setFeatures(self):
+        selected_genes = Results.IdGenes(self.expr_df_selected)
+        filtered_genes = Results.IdGenes(self.expr_df_filtered)
+        self.expr_df_selected.columns = selected_genes
+        self.importance_df.index = selected_genes
+        self.expr_df_filtered.columns = filtered_genes
 
+    def fileInfo(self):
         num_samples = len(self.expr_df_filtered.axes[0])
         num_feat_filt = len(self.expr_df_filtered.axes[1])
         num_feat_select = len(self.expr_df_selected.axes[1])
@@ -91,6 +102,24 @@ class Results():
         style = df.style.hide_index()
         style.hide_columns()
         return st.dataframe(df,use_container_width = True)
+
+    @staticmethod
+    def IdGenes(df):
+        features_EN = df.columns.tolist()
+        genes_df = pd.read_csv(genes_path, sep='\t')
+        matching_genes = genes_df[genes_df['ensg_v99'].isin(features_EN)].reset_index(drop=True)
+        matching_genesEN = matching_genes['ensg_v99'].tolist()
+        genes = []
+        for col in features_EN:
+            found_match = False
+            for i in range(len(matching_genesEN)):
+                if col == matching_genesEN[i]:
+                    genes.append(matching_genes['gene_name_v99'][i])
+                    found_match = True
+                    break
+            if not found_match:
+                genes.append(col)
+        return genes
 
     def count_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 6))
@@ -156,8 +185,7 @@ class Results():
             hue = feature
         fig = plt.figure(figsize=(10, 6))
         x = np.arange(298)
-        ax = sns.scatterplot(data=self.patient_df, x=x, y="responses", hue=hue,
-                             palette=sns.color_palette("pastel", 25))
+        ax = sns.scatterplot(data=self.patient_df, x=x, y="responses")
         plt.title("AAC response per sample")
         ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
         plt.xlabel("Sample index")
@@ -266,6 +294,11 @@ class Analysis():
     def heatmapTranscripts(self,df):
         fig = plt.figure(figsize=(10, 10))
         sns.heatmap(data=df, cmap = "RdBu_r", yticklabels='auto')
+        plt.title('Transcriptional expression per sample')
+        plt.xlabel('Transcripts')
+        plt.ylabel('Samples')
+        plt.yticks(fontsize=9)
+        plt.xticks(fontsize=9)
         return fig
 
     def heatmapResponse(self,results,x_highlight=None, y_highlight=None):
@@ -290,4 +323,15 @@ class Analysis():
         if x_highlight is not None and y_highlight is not None:
             plt.gca().add_patch(
                 plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+        return fig
+
+    def samplesCount(self,subgroup):
+        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        feature = fulldf['responsive'].values
+        fig = plt.figure(figsize=(2, 2))  # Set the size of the figure
+        sns.countplot(data=subgroup, x=feature, palette= ["#F72585", "#4CC9F0"])  # Use a specific color palette
+        plt.xlabel('Responsive', fontsize=8)  # Add x-axis label
+        plt.ylabel('Count',fontsize=8)  # Add y-axis label
+        plt.title('Count of Samples in Each Category',fontsize=8)
+
         return fig
