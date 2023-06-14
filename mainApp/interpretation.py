@@ -168,9 +168,11 @@ class Prototypes():
         fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
         plot = Prototypes.plotMedoids(data, sampleMedoids, feature)
+        Prototypes.saveplot(plot, "subgroup")
         st.pyplot(plot)
         st.subheader("Prototype samples")
         table = Prototypes.showMedoids(self, feature)
+        Prototypes.savedf(table, "subgroup")
         st.dataframe(table)
 
 

@@ -9,7 +9,8 @@ import streamlit as st
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-
+import warnings
+#warnings.filterwarnings("ignore", category=FutureWarning)
 
 genes_path = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/Data/Entrez_to_Ensg99.mapping_table.tsv'
 
@@ -293,7 +294,8 @@ class Analysis():
 
     def heatmapTranscripts(self,df):
         fig = plt.figure(figsize=(10, 10))
-        sns.heatmap(data=df, cmap = "RdBu_r", yticklabels='auto')
+        sns.heatmap(data=df, cmap="RdBu_r", yticklabels=True)
+        #sns.clustermap(data=df, cmap = "RdBu_r", yticklabels='auto')
         plt.title('Transcriptional expression per sample')
         plt.xlabel('Transcripts')
         plt.ylabel('Samples')

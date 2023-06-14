@@ -96,7 +96,7 @@ class Trial():
     - `simple`: Beta-Binomial models with parameter sharing (using Gamma priors).
     - `bhm`: Normal with hierarchical priors following
     [Berry et al. 2013](https://journals.sagepub.com/doi/full/10.1177/1740774513497539).
-    - 'logres': BHM model with extra parameters for cluster memberships
+    - 'logres': BHM model with extra parameters.yml for cluster memberships
     '''
 
     def __init__(self, K, p0, p1, sites,
