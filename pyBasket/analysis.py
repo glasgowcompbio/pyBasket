@@ -5,11 +5,10 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 
-from pyBasket.model import get_model_simple, get_model_bhm, get_model_logres
-from pyBasket.clustering import SameBasketClustering
 from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
     GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
+from pyBasket.model import get_model_simple, get_model_bhm
 
 
 class Analysis(ABC):
@@ -158,30 +157,6 @@ class Simple(Analysis):
 
     def clustering(self, **kwargs):
         pass
-
-    def get_posterior_response(self):
-        stacked = az.extract(self.idata)
-        return stacked.basket_p.values
-
-
-class LogisticRegression(Analysis):
-    def model_definition(self, data_df):
-        return get_model_logres(data_df)
-
-    def clustering(self, plot_PCA=True, n_components=5, plot_distance=True, plot_dendrogram=True,
-                   max_d=60):
-
-        if self.groups[0].features is not None:
-            # run PCA
-            self.clustering_method = SameBasketClustering(self.groups)
-            self.clustering_method.PCA(n_components=n_components, plot_PCA=plot_PCA)
-
-            # compute distance and do clustering
-            self.clustering_method.compute_distance_matrix()
-            if plot_distance:
-                self.clustering_method.plot_distance_matrix()
-            self.clustering_method.cluster(
-                plot_dendrogram=plot_dendrogram, max_d=max_d)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
