@@ -114,8 +114,8 @@ if "data" in st.session_state:
             with col21:
                     count =analysis_data.samplesCount(subgroup)
                     st.pyplot(count,use_container_width=False)
-            with col22:
 
+            with col22:
                 df = analysis_data.responseSamples(subgroup)
                 st.dataframe(df)
                 st.caption("Samples ordered from most to least responsive (lower AAC response)")

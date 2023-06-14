@@ -6,6 +6,7 @@ import pymc as pm
 import arviz as az
 import yaml
 sys.path.append('..')
+import argparse
 
 from pyBasket.common import load_obj, save_obj
 from pyBasket.preprocessing import select_rf, check_rf
@@ -13,20 +14,17 @@ from sklearn.cluster import KMeans
 from pyBasket.clustering import get_cluster_df_by_basket, get_patient_df
 from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_model_hierarchical_log_odds_nc
 
-
 os.chdir('/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket')
 data_dir = os.path.abspath(os.path.join('..','pyBasket/Data'))
 current_dir =os.getcwd()
 
-"""
 argParser = parser = argparse.ArgumentParser(
                     prog='pyBasket pipeline',
                     epilog='Text at the bottom of help')
-argParser.add_argument("-d", "--data", help="Data to be analysed")
+argParser.add_argument("-p", "--parameters", help="Config file with parameters (.yml format)")
 
 args = argParser.parse_args()
-print(args.data)
-"""
+print(args.parameters)
 
 with open('parameters.yml', 'r') as file:
     parameters = yaml.safe_load(file)
@@ -53,7 +51,9 @@ def IdGenes(df):
     return genes
 
 with open('log.txt', 'w') as file:
+    print("log.txt file is created. Steps performed by the pipeline will be shown there.")
     file.write("These are the results for the pyBasket pipeline\n")
+
     """Processing of raw data"""
     expr_file = os.path.join(data_dir, 'GDSCv2.exprsALL.tsv')
     genes_file = os.path.join(data_dir, 'Entrez_to_Ensg99.mapping_table.tsv')
@@ -70,7 +70,6 @@ with open('log.txt', 'w') as file:
     """Load drug response.There is data for 11 drugs"""
     response_file = os.path.join(data_dir, 'GDSCv2.aacALL.tsv')
     response_df = pd.read_csv(response_file, sep='\t').transpose()
-
     file.write('The drug being tested is: {}\n'.format(drug_name))
     samples = tissue_df.index.values
     response_dict = response_df[drug_name].to_dict()
@@ -95,14 +94,17 @@ with open('log.txt', 'w') as file:
     expr_df_filtered = expr_df[expr_df.index.isin(sample_list)]
     # Change the index to be the samples names
     drug_response = df_filtered.set_index('samples').drop(columns=['tissues'])
-    #Select all baskets for analysis
 
     """Feature selection using random forest"""
+
     try:  # try to load previously selected features
         fname = os.path.join(current_dir + '/results', '%s_expr_df_selected.p' % drug_name)
+        print("Previous results of feature selection are used: "+fname+"\n")
+        file.write("Using feature selection results from: "+fname+"\n")
         expr_df_selected = load_obj(fname)
 
     except FileNotFoundError:  # if not found, then re-run feature selection
+        print("Feature selection has begun\n")
         expr_df_selected = select_rf(expr_df_filtered, drug_response, n_splits=splits, percentile_threshold=90,
                                      top_genes=num_genes)
         save_obj(expr_df_selected, fname)
@@ -113,10 +115,10 @@ with open('log.txt', 'w') as file:
     expr_df_selected.columns = selected_genes
     importance_df.index = selected_genes
     expr_df_filtered.columns = filtered_genes
-
+    print("Feature selection has been completed.\n")
     classes = df_filtered.set_index('samples')
-
-    file.write("Number of clusters: {}\n".format(C))
+    print("Clustering starts. Number of clusters chosen: {}\n".format(C))
+    file.write("Number of clusters chosen: {}\n".format(C))
     kmeans = KMeans(n_clusters=C, random_state=42)
     kmeans.fit(expr_df_selected)
 
@@ -124,10 +126,11 @@ with open('log.txt', 'w') as file:
     class_labels = classes.tissues.values
     # Create clustering dataframe
     cluster_df = get_cluster_df_by_basket(class_labels, cluster_labels, normalise=False)
-
+    print("Clustering done")
     # Prepare patient data: dataframe with sample information for tissues, responses, cluster number and responsive
     patient_df = get_patient_df(df_filtered, cluster_labels)
 
+    print("Hierarchical Bayesian model starts")
     """Hierarchical Bayesian model """
     n_burn_in = int(5E3)
     n_sample = int(5E3)
@@ -136,6 +139,7 @@ with open('log.txt', 'w') as file:
     model_h2_nc = get_patient_model_hierarchical_log_odds_nc(patient_df)
     with model_h2_nc:
         trace_h2 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True})
+    print("Hierarchical Bayesian model completed")
 
     # summary of model
     az.summary(trace_h2).round(2)
@@ -144,7 +148,7 @@ with open('log.txt', 'w') as file:
     inferred_cluster_h2 = np.mean(stacked_h2.cluster_p.values, axis=2)
     inferred_basket_h2_tiled = np.tile(inferred_basket_h2, (C, 1)).T
     inferred_mat_h2 = inferred_basket_h2_tiled * inferred_cluster_h2
-
+    print("Data is being saved")
     save_data = {
         'expr_df_filtered': expr_df_filtered,
         'expr_df_selected': expr_df_selected,
