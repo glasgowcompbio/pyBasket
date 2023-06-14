@@ -1,12 +1,13 @@
 import gzip
 import pickle
-
+import mpld3
 import numpy as np
 from loguru import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import warnings
@@ -122,10 +123,25 @@ class Results():
                 genes.append(col)
         return genes
 
+    @staticmethod
+    def savePlot(fig, feat):
+        if st.button('Save Plot', key="plot_"+feat):  # Update the key to a unique value
+            fig.savefig('plot_'+feat+'_.png')
+            st.info('Plot saved as .png in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
+    @staticmethod
+    def saveTable(df, feat):
+        if st.button('Save table', key="table_"+feat):  # Update the key to a unique value
+            df.to_csv('raw_data_'+feat+'_.csv', index=False)
+            st.info('Data saved as .csv file in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
     def count_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 6))
         plt.title(title)
-
         if response == True:
             hue = self.patient_df["responsive"]
             palette = ["#F72585", "#4CC9F0"]
@@ -136,8 +152,17 @@ class Results():
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
         plt.xlabel(x_lab)
         plt.ylabel("Number of samples")
-
         return fig
+
+    def displayNums(self,feature, feature_title, RD, RawD, title_plot):
+        if RawD is True:
+            raw_num = Results.raw_data_count(feature, feature_title, RD)
+            Results.saveTable(raw_num, "NumOfS")
+            st.dataframe(raw_num, use_container_width=True)
+        else:
+            num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
+            Results.savePlot(num_plot,"NumOfS")
+            st.pyplot(num_plot)
 
     def AAC_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 6))
@@ -156,7 +181,18 @@ class Results():
         plt.ylabel("AAC response")
         return fig
 
-    def raw_data_count(self,feature,x_variable, response):
+    def displayAAC(self,feature, feature_title,RD,RawD, title_plot):
+        if RawD is True:
+            raw_AAC = Results.raw_data_AAC(self,feature, feature_title)
+            Results.saveTable(raw_AAC, "AAC")
+            st.dataframe(raw_AAC,use_container_width = True)
+        else:
+            AAC = Results.AAC_plot(self,feature, title_plot,
+                                feature_title, RD)
+            Results.savePlot(AAC,"AAC")
+            st.pyplot(AAC)
+
+    def raw_data_count(self, feature, x_variable, response):
         self.patient_df['Number of samples'] = 1
         if response == True:
             features = ["responsive", feature]
@@ -203,6 +239,10 @@ class Analysis():
         self.class_labels = Results.class_labels
         self.cluster_labels = Results.cluster_labels
         self.patient_df = Results.patient_df
+        self.pca_df = None
+        self.pca_variance = None
+        self.pca_adv = None
+        self.pca_adv_var = None
 
     def main_PCA(self, feature):
         rawX = self.expr_df_selected
@@ -217,10 +257,10 @@ class Analysis():
         pca_df.index = rawX.index
         pca_df[feature] = y
         variance = pca.explained_variance_
-        return pca_df, variance
+        self.pca_df = pca_df
+        self.pca_variance = variance
 
     def advanced_PCA(self, df):
-        # data scaling
         y = self.patient_df["responsive"]
         x_scaled = StandardScaler().fit_transform(df)
         pca = PCA(n_components=5)
@@ -231,27 +271,86 @@ class Analysis():
         pca_df.index = df.index
         pca_df["responsive"] = y
         variance = pca.explained_variance_
-        return pca_df, variance
+        self.pca_adv = pca_df
+        self.pca_adv_var = variance
 
-    def plot_PCA(self, pcaDF, feature):
+    def plot_PCA(self,feature,adv):
+        df = self.pca_adv if adv == True else self.pca_df
         if feature == "responsive":
             palette = ["#F72585", "#4CC9F0"]
         else:
             palette = sns.color_palette("pastel",25)
-        pc1_values = pcaDF['PC1']
-        pc2_values = pcaDF['PC2']
+        pc1_values = df['PC1']
+        pc2_values = df['PC2']
         fig = plt.figure(figsize=(10, 6))
         fig.subplots_adjust(right=0.63, top=1)
-        ax = sns.scatterplot(x=pc1_values, y=pc2_values,hue=pcaDF[feature], s=30, palette=palette)
+        ax = sns.scatterplot(x=pc1_values, y=pc2_values,hue=df[feature], s=30, palette=palette)
         ax.set(title='PCA decomposition')
         defaultPlot_leg(feature, ax)
         return fig
 
-    def showRawData_PCA(self, pcaDF, variance):
-        var = {'Component': ['PC1', 'PC2', 'PC3', 'PC4', 'PC5'], 'Var explained': variance}
+    @staticmethod
+    def showRawData_PCA(df,var):
+        var = {'Component': ['PC1', 'PC2', 'PC3', 'PC4', 'PC5'], 'Var explained': var}
         var_df = pd.DataFrame(var)
-        pca_df = pcaDF[['PC1', 'PC2', 'PC3', 'PC4', 'PC5']]
+        pca_df = df[['PC1', 'PC2', 'PC3', 'PC4', 'PC5']]
         return pca_df,var_df
+
+    @staticmethod
+    def saveRawD_PCA(feature,name):
+        if st.button('Save Data', key="data_PCA"+name):  # Update the key to a unique value
+            feature.to_csv('dataPCA.csv')
+            st.info('Data saved as .csv in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
+    @staticmethod
+    def savePlot_PCA(fig, feature):
+        if st.button('Save Plot', key="plot_PCA"):  # Update the key to a unique value
+            fig.savefig('plot_PCA_' + feature + '.png')
+            st.info('Plot saved as .png in working directory', icon="ℹ️")
+        else:
+            st.write("")
+    def PCA_analysis(self,feature, RawD):
+        Analysis.main_PCA(self,feature)
+        if RawD is True:
+            pcaDF, var_df = Analysis.showRawData_PCA(self.pca_df, self.pca_variance)
+            col11, col12 = st.columns((2, 3))
+            with col11:
+                st.write('##### Variance explained by component')
+                Analysis.saveRawD_PCA(self.pca_variance, "var")
+                st.dataframe(var_df, use_container_width=True)
+            with col12:
+                st.write('##### PCA results')
+                Analysis.saveRawD_PCA(self.pca_df, "PCA")
+                st.dataframe(pcaDF, use_container_width=True)
+        else:
+            fig = Analysis.plot_PCA(self,feature,adv=False)
+            Analysis.savePlot_PCA(fig, feature)
+            fig_html = mpld3.fig_to_html(fig)
+            components.html(fig_html, height=650, width=1000)
+
+    def adv_PCA(self,sub_df, RawD):
+        try:
+            Analysis.advanced_PCA(self, sub_df)
+            if RawD is True:
+                pcaDF, var_df = Analysis.showRawData_PCA(self.pca_adv, self.pca_adv_var)
+                col11, col12 = st.columns((2, 3))
+                with col11:
+                    st.write('##### Variance explained by component')
+                    Analysis.saveRawD_PCA(self.pca_adv_var, "var")
+                    st.dataframe(var_df, use_container_width=True)
+                with col12:
+                    st.write('##### PCA results')
+                    Analysis.saveRawD_PCA(self.pca_adv, "PCA")
+                    st.dataframe(pcaDF, use_container_width=True)
+            else:
+                fig = Analysis.plot_PCA(self, "responsive",adv= True)
+                Analysis.savePlot_PCA(fig, "subgroup")
+                fig_html = mpld3.fig_to_html(fig)
+                components.html(fig_html, height=600, width=3000)
+        except:
+            st.warning("Not enough samples. Please try a different combination.")
 
     def findSubgroup(self,feature,subgroup):
         transcriptomics = self.expr_df_selected

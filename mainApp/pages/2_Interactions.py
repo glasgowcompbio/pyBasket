@@ -15,68 +15,26 @@ st.header("Basket*Cluster interaction")
 #fig_html = mpld3.fig_to_html(fig)
 
 
-def savePlot_advPCA(fig):
-    if st.button('Save Plot', key="plot_advPCA"):  # Update the key to a unique value
-        fig.savefig('plot_PCA_.png')
-        st.info('Plot saved as .png in working directory', icon="ℹ️")
-    else:
-        st.write("")
-
-def saveRawDInt(tab):
+def saveRawDInt(tab, c, b):
     if st.button('Save Data', key="df-Inter"):  # Update the key to a unique value
-        tab.to_csv('data_PCA.csv')
+        tab.to_csv('heatmap_'+str(c)+'_'+b+'.csv')
         st.info('Data saved as .csv in working directory', icon="ℹ️")
     else:
         st.write("")
 
-def saveRawDInt_PCA(tab):
-    if st.button('Save Data', key="df-PCA"):  # Update the key to a unique value
-        tab.to_csv('data_PCA.csv')
-        st.info('Data saved as .csv in working directory', icon="ℹ️")
-    else:
-        st.write("")
-
-def saveRawDInt_varPCA(tab):
-    if st.button('Save Data', key="df-varPCA"):  # Update the key to a unique value
-        tab.to_csv('data_PCA.csv')
-        st.info('Data saved as .csv in working directory', icon="ℹ️")
-    else:
-        st.write("")
 def saveheatmap(df,c,b):
     if st.button('Save plot', key="heatmapFull_png"):  # Update the key to a unique value
-        df.to_csv('raw_data_'+c+'_'+b+'.png', index=False)
+        df.savefig('heatmap_'+str(c)+'_'+b+'.png')
         st.info('Data saved as .png file in working directory', icon="ℹ️")
     else:
         st.write("")
 
 def saveheatmap_transpt(df,c,b):
     if st.button('Save plot', key="heatmaptranspt_png"):  # Update the key to a unique value
-        df.to_csv('raw_data_'+c+'_'+b+'.png', index=False)
+        df.savefig('heatmap_'+str(c)+'_'+b+'.png')
         st.info('Data saved as .png file in working directory', icon="ℹ️")
     else:
         st.write("")
-
-def adv_PCA(sub_df, RawD):
-    try:
-        df, variance = analysis_data.advanced_PCA(sub_df)
-        if RawD is True:
-            pcaDF, var_df = analysis_data.showRawData_PCA(df, variance)
-            col11, col12 = st.columns((2, 3))
-            with col11:
-                st.write('##### Variance explained by component')
-                saveRawDInt_varPCA(var_df)
-                st.dataframe(var_df, use_container_width=True)
-            with col12:
-                st.write('##### PCA results')
-                saveRawDInt_PCA(pcaDF)
-                st.dataframe(pcaDF, use_container_width=True)
-        else:
-            fig = analysis_data.plot_PCA(df, "responsive")
-            savePlot_advPCA(fig)
-            fig_html = mpld3.fig_to_html(fig)
-            components.html(fig_html, height=600, width=3000)
-    except:
-        st.warning("Not enough samples. Please try a different combination.")
     #st.pyplot(fig)
 
 if "data" in st.session_state:
@@ -91,7 +49,6 @@ if "data" in st.session_state:
 
             cluster = st.selectbox("Select how to group samples", data.setClusters(),
                                   key="cluster")
-
         with col12:
             st.write("##### Select a basket/tissue")
 
@@ -114,7 +71,6 @@ if "data" in st.session_state:
             with col21:
                     count =analysis_data.samplesCount(subgroup)
                     st.pyplot(count,use_container_width=False)
-
             with col22:
                 df = analysis_data.responseSamples(subgroup)
                 st.dataframe(df)
@@ -122,7 +78,7 @@ if "data" in st.session_state:
             st.write("#### Transcriptional expression")
             RawD = st.checkbox("Show raw data", key="raw-data-HM1")
             if RawD:
-                saveRawDInt(subgroup)
+                saveRawDInt(subgroup,cluster,basket)
                 st.dataframe(subgroup, use_container_width=True)
             else:
                 heatmap2= analysis_data.heatmapTranscripts(subgroup)
@@ -135,7 +91,7 @@ if "data" in st.session_state:
         st.subheader("Advanced PCA")
         st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
-        adv_PCA(subgroup,RawD)
+        analysis_data.adv_PCA(subgroup,RawD)
     with tab3:
         try:
             st.subheader("Prototypes of subgroup")
