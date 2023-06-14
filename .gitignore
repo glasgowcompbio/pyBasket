@@ -121,3 +121,4 @@ Velodrome/VelodromeTest
 Velodrome/VelodromeTrain
 notebooks/results/*.p
 notebooks/results
+paper/results
