@@ -93,7 +93,8 @@ if "data" in st.session_state:
         else:
             st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
             dea = DEA(data)
-            dea.diffAnalysis_simple(groups[0],groups[1],feature )
+            dea.diffAnalysis_simple(groups[0],groups[1],feature)
+            dea.deaPlot()
 
 
 

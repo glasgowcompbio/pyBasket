@@ -17,6 +17,8 @@ from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import multipletests
 import plotly.graph_objects as go
 import plotly.express as px
+#from bioinfokit import analys, visuz
+
 
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -217,14 +219,17 @@ class DEA():
         else:
             st.write("")
 
-    def ttest_results(df1,df2):
+    def ttest_results(self,df1,df2):
         ttest_results = []
         for column in df1.columns:
             t, p = ttest_ind(df1[column], df2[column])
-            # l2fc = np.log2(np.nan_to_num(np.divide(np.array(self.df_group1[column]), np.array(self.df_group2[column])), nan=1))
+            #if len(self.df_group1[column].values) == len(self.df_group2[column].values):
+            #    l2fc = np.log2(self.df_group1[column].values / self.df_group2[column].values)
+            #else:
+            #    l2fc = None
             ttest_results.append((column, t, p))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value'])
-        _, dea_results['P-Value (Bonferroni)'], _, _ = multipletests(dea_results['P-Value'],
+        _, dea_results['P-Value (Bonferroni)'],_, _ = multipletests(dea_results['P-Value'],
                                                                      method='bonferroni')
         dea_results['Significant'] = dea_results['P-Value (Bonferroni)'] < 0.05
         dea_results = dea_results.sort_values(by='P-Value (Bonferroni)', ascending=True)
@@ -233,21 +238,49 @@ class DEA():
     def diffAnalysis_simple(self,option1, option2, feature):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
-        df = DEA.ttest_results(self.df_group1, self.df_group2)
-        st.dataframe(df, use_container_width=True)
+        self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2)
+        DEA.savedf(self.ttest_res, feature)
+        st.dataframe(self.ttest_res, use_container_width=True)
         st.caption("Ordered by most significantly different.")
-        DEA.savedf(df, feature)
-
 
     def diffAnalysis_inter(self,subgroup):
         indexes = subgroup.index
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         st.write("Differential Expression Analysis of transcripts for samples in interaction vs rest of samples")
-        df = DEA.ttest_results(self.subgroup,filtered_df)
+        df = DEA.ttest_results(self,self.subgroup,filtered_df)
         DEA.savedf(df, "interaction")
         st.dataframe(df, use_container_width=True)
         st.caption("Ordered by most significantly different.")
+
+    def deaPlot(self):
+        #t = self.ttest_res['T-Statistic']
+        #p = self.ttest_res['P-Value']
+        fig, ax = plt.subplots()
+
+        # Plot the distributions
+        sns.histplot(self.df_group1, ax=ax, label='Group 1', color='blue', alpha=0.5)
+        sns.histplot(self.df_group2, ax=ax, label='Group 2', color='orange', alpha=0.5)
+        ax.axvline(x=np.mean(self.df_group1), color='blue', linestyle='--', label='Group 1 Mean')
+        ax.axvline(x=np.mean(self.df_group2), color='orange', linestyle='--', label='Group 2 Mean')
+
+        # Plot the confidence intervals
+        #ci_low, ci_high = stats.t.interval(0.95, len(self.df_group1) + len(self.df_group2) - 2, loc=np.mean(self.df_group1) - np.mean(self.df_group2),
+                                 #          scale=stats.sem(self.df_group1 - self.df_group2))
+        #ax.axvline(x=ci_low, color='red', linestyle=':', label='95% CI Lower Bound')
+        #ax.axvline(x=ci_high, color='red', linestyle=':', label='95% CI Upper Bound')
+        ax.set_title('Distribution Comparison')
+        ax.set_xlabel('Data')
+        ax.set_ylabel('Frequency')
+
+        # Add a legend
+        ax.legend()
+
+        # Show the plot
+        return st.pyplot(fig)
+    #def volcanoPlot(self,df):
+       # return st.pyplot(visuz.GeneExpression.volcano(df=df, lfc='log2FC', pv='p-value'))
+
 
 
 

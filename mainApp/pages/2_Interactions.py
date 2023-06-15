@@ -40,21 +40,24 @@ def saveheatmap_transpt(df,c,b):
 if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
+    st.subheader("Explore interactions")
+    col11, col12 = st.columns((2, 2))
+    with col11:
+        #st.write("##### Select a cluster")
+
+        cluster = st.selectbox("Select a cluster", data.setClusters(),
+                               key="cluster")
+    with col12:
+        #st.write("##### Select a basket/tissue")
+
+        basket = st.selectbox("Select a basket/tissue", data.setBaskets(),
+                              key="basket")
+    subgroup, size = analysis_data.findInteraction(cluster, basket)
+    st.text("")
+    st.write("##### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket,size))
+    st.text("")
     tab1, tab2,tab3,tab4= st.tabs(["Interactions","PCA","Prototypes", "Differential Expression"])
     with tab1:
-        st.subheader("Explore interactions")
-        col11, col12 = st.columns((2, 2))
-        with col11:
-            st.write("##### Select a cluster")
-
-            cluster = st.selectbox("Select how to group samples", data.setClusters(),
-                                  key="cluster")
-        with col12:
-            st.write("##### Select a basket/tissue")
-
-            basket = st.selectbox("Select how to group samples", data.setBaskets(),
-                                  key="basket")
-        subgroup,size = analysis_data.findInteraction(cluster,basket)
         variable = st.selectbox("Select information to display", ['Number of samples', 'Number of responsive samples'],
                                 key="info")
         if variable == 'Number of samples':
@@ -89,12 +92,11 @@ if "data" in st.session_state:
 
     with tab2:
         st.subheader("Advanced PCA")
-        st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
+        #st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
         analysis_data.adv_PCA(subgroup,RawD)
     with tab3:
         st.subheader("Prototypes of subgroup")
-        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
         try:
             sub_prototypes = Prototypes(data)
             sub_prototypes.findPrototypes_sub(subgroup)
@@ -102,7 +104,7 @@ if "data" in st.session_state:
             st.warning("Not enough samples. Please try a different combination.")
     with tab4:
         st.subheader("Differential expression analysis")
-        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
+        #st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
         if subgroup.size > 0:
             dea = DEA(data)
             dea.diffAnalysis_inter(subgroup)
