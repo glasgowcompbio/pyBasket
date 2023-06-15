@@ -14,27 +14,6 @@ st.header("Data overview")
 if "data" in st.session_state:
     data = st.session_state["data"]
 
-    def savePlot_AAC(fig):
-        if st.button('Save Plot', key="plot_AAC_png"):  # Update the key to a unique value
-            fig.savefig('plot_AAC.png')
-            st.info('Plot saved as .png in working directory', icon="ℹ️")
-        else:
-            st.write("")
-
-    def saveTable_AAC(df):
-        if st.button('Save table', key="table_AAC_csv"):  # Update the key to a unique value
-            df.to_csv('raw_data_AAC.csv', index=False)
-            st.info('Data saved as .csv file in working directory', icon="ℹ️")
-        else:
-            st.write("")
-
-
-    def displayAAC_none(feature):
-        fig = data.non_group_plot(feature)
-        savePlot_AAC(fig)
-        fig_html = mpld3.fig_to_html(fig)
-        components.html(fig_html, height=600, width=1000)
-
     tab1, tab2,tab3, tab4 = st.tabs(["Number of samples", "AAC response", "PCA analysis", "Prototypes"])
     with tab1:
         st.subheader("Number of samples")
@@ -55,22 +34,25 @@ if "data" in st.session_state:
         with col21:
             option_tab2 = st.selectbox("Select how to group samples", ('None','Clusters', 'Baskets/Tissues'), key="option-tab2")
         with col22:
-            RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
             RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
-        if option_tab2 == "Clusters":
-            data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC,"AAC response per cluster")
-        elif option_tab2 == 'Baskets/Tissues':
-            data.displayAAC("tissues", "Tissue", RD_AAC,RawD_AAC, "AAC response per tissue")
-        elif option_tab2 == 'None':
+        if option_tab2 == 'None':
             with col21:
                 option_tab3 = st.selectbox("Show subgroups", ('None','Clusters', 'Baskets/Tissues'),
                                        key="option-tab3")
             if option_tab3 == "None":
-                displayAAC_none(None)
+                data.non_group_plot(None,RawD_AAC)
             elif option_tab3 == "Clusters":
-                displayAAC_none("cluster_number")
+                data.non_group_plot("cluster_number",RawD_AAC)
             elif option_tab3 == 'Baskets/Tissues':
-                displayAAC_none("tissues")
+                data.non_group_plot("tissues",RawD_AAC)
+        else:
+            with col22:
+                RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
+            if option_tab2 == "Clusters":
+                data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC,"AAC response per cluster")
+            elif option_tab2 == 'Baskets/Tissues':
+                data.displayAAC("tissues", "Tissue", RD_AAC,RawD_AAC, "AAC response per tissue")
+
     with tab3:
         analysis_data = Analysis(data)
         st.subheader("Samples PCA")

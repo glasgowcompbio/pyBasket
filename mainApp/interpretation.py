@@ -8,6 +8,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
+import mpld3
+import streamlit.components.v1 as components
 from sklearn_extra.cluster import KMedoids
 from processing import readPickle, Results, add_logo, defaultPlot_leg, Analysis, hideRows, defaultPlot_leg
 from scipy.spatial.distance import cdist
@@ -121,6 +123,8 @@ class Prototypes():
         #ax.legend(labels=np.unique(feature), fontsize=12, markerscale=0.5, loc='lower center',
           #        bbox_to_anchor=(0.5, -0.3), ncol=6)
         plt.title('K-means Pseudo-Medoids')
+        #fig_html = mpld3.fig_to_html(fig)
+        #components.html(fig_html, height=670, width=1000)
         return fig
     @staticmethod
     def saveplot(fig, feature):

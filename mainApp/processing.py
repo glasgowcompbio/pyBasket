@@ -126,7 +126,7 @@ class Results():
     @staticmethod
     def savePlot(fig, feat):
         if st.button('Save Plot', key="plot_"+feat):  # Update the key to a unique value
-            fig.savefig('plot_'+feat+'_.png')
+            fig.savefig('plot_'+feat+'.png')
             st.info('Plot saved as .png in working directory', icon="ℹ️")
         else:
             st.write("")
@@ -134,7 +134,7 @@ class Results():
     @staticmethod
     def saveTable(df, feat):
         if st.button('Save table', key="table_"+feat):  # Update the key to a unique value
-            df.to_csv('raw_data_'+feat+'_.csv', index=False)
+            df.to_csv('raw_data_'+feat+'.csv', index=False)
             st.info('Data saved as .csv file in working directory', icon="ℹ️")
         else:
             st.write("")
@@ -215,19 +215,29 @@ class Results():
         raw_count.columns = [x_variable, "Mean", "SD", "Median", "Min", "Max"]
         return raw_count
 
-    def non_group_plot(self, feature):
-        if feature == None:
-            hue = None
+    def non_group_plot(self, feature,RawD):
+        if RawD is True:
+            Results.saveTable(self.patient_df, "rawAAC")
+            st.dataframe(self.patient_df)
         else:
-            hue = feature
-        fig = plt.figure(figsize=(10, 6))
-        x = np.arange(298)
-        ax = sns.scatterplot(data=self.patient_df, x=x, y="responses")
-        plt.title("AAC response per sample")
-        ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
-        plt.xlabel("Sample index")
-        plt.ylabel("AAC response")
-        return fig
+            if feature == None:
+                hue = None
+                palette = None
+            else:
+                hue = feature
+                palette = sns.color_palette("pastel", 25)
+            fig = plt.figure(figsize=(10, 5))
+            x = np.arange(298)
+            ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
+            plt.title("AAC response per sample")
+            defaultPlot_leg(feature, ax)
+            #ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
+            plt.xlabel("Sample index")
+            fig.subplots_adjust(right=0.63, top=1)
+            plt.ylabel("AAC response")
+            Results.savePlot(fig, "AAC")
+            fig_html = mpld3.fig_to_html(fig)
+            components.html(fig_html, height=670, width=1000)
 
 
 class Analysis():
