@@ -5,16 +5,16 @@ import numpy as np
 import seaborn as sns
 import mpld3
 import streamlit.components.v1 as components
-from interpretation import Prototypes, Kmedoids
+from interpretation import Prototypes, Kmedoids,DEA
 
 hide_rows = hideRows()
 add_logo()
-st.header("Data overview")
+st.header("Data exploration")
 
 if "data" in st.session_state:
     data = st.session_state["data"]
 
-    tab1, tab2,tab3, tab4 = st.tabs(["Number of samples", "AAC response", "PCA analysis", "Prototypes"])
+    tab1, tab2,tab3, tab4,tab5 = st.tabs(["Number of samples", "AAC response", "PCA analysis", "Prototypes", "Differential expression"])
     with tab1:
         st.subheader("Number of samples")
         col11, col12 = st.columns((1, 1))
@@ -73,6 +73,30 @@ if "data" in st.session_state:
         prototype = Prototypes(data)
         prototype.findPrototypes(option)
         #Kmedoids()
+
+    with tab5:
+        st.subheader("Differential expression")
+        option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
+        if option ==  'Clusters':
+            subgroups = data.setClusters()
+            feature = "cluster_number"
+        elif option == 'Baskets/Tissues':
+            subgroups = data.setBaskets()
+            feature = "tissues"
+        else:
+            subgroups = ['0','1']
+            feature = "responsive"
+        groups = st.multiselect(
+            'Please select up to 2 Groups/Baskets to compare', subgroups, max_selections=2)
+        if len(groups)<2:
+            st.write("")
+        else:
+            st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
+            dea = DEA(data)
+            dea.diffAnalysis_simple(groups[0],groups[1],feature )
+
+
+
 
 
 

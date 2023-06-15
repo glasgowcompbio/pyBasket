@@ -156,7 +156,7 @@ class Results():
 
     def displayNums(self,feature, feature_title, RD, RawD, title_plot):
         if RawD is True:
-            raw_num = Results.raw_data_count(feature, feature_title, RD)
+            raw_num = Results.raw_data_count(self,feature, feature_title, RD)
             Results.saveTable(raw_num, "NumOfS")
             st.dataframe(raw_num, use_container_width=True)
         else:
@@ -202,6 +202,8 @@ class Results():
             columns = [x_variable, "Number of samples"]
         raw_count = self.patient_df.groupby(features).size().to_frame(name = 'count').reset_index()
         raw_count.columns = columns
+        if response == True:
+            raw_count['responsive'] = raw_count['responsive']== 1
         return raw_count
 
     def raw_data_AAC(self,feature,x_variable):
@@ -218,7 +220,9 @@ class Results():
     def non_group_plot(self, feature,RawD):
         if RawD is True:
             Results.saveTable(self.patient_df, "rawAAC")
-            st.dataframe(self.patient_df)
+            df = self.patient_df
+            df["responsive"] = df["responsive"] <1
+            st.dataframe(df)
         else:
             if feature == None:
                 hue = None
@@ -456,4 +460,5 @@ class Analysis():
         fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
         fulldf = fulldf.sort_values(by='responses')
         fulldf.index.name = 'Sample'
+        fulldf['responsive'] = fulldf['responsive'] == 1
         return fulldf

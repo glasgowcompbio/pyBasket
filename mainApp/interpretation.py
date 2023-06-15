@@ -8,11 +8,15 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
+from scipy.stats import ttest_ind
 import mpld3
 import streamlit.components.v1 as components
 from sklearn_extra.cluster import KMedoids
 from processing import readPickle, Results, add_logo, defaultPlot_leg, Analysis, hideRows, defaultPlot_leg
 from scipy.spatial.distance import cdist
+from statsmodels.stats.multitest import multipletests
+import plotly.graph_objects as go
+import plotly.express as px
 
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -178,6 +182,82 @@ class Prototypes():
         table = Prototypes.showMedoids(self, feature)
         Prototypes.savedf(table, "subgroup")
         st.dataframe(table)
+
+class DEA():
+    def __init__(self, Results):
+        self.expr_df_selected = Results.expr_df_selected
+        self.class_labels = Results.class_labels
+        self.cluster_labels = Results.cluster_labels
+        self.patient_df = Results.patient_df
+        self.df_group1 = None
+        self.df_group2 = None
+        self.subgroup = None
+        self.ttest_res = None
+
+    def selectGroups(self,option,feature):
+        transcripts= self.expr_df_selected
+        sub_patients = self.patient_df[self.patient_df[feature] == option]
+        indexes = list(sub_patients.index.values)
+        sub_transcript = transcripts.loc[indexes]
+        return sub_transcript
+
+    @staticmethod
+    def saveplot(fig, feature):
+        if st.button('Save Plot', key="plot_DEA"):  # Update the key to a unique value
+            fig.savefig('plot_DEA_' + feature + '.png')
+            st.info('Plot saved as .png in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
+    @staticmethod
+    def savedf(tab, feature):
+        if st.button('Save Data', key="table_DEA"):  # Update the key to a unique value
+            tab.to_csv('table_DEA_' + feature + '.csv')
+            st.info('Data saved as .csv in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
+    def ttest_results(df1,df2):
+        ttest_results = []
+        for column in df1.columns:
+            t, p = ttest_ind(df1[column], df2[column])
+            # l2fc = np.log2(np.nan_to_num(np.divide(np.array(self.df_group1[column]), np.array(self.df_group2[column])), nan=1))
+            ttest_results.append((column, t, p))
+        dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value'])
+        _, dea_results['P-Value (Bonferroni)'], _, _ = multipletests(dea_results['P-Value'],
+                                                                     method='bonferroni')
+        dea_results['Significant'] = dea_results['P-Value (Bonferroni)'] < 0.05
+        dea_results = dea_results.sort_values(by='P-Value (Bonferroni)', ascending=True)
+        return dea_results
+
+    def diffAnalysis_simple(self,option1, option2, feature):
+        self.df_group1 = DEA.selectGroups(self,option1,feature)
+        self.df_group2 = DEA.selectGroups(self,option2,feature)
+        df = DEA.ttest_results(self.df_group1, self.df_group2)
+        st.dataframe(df, use_container_width=True)
+        st.caption("Ordered by most significantly different.")
+        DEA.savedf(df, feature)
+
+
+    def diffAnalysis_inter(self,subgroup):
+        indexes = subgroup.index
+        filtered_df= self.expr_df_selected.drop(indexes)
+        self.subgroup = subgroup
+        st.write("Differential Expression Analysis of transcripts for samples in interaction vs rest of samples")
+        df = DEA.ttest_results(self.subgroup,filtered_df)
+        DEA.savedf(df, "interaction")
+        st.dataframe(df, use_container_width=True)
+        st.caption("Ordered by most significantly different.")
+
+
+
+
+
+
+
+
+
+
 
 
 

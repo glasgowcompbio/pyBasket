@@ -7,7 +7,7 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
-from interpretation import Prototypes
+from interpretation import Prototypes, DEA
 
 add_logo()
 hide_rows = hideRows()
@@ -40,7 +40,7 @@ def saveheatmap_transpt(df,c,b):
 if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
-    tab1, tab2,tab3= st.tabs(["Interactions","PCA","Prototypes"])
+    tab1, tab2,tab3,tab4= st.tabs(["Interactions","PCA","Prototypes", "Differential Expression"])
     with tab1:
         st.subheader("Explore interactions")
         col11, col12 = st.columns((2, 2))
@@ -93,12 +93,21 @@ if "data" in st.session_state:
         RawD = st.checkbox("Show raw data", key="raw-data")
         analysis_data.adv_PCA(subgroup,RawD)
     with tab3:
+        st.subheader("Prototypes of subgroup")
+        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
         try:
-            st.subheader("Prototypes of subgroup")
-            st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
             sub_prototypes = Prototypes(data)
             sub_prototypes.findPrototypes_sub(subgroup)
         except:
             st.warning("Not enough samples. Please try a different combination.")
+    with tab4:
+        st.subheader("Differential expression analysis")
+        st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
+        if subgroup.size > 0:
+            dea = DEA(data)
+            dea.diffAnalysis_inter(subgroup)
+        else:
+            st.warning("Not enough samples. Please try a different combination.")
+
 
 
