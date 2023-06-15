@@ -450,7 +450,6 @@ class Analysis():
         plt.ylabel('Count',fontsize=5)
         plt.xticks(fontsize=5)  # Set the font size of x-axis tick labels
         plt.yticks(fontsize=5)
-        # Add y-axis label
         plt.title('Count of Responsive vs Non-responsive samples',fontsize=5)
         return fig
 
