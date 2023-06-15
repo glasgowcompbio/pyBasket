@@ -64,7 +64,7 @@ def get_model_bhm_nc(data_df):
         return model
 
 
-def get_patient_model_hierarchical_log_odds(data_df):
+def get_model_pyBasket(data_df):
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
         data_df['basket_number'].unique()
     cluster_coords = data_df['cluster_number'].unique()
@@ -96,7 +96,7 @@ def get_patient_model_hierarchical_log_odds(data_df):
         return model
 
 
-def get_patient_model_hierarchical_log_odds_nc(data_df):
+def get_model_pyBasket_nc(data_df):
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
         data_df['basket_number'].unique()
     cluster_coords = data_df['cluster_number'].unique()

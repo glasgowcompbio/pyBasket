@@ -7,10 +7,10 @@ import pymc as pm
 from IPython.display import display
 from scipy import stats
 
-from pyBasket.analysis import Simple, BHM, LogisticRegression
+from pyBasket.analysis import IndependentAnalysis, BHMAnalysis, PyBasketAnalysis
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
     GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
-    MODEL_SIMPLE, MODEL_BHM, MODEL_LOGRES, save_obj, DEFAULT_TARGET_ACCEPT
+    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT
 
 
 class Site(ABC):
@@ -105,8 +105,6 @@ class Trial():
                  early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
                  early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
                  num_chains=DEFAULT_NUM_CHAINS, target_accept=DEFAULT_TARGET_ACCEPT,
-                 plot_PCA=True, n_components=5,
-                 plot_distance=True, plot_dendrogram=True, max_d=60,
                  save_analysis=False):
         self.K = K
         self.p0 = p0
@@ -121,13 +119,6 @@ class Trial():
         self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
-
-        # clustering params
-        self.plot_PCA = plot_PCA
-        self.n_components = n_components
-        self.plot_distance = plot_distance
-        self.plot_dendrogram = plot_dendrogram
-        self.max_d = max_d
 
         self.sites = sites
         self.evaluate_interim = evaluate_interim
@@ -171,15 +162,6 @@ class Trial():
                     group.register(patient_data)
                 print('Registering', group, 'for Analysis', analysis_name)
 
-        # perform clustering if necessary
-        print()
-        for analysis_name in self.analysis_names:
-            print('Clustering for', analysis_name)
-            analysis = self.analyses[analysis_name]
-            analysis.clustering(plot_PCA=self.plot_PCA, n_components=self.n_components,
-                                plot_distance=self.plot_distance, plot_dendrogram=self.plot_dendrogram,
-                                max_d=self.max_d)
-
         # evaluate interim stages if needed
         print()
         last_step = self.current_stage == (len(self.evaluate_interim) - 1)
@@ -204,23 +186,23 @@ class Trial():
     def get_analysis(self, analysis_name, K, p0, p_mid,
                      futility_cutoff, efficacy_cutoff,
                      early_futility_stop, early_efficacy_stop):
-        assert analysis_name in [MODEL_SIMPLE, MODEL_BHM, MODEL_LOGRES]
+        assert analysis_name in [MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET]
         total_steps = len(self.evaluate_interim) - 1
-        if analysis_name == MODEL_SIMPLE:
-            return Simple(K, total_steps, p0, p_mid,
-                          futility_cutoff, efficacy_cutoff,
-                          early_futility_stop, early_efficacy_stop,
-                          self.num_chains, self.target_accept)
+        if analysis_name == MODEL_INDEPENDENT:
+            return IndependentAnalysis(K, total_steps, p0, p_mid,
+                                       futility_cutoff, efficacy_cutoff,
+                                       early_futility_stop, early_efficacy_stop,
+                                       self.num_chains, self.target_accept)
         elif analysis_name == MODEL_BHM:
-            return BHM(K, total_steps, p0, p_mid,
-                       futility_cutoff, efficacy_cutoff,
-                       early_futility_stop, early_efficacy_stop,
-                       self.num_chains, self.target_accept)
-        elif analysis_name == MODEL_LOGRES:
-            return LogisticRegression(K, total_steps, p0, p_mid,
-                                      futility_cutoff, efficacy_cutoff,
-                                      early_futility_stop, early_efficacy_stop,
-                                      self.num_chains, self.target_accept)
+            return BHMAnalysis(K, total_steps, p0, p_mid,
+                               futility_cutoff, efficacy_cutoff,
+                               early_futility_stop, early_efficacy_stop,
+                               self.num_chains, self.target_accept)
+        elif analysis_name == MODEL_PYBASKET:
+            return PyBasketAnalysis(K, total_steps, p0, p_mid,
+                                    futility_cutoff, efficacy_cutoff,
+                                    early_futility_stop, early_efficacy_stop,
+                                    self.num_chains, self.target_accept)
 
     def visualise_model(self, analysis_name):
         try:

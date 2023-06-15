@@ -9,7 +9,7 @@ import pandas as pd
 import arviz as az
 
 from pyBasket.env import Trial, TrueResponseSiteWithFeatures
-from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, MODEL_LOGRES
+from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, MODEL_PYBASKET
 
 DEBUG = True
 
@@ -43,7 +43,7 @@ for k in range(K):
     sites.append(site)
 
 evaluate_interim = [True] # evaluate every interim stage
-analysis_names = [MODEL_LOGRES]
+analysis_names = [MODEL_PYBASKET]
 
 futility_cutoff = DEFAULT_FUTILITY_CUTOFF
 efficacy_cutoff = DEFAULT_EFFICACY_CUTOFF

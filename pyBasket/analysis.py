@@ -8,7 +8,7 @@ import pymc as pm
 from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
     GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
-from pyBasket.model import get_model_simple, get_model_bhm
+from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBasket_nc
 
 
 class Analysis(ABC):
@@ -35,10 +35,6 @@ class Analysis(ABC):
 
     @abstractmethod
     def get_posterior_response(self):
-        pass
-
-    @abstractmethod
-    def clustering(self, **kwargs):
         pass
 
     def infer(self, current_step, num_posterior_samples, num_burn_in):
@@ -151,24 +147,27 @@ class Analysis(ABC):
         return data_df
 
 
-class Simple(Analysis):
+class IndependentAnalysis(Analysis):
     def model_definition(self, data_df):
         return get_model_simple(data_df)
-
-    def clustering(self, **kwargs):
-        pass
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
         return stacked.basket_p.values
 
 
-class BHM(Analysis):
+class BHMAnalysis(Analysis):
     def model_definition(self, data_df):
-        return get_model_bhm(data_df)
+        return get_model_bhm_nc(data_df)
 
-    def clustering(self, **kwargs):
-        pass
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.basket_p.values
+
+
+class PyBasketAnalysis(Analysis):
+    def model_definition(self, data_df):
+        return get_model_pyBasket_nc(data_df)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
