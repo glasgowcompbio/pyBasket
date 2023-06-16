@@ -104,12 +104,20 @@ if "data" in st.session_state:
             st.warning("Not enough samples. Please try a different combination.")
     with tab4:
         st.subheader("Differential expression analysis")
+        st.write("Differential Expression Analysis of transcripts for samples in interaction vs rest of samples")
+        col41, col42 = st.columns((2,2))
+        with col41:
+            pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
         #st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
         if subgroup.size > 0:
             dea = DEA(data)
-            dea.diffAnalysis_inter(subgroup)
+            dea.diffAnalysis_inter(subgroup,pthresh)
         else:
             st.warning("Not enough samples. Please try a different combination.")
+        with col42:
+            st.write(" ")
+            st.write(" ")
+            dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh)
 
 
 

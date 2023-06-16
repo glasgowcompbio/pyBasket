@@ -206,7 +206,7 @@ class DEA():
     @staticmethod
     def saveplot(fig, feature):
         if st.button('Save Plot', key="plot_DEA"):  # Update the key to a unique value
-            fig.savefig('plot_DEA_' + feature + '.png')
+            fig.savefig('plot_' + feature + '.png')
             st.info('Plot saved as .png in working directory', icon="ℹ️")
         else:
             st.write("")
@@ -214,12 +214,12 @@ class DEA():
     @staticmethod
     def savedf(tab, feature):
         if st.button('Save Data', key="table_DEA"):  # Update the key to a unique value
-            tab.to_csv('table_DEA_' + feature + '.csv')
+            tab.to_csv('table_' + feature + '.csv')
             st.info('Data saved as .csv in working directory', icon="ℹ️")
         else:
             st.write("")
 
-    def ttest_results(self,df1,df2):
+    def ttest_results(self,df1,df2,pthresh):
         ttest_results = []
         for column in df1.columns:
             t, p = ttest_ind(df1[column], df2[column])
@@ -231,57 +231,54 @@ class DEA():
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value'])
         _, dea_results['P-Value (Bonferroni)'],_, _ = multipletests(dea_results['P-Value'],
                                                                      method='bonferroni')
-        dea_results['Significant'] = dea_results['P-Value (Bonferroni)'] < 0.05
-        dea_results = dea_results.sort_values(by='P-Value (Bonferroni)', ascending=True)
+        dea_results['Significant'] = dea_results['P-Value (Bonferroni)'] < pthresh
         return dea_results
 
-    def diffAnalysis_simple(self,option1, option2, feature):
+    def diffAnalysis_simple(self,option1, option2, feature,pthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
-        self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2)
+        self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh)
+        self.ttest_res.sort_values(by='P-Value (Bonferroni)', ascending=True)
+        fig = DEA.pPlot(self)
+        fig_html = mpld3.fig_to_html(fig)
+        DEA.saveplot(fig,"DEA")
+        components.html(fig_html, height=500, width=1200)
         DEA.savedf(self.ttest_res, feature)
         st.dataframe(self.ttest_res, use_container_width=True)
         st.caption("Ordered by most significantly different.")
 
-    def diffAnalysis_inter(self,subgroup):
+    def diffAnalysis_inter(self,subgroup,pthresh):
         indexes = subgroup.index
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
-        st.write("Differential Expression Analysis of transcripts for samples in interaction vs rest of samples")
-        df = DEA.ttest_results(self,self.subgroup,filtered_df)
-        DEA.savedf(df, "interaction")
-        st.dataframe(df, use_container_width=True)
+        self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh)
+        fig = DEA.pPlot(self)
+        DEA.saveplot(fig, "DEA")
+        fig_html = mpld3.fig_to_html(fig)
+        components.html(fig_html, height=500, width=1200)
+        DEA.savedf(self.ttest_res, "interaction")
+        st.dataframe(self.ttest_res, use_container_width=True)
         st.caption("Ordered by most significantly different.")
 
-    def deaPlot(self):
-        #t = self.ttest_res['T-Statistic']
-        #p = self.ttest_res['P-Value']
-        fig, ax = plt.subplots()
+    def pPlot(self):
+        fig =plt.figure(figsize=(9,5))
+        self.ttest_res.reset_index()
+        ax = sns.scatterplot(self.ttest_res,x= self.ttest_res.index,y = -np.log10(self.ttest_res['P-Value']), s = 15,hue='Significant', palette=['darkgrey',"#F72585"])
+        plt.xlabel('Features')
+        plt.ylabel('-log10(p-value)')
+        ax.legend(title="Significance", title_fontsize=12, fontsize=12, bbox_to_anchor=(1.1,1),  markerscale=0.5)
+        return fig
 
-        # Plot the distributions
-        sns.histplot(self.df_group1, ax=ax, label='Group 1', color='blue', alpha=0.5)
-        sns.histplot(self.df_group2, ax=ax, label='Group 2', color='orange', alpha=0.5)
-        ax.axvline(x=np.mean(self.df_group1), color='blue', linestyle='--', label='Group 1 Mean')
-        ax.axvline(x=np.mean(self.df_group2), color='orange', linestyle='--', label='Group 2 Mean')
-
-        # Plot the confidence intervals
-        #ci_low, ci_high = stats.t.interval(0.95, len(self.df_group1) + len(self.df_group2) - 2, loc=np.mean(self.df_group1) - np.mean(self.df_group2),
-                                 #          scale=stats.sem(self.df_group1 - self.df_group2))
-        #ax.axvline(x=ci_low, color='red', linestyle=':', label='95% CI Lower Bound')
-        #ax.axvline(x=ci_high, color='red', linestyle=':', label='95% CI Upper Bound')
-        ax.set_title('Distribution Comparison')
-        ax.set_xlabel('Data')
-        ax.set_ylabel('Frequency')
-
-        # Add a legend
-        ax.legend()
-
-        # Show the plot
-        return st.pyplot(fig)
-    #def volcanoPlot(self,df):
-       # return st.pyplot(visuz.GeneExpression.volcano(df=df, lfc='log2FC', pv='p-value'))
-
-
+    def infoTest(self,group1,group2,feature,pthresh):
+        size = len(self.ttest_res[self.ttest_res['Significant']==True])
+        info = {'Test: ': {'information': 'T-test'}, 'Multi-sample correction: ': {'information': 'Bonferroni'},
+                'Groups compared: ': {'information': '{}: {} vs {}'.format(feature,group1,group2)},
+                'P-value threshold: ': {'information': pthresh},
+                'Num. Significant transcripts: ': {'information': size}}
+        df = pd.DataFrame(data=info).T
+        style = df.style.hide_index()
+        style.hide_columns()
+        return st.dataframe(df, use_container_width=True)
 
 
 

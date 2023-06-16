@@ -461,3 +461,5 @@ class Analysis():
         fulldf.index.name = 'Sample'
         fulldf['responsive'] = fulldf['responsive'] == 1
         return fulldf
+
+

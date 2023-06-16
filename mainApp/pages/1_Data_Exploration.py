@@ -76,25 +76,33 @@ if "data" in st.session_state:
 
     with tab5:
         st.subheader("Differential expression")
-        option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
-        if option ==  'Clusters':
-            subgroups = data.setClusters()
-            feature = "cluster_number"
-        elif option == 'Baskets/Tissues':
-            subgroups = data.setBaskets()
-            feature = "tissues"
-        else:
-            subgroups = ['0','1']
-            feature = "responsive"
-        groups = st.multiselect(
-            'Please select up to 2 Groups/Baskets to compare', subgroups, max_selections=2)
+        col51, col52 = st.columns((2, 2))
+        with col51:
+            option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
+            if option ==  'Clusters':
+                subgroups = data.setClusters()
+                feature = "cluster_number"
+            elif option == 'Baskets/Tissues':
+                subgroups = data.setBaskets()
+                feature = "tissues"
+            else:
+                subgroups = ['0','1']
+                feature = "responsive"
+            groups = st.multiselect(
+                'Please select up to 2 Groups/Baskets to compare', subgroups, max_selections=2)
         if len(groups)<2:
             st.write("")
         else:
-            st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
+            #st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
+            with col51:
+                pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
+                #st.write('The current p-value threshold is: ', pthresh)
             dea = DEA(data)
-            dea.diffAnalysis_simple(groups[0],groups[1],feature)
-            dea.deaPlot()
+            dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh)
+            with col52:
+                st.write(" ")
+                st.write(" ")
+                dea.infoTest(groups[0],groups[1],option,pthresh)
 
 
 
