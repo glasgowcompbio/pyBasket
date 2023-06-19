@@ -8,8 +8,10 @@ def get_model_simple(data_df):
 
     coords = {'basket': data_df.index}
     with pm.Model(coords=coords) as model:
-        α = pm.Gamma('alpha', alpha=1, beta=1)
-        β = pm.Gamma('beta', alpha=1, beta=1)
+        # α = pm.Gamma('alpha', alpha=1, beta=1)
+        # β = pm.Gamma('beta', alpha=1, beta=1)
+        α = pm.Gamma('alpha', alpha=2, beta=0.5)
+        β = pm.Gamma('beta', alpha=2, beta=0.5)
         θ = pm.Beta('basket_p', alpha=α, beta=β, dims='basket')
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
         return model
