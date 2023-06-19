@@ -18,6 +18,9 @@ dependencies:
   - pytest
   - pytest-cov
   - pip
+  - streamlit
+  - mpld3
+  - seaborn
   - pip:
     - pymc
     - arviz

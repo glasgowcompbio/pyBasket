@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 numpy = "*"
-pandas = "*"
+pandas = "<2.0.0"
 scipy = "*"
 matplotlib = "*"
 seaborn = "*"
@@ -18,6 +18,9 @@ flake8 = "*"
 autopep8 = "*"
 pytest = "*"
 pytest-cov = "*"
+streamlit = "*"
+scikit-learn = "*"
+statsmodels = "*"
 
 [dev-packages]
 twine = "*"
