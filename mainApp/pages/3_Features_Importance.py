@@ -7,7 +7,11 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
-from interpretation import Prototypes, DEA
+from interpretation import Prototypes, DEA, FI
+from lime import lime_tabular
+from sklearn.cluster import KMeans
+import sklearn
+import sklearn.ensemble
 
 add_logo()
 hide_rows = hideRows()
@@ -15,8 +19,14 @@ st.header("Features importance")
 if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
-    importance = data.importance_df
-    importance_sort = np.sort(importance['importance_score'].values)
-    fig = plt.figure(figsize=(12, 6))
-    plt.bar([x for x in range(len(importance))],importance_sort  )
-    st.pyplot(fig)
+    feature_inter = FI(data)
+    tab1, tab2 = st.tabs(["Global Importance","Individual predictions (LIME)"])
+    with tab1:
+        st.subheader("Transcripts with the highest importance")
+        feature_inter.plotImportance()
+        st.subheader("Permutation based")
+        feature_inter.permutationImportance()
+    with tab2:
+        st.subheader("LIME for individual predictions")
+        feature_inter.limeInterpretation(20)
+

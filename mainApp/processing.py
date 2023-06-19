@@ -140,7 +140,7 @@ class Results():
             st.write("")
 
     def count_plot(self,feature, title, x_lab, response):
-        fig = plt.figure(figsize=(12, 6))
+        fig = plt.figure(figsize=(12, 8))
         plt.title(title)
         if response == True:
             hue = self.patient_df["responsive"]
@@ -148,8 +148,8 @@ class Results():
         else:
             hue = None
             palette = sns.color_palette("pastel",25)
-        ax = sns.countplot(x=self.patient_df[feature],hue = hue, palette = palette)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+        ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette)
+        ax.set_xticklabels(ax.get_xticklabels())
         plt.xlabel(x_lab)
         plt.ylabel("Number of samples")
         return fig
@@ -234,6 +234,7 @@ class Results():
             x = np.arange(298)
             ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
             plt.title("AAC response per sample")
+            fig.subplots_adjust(right=0.63, top=1)
             defaultPlot_leg(feature, ax)
             #ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
             plt.xlabel("Sample index")
