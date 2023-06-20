@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # DEBUG flag
-DEBUG=false
+DEBUG=true
 
 # Set parameters based on the DEBUG flag
 if [ "$DEBUG" = true ] ; then

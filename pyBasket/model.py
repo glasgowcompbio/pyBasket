@@ -162,7 +162,7 @@ def get_model_bhm_nc(data_df):
 
 
 
-def get_patient_model_simple(data_df):
+def get_model_simple_bern(data_df):
     '''
     Construct a probabilistic model using PyMC3 to assess patient response.
 
@@ -218,7 +218,7 @@ def get_patient_model_simple(data_df):
 
 
 
-def get_patient_model_hierarchical(data_df):
+def get_model_hierarchical_bern(data_df):
     '''
     Construct a hierarchical probabilistic model using PyMC3 to assess patient response.
 

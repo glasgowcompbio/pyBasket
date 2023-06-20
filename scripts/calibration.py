@@ -13,7 +13,7 @@ import pylab as plt
 import seaborn as sns
 
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, \
-    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, save_obj
+    MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET, save_obj
 from pyBasket.env import Trial, TrueResponseWithClusteringSite, TrueResponseSite
 
 
@@ -129,7 +129,7 @@ def main():
     p1 = 0.4  # target response rate
     enrollments = [[14, 10] for _ in range(K)]
     evaluate_interim = [True, True]  # evaluate every interim stage
-    analysis_names = [MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET]
+    analysis_names = [MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET]
     futility_cutoff = DEFAULT_FUTILITY_CUTOFF
     efficacy_cutoff = DEFAULT_EFFICACY_CUTOFF
     early_futility_stop = True

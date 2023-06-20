@@ -10,10 +10,11 @@ from scipy import stats
 from scipy.special import expit as logistic
 from scipy.stats import halfnorm
 
-from pyBasket.analysis import IndependentAnalysis, BHMAnalysis, PyBasketAnalysis
+from pyBasket.analysis import IndependentAnalysis, BHMAnalysis, PyBasketAnalysis, \
+    IndependentBernAnalysis
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
     GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
-    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT
+    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT, MODEL_INDEPENDENT_BERN
 
 
 class PatientData():
@@ -58,7 +59,7 @@ class TrueResponseSite(Site):
 
         responses = stats.binom.rvs(1, self.true_response_rates[k], size=num_patient)
         classes = [k] * len(responses)
-        clusters = [0] * len(responses) # put all data points into the same cluster
+        clusters = [0] * len(responses)  # put all data points into the same cluster
         self.pos[k] += 1
         return PatientData(responses, classes, clusters)
 
@@ -276,13 +277,19 @@ class Trial():
     def get_analysis(self, analysis_name, K, p0, p_mid,
                      futility_cutoff, efficacy_cutoff,
                      early_futility_stop, early_efficacy_stop, pbar):
-        assert analysis_name in [MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET]
+        assert analysis_name in [MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM,
+                                 MODEL_PYBASKET]
         total_steps = len(self.evaluate_interim) - 1
         if analysis_name == MODEL_INDEPENDENT:
             return IndependentAnalysis(K, total_steps, p0, p_mid,
                                        futility_cutoff, efficacy_cutoff,
                                        early_futility_stop, early_efficacy_stop,
                                        self.num_chains, self.target_accept, pbar)
+        elif analysis_name == MODEL_INDEPENDENT_BERN:
+            return IndependentBernAnalysis(K, total_steps, p0, p_mid,
+                                           futility_cutoff, efficacy_cutoff,
+                                           early_futility_stop, early_efficacy_stop,
+                                           self.num_chains, self.target_accept, pbar)
         elif analysis_name == MODEL_BHM:
             return BHMAnalysis(K, total_steps, p0, p_mid,
                                futility_cutoff, efficacy_cutoff,
