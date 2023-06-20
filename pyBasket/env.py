@@ -260,7 +260,7 @@ class Trial():
 
             # do inference at this stage
             for analysis_name in self.analysis_names:
-                logger.debug(f'Running inference for analysis_name')
+                logger.debug(f'Running inference for {analysis_name}')
                 analysis = self.analyses[analysis_name]
                 analysis.infer(self.current_stage, self.num_posterior_samples,
                                self.num_burn_in)
