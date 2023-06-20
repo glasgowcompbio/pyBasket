@@ -8,14 +8,14 @@ import pymc as pm
 from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
     GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
-from pyBasket.model import get_model_simple, get_model_bhm
+from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBasket_nc
 
 
 class Analysis(ABC):
     def __init__(self, K, total_steps, p0, p_mid,
                  futility_cutoff, efficacy_cutoff,
                  early_futility_stop, early_efficacy_stop,
-                 num_chains, target_accept):
+                 num_chains, target_accept, progress_bar):
         self.K = K
         self.total_steps = total_steps
         self.idata = None
@@ -27,6 +27,7 @@ class Analysis(ABC):
         self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
+        self.pbar = progress_bar
 
         self.groups = [Group(k) for k in range(self.K)]
         self.df = None
@@ -37,37 +38,37 @@ class Analysis(ABC):
     def get_posterior_response(self):
         pass
 
-    @abstractmethod
-    def clustering(self, **kwargs):
-        pass
-
     def infer(self, current_step, num_posterior_samples, num_burn_in):
-        # prepare data in the right format for inference
-        observed_data = []
-        group_idx = []
+        # prepare count data
+        responses = []
+        classes = []
+        clusters = []
         for k in range(self.K):
             group = self.groups[k]
-            observed_data.extend(group.responses)
-            group_idx.extend(group.response_indices)
-        data_df = self._prepare_data(group_idx, observed_data)
+            responses.extend(group.responses)
+            classes.extend(group.classes)
+            clusters.extend(group.clusters)
+        count_df = self._prepare_data(classes, responses)
 
-        # if there are clustering results available
-        if self.clustering_method is not None:
-            classes = np.array(self.clustering_method.classes)
-            clusters = np.array(self.clustering_method.clusters)
-            # print(classes)
-            # print(clusters)
-
-            cluster_df = self.get_cluster_df(classes, clusters)
-            data_df = pd.concat([cluster_df, data_df], axis=1)
-        # print(data_df)
+        # prepare individual observation data
+        if len(clusters) > 0:
+            obs_df = pd.DataFrame({
+                'basket_number': classes,
+                'cluster_number': clusters,
+                'responsive': responses
+            })
+        else:
+            obs_df = pd.DataFrame({
+                'basket_number': classes,
+                'responsive': responses
+            })
 
         # create model and draw posterior samples
-        self.model = self.model_definition(data_df)
+        self.model = self.model_definition(count_df, obs_df)
         with self.model:
             self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
                                    chains=self.num_chains, idata_kwargs={'log_likelihood': True},
-                                   target_accept=self.target_accept)
+                                   target_accept=self.target_accept, progressbar=self.pbar)
 
         # generate df to report the futility and efficacy
         self.df = self._check_futility_efficacy(current_step)
@@ -109,7 +110,7 @@ class Analysis(ABC):
             group_response = post[k]
             prob = np.count_nonzero(group_response > final_threshold) / len(group_response)
             futile = prob < self.futility_cutoff if not last_step else None
-            effective = prob > self.efficacy_cutoff
+            effective = prob >= self.efficacy_cutoff
             row = [k, prob, futile, effective]
             data.append(row)
 
@@ -138,12 +139,12 @@ class Analysis(ABC):
         if group.status == GROUP_STATUS_OPEN:
             group.status = new_status
 
-    def _prepare_data(self, group_idx, observed_data):
-        observed_data = np.array(observed_data)
-        group_idx = np.array(group_idx)
-        unique_group_idx = np.unique(group_idx)
-        ns = [len(observed_data[group_idx == idx]) for idx in unique_group_idx]
-        ks = [np.sum(observed_data[group_idx == idx]) for idx in unique_group_idx]
+    def _prepare_data(self, classes, responses):
+        responses = np.array(responses)
+        classes = np.array(classes)
+        unique_classes = np.unique(classes)
+        ns = [len(responses[classes == idx]) for idx in unique_classes]
+        ks = [np.sum(responses[classes == idx]) for idx in unique_classes]
         data_df = pd.DataFrame({
             'n_success': ks,
             'n_trial': ns
@@ -151,24 +152,27 @@ class Analysis(ABC):
         return data_df
 
 
-class Simple(Analysis):
-    def model_definition(self, data_df):
-        return get_model_simple(data_df)
-
-    def clustering(self, **kwargs):
-        pass
+class IndependentAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df):
+        return get_model_simple(count_df)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
         return stacked.basket_p.values
 
 
-class BHM(Analysis):
-    def model_definition(self, data_df):
-        return get_model_bhm(data_df)
+class BHMAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df):
+        return get_model_bhm_nc(count_df)
 
-    def clustering(self, **kwargs):
-        pass
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.basket_p.values
+
+
+class PyBasketAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df):
+        return get_model_pyBasket_nc(obs_df)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
