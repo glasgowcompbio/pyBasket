@@ -154,7 +154,8 @@ class TrueResponseWithClusteringSite(Site):
 
 class EmpiricalSite(Site):
 
-    def __init__(self, num_responses, sample_sizes):
+    def __init__(self, site_names, num_responses, sample_sizes):
+        self.site_names = site_names
         self.num_responses = num_responses
         self.sample_sizes = sample_sizes
 
@@ -169,6 +170,9 @@ class EmpiricalSite(Site):
 
     def reset(self):
         pass
+
+    def __repr__(self):
+        return f'EmpiricalSite for {self.site_names}'
 
 
 class Trial():
@@ -247,7 +251,7 @@ class Trial():
                 group = analysis.groups[k]
                 if group.status == GROUP_STATUS_OPEN:
                     group.register(patient_data)
-                logger.debug('Registering', group, 'for Analysis', analysis_name)
+                logger.debug(f'Registering {group} for Analysis {analysis_name}')
 
         # evaluate interim stages if needed
         logger.debug('\n')
@@ -256,7 +260,7 @@ class Trial():
 
             # do inference at this stage
             for analysis_name in self.analysis_names:
-                logger.debug('Running inference for:', analysis_name)
+                logger.debug(f'Running inference for analysis_name')
                 analysis = self.analyses[analysis_name]
                 analysis.infer(self.current_stage, self.num_posterior_samples,
                                self.num_burn_in)
