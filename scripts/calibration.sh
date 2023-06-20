@@ -15,7 +15,7 @@ else
     num_burn_in=5000
     num_posterior_samples=5000
     num_chains=1
-    num_sim=50
+    num_sim=500
     n_jobs=50
     echo -e "\n\033[1;32m--- NORMAL MODE ---\033[0m"
 fi
