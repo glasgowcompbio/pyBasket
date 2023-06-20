@@ -102,24 +102,48 @@ if "data" in st.session_state:
         except:
             st.warning("Not enough samples. Please try a different combination.")
     with tab4:
-        st.subheader("Differential expression analysis")
-        st.write("Differential Expression Analysis of transcripts for samples in interaction vs rest of samples")
-        col41, col42 = st.columns((2,2))
-        with col41:
-            pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
-        #st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
-        if subgroup.size > 0:
-            dea = DEA(data)
-            dea.diffAnalysis_inter(subgroup,pthresh)
-        else:
-            st.warning("Not enough samples. Please try a different combination.")
-        with col42:
-            st.write(" ")
-            st.write(" ")
-            try:
-                dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh)
-            except:
+        st.subheader("Differential expression analysis (DEA)")
+        option = st.selectbox("Select analysis", ("Samples in interaction vs rest of samples", "Within interaction: responsive vs non-responsive"), key="DEA")
+        if option == "Samples in interaction vs rest of samples":
+            st.write("##### Samples in interaction vs all other interactions")
+            col41, col42 = st.columns((2,2))
+            with col41:
+                pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
+                logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
+            #st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
+            if subgroup.size > 0:
+                dea = DEA(data)
+                dea.diffAnalysis_inter(subgroup,pthresh,logthresh)
+            else:
+                st.warning("Not enough samples. Please try a different combination.")
+            with col42:
                 st.write(" ")
+                st.write(" ")
+                try:
+                    dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh,logthresh)
+                except:
+                    st.write(" ")
+        else:
+            st.write("##### Responsive vs non-responsive samples within interaction")
+            col41, col42 = st.columns((2, 2))
+            with col41:
+                pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
+                logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
+            if subgroup.size > 0:
+                dea = DEA(data)
+                dea.diffAnalysis_response(subgroup, pthresh, logthresh)
+            else:
+                st.warning("Not enough samples. Please try a different combination.")
+            with col42:
+                st.write(" ")
+                st.write(" ")
+                try:
+                    dea.infoTest("responsive", "non-responsive", 'Interaction', pthresh, logthresh)
+                except:
+                    st.write(" ")
+
+
+
 
 
 

@@ -12,7 +12,7 @@ from pyBasket.common import load_obj, save_obj
 from pyBasket.preprocessing import select_rf, check_rf
 from sklearn.cluster import KMeans
 from pyBasket.clustering import get_cluster_df_by_basket, get_patient_df
-from pyBasket.model import get_patient_model_hierarchical_log_odds, get_patient_model_hierarchical_log_odds_nc
+from pyBasket.model import get_model_pyBasket, get_model_pyBasket_nc
 
 os.chdir('/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket')
 data_dir = os.path.abspath(os.path.join('..','pyBasket/Data'))
@@ -135,14 +135,14 @@ with open('log.txt', 'w') as file:
     n_burn_in = int(5E3)
     n_sample = int(5E3)
     target_accept = 0.99
-    model_h2 = get_patient_model_hierarchical_log_odds(patient_df)
-    model_h2_nc = get_patient_model_hierarchical_log_odds_nc(patient_df)
+    model_h2 = get_model_pyBasket(patient_df)
+    model_h2_nc = get_model_pyBasket_nc(patient_df)
     with model_h2_nc:
         trace_h2 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True})
     print("Hierarchical Bayesian model completed")
 
     # summary of model
-    az.summary(trace_h2).round(2)
+    #az.summary(trace_h2).round(2)
     stacked_h2 = az.extract(trace_h2)
     inferred_basket_h2 = np.mean(stacked_h2.basket_p.values, axis=1)
     inferred_cluster_h2 = np.mean(stacked_h2.cluster_p.values, axis=2)

@@ -96,13 +96,15 @@ if "data" in st.session_state:
             #st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
             with col51:
                 pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
+                logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
                 #st.write('The current p-value threshold is: ', pthresh)
             dea = DEA(data)
-            dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh)
+            dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh,logthresh)
+            #st.pyplot(volcano)
             with col52:
                 st.write(" ")
                 st.write(" ")
-                dea.infoTest(groups[0],groups[1],option,pthresh)
+                dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
 
 
 

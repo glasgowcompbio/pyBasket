@@ -21,6 +21,7 @@ import sklearn
 import plotly.graph_objects as go
 import plotly.express as px
 #from bioinfokit import analys, visuz
+np.set_printoptions(suppress=True, precision=3)
 
 
 if "data" in st.session_state:
@@ -222,44 +223,54 @@ class DEA():
         else:
             st.write("")
 
-    def ttest_results(self,df1,df2,pthresh):
+    def ttest_results(self,df1,df2,pthresh,logthresh):
         ttest_results = []
         for column in df1.columns:
             t, p = ttest_ind(df1[column], df2[column])
-            #if len(self.df_group1[column].values) == len(self.df_group2[column].values):
-            #    l2fc = np.log2(self.df_group1[column].values / self.df_group2[column].values)
-            #else:
-            #    l2fc = None
-            ttest_results.append((column, t, p))
-        dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value'])
+            l2fc = np.mean(df1[column].values) - np.mean(df2[column].values)
+            ttest_results.append((column, t, p, l2fc))
+        dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value', 'LFC'])
         _, dea_results['Adjusted P-value'],_, _ = multipletests(dea_results['P-Value'],
-                                                                     method='bonferroni')
-        dea_results['Significant'] = dea_results['Adjusted P-value'] < pthresh
+                                                                     method='fdr_bh')
+
+        dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
         return dea_results
 
-    def diffAnalysis_simple(self,option1, option2, feature,pthresh):
+    def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
-        self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh)
+        self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
         self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
-        fig = DEA.pPlot(self)
-        fig_html = mpld3.fig_to_html(fig)
+        st.subheader("Volcano plot")
+        fig = DEA.volcanoPlot(self,pthresh,logthresh)
+        #fig_html = mpld3.fig_to_html(fig)
         DEA.saveplot(fig,"DEA")
-        components.html(fig_html, height=500, width=1200)
+        st.pyplot(fig)
+        #components.html(fig_html, height=500, width=1200)
+
+        st.subheader("Results")
+        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
+        self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
         DEA.savedf(self.ttest_res, feature)
         st.dataframe(self.ttest_res, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
 
-    def diffAnalysis_inter(self,subgroup,pthresh):
+    def diffAnalysis_inter(self,subgroup,pthresh,logthresh):
         indexes = subgroup.index
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
-        self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh)
-        fig = DEA.pPlot(self)
+        self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
+        fig = DEA.volcanoPlot(self,pthresh,logthresh)
+        st.subheader("Volcano plot")
         DEA.saveplot(fig, "DEA")
-        fig_html = mpld3.fig_to_html(fig)
-        components.html(fig_html, height=500, width=1200)
+        st.pyplot(fig)
+        #fig_html = mpld3.fig_to_html(fig)
+        #components.html(fig_html, height=500, width=1200)
+
+        st.subheader("Results")
         DEA.savedf(self.ttest_res, "interaction")
+        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
+        self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
         st.dataframe(self.ttest_res, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
 
@@ -272,16 +283,58 @@ class DEA():
         ax.legend(title="Significance", title_fontsize=12, fontsize=12, bbox_to_anchor=(1.1,1),  markerscale=0.5)
         return fig
 
-    def infoTest(self,group1,group2,feature,pthresh):
+    def volcanoPlot(self, thresh, logthresh):
+        df = self.ttest_res
+        fig = plt.figure(figsize=(10, 5))
+        plt.scatter(x=df['LFC'], y=df['P-Value'].apply(lambda x: -np.log10(x)), s=5,color="black")
+        down = df[(df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)]
+        up = df[(df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)]
+
+        plt.scatter(x=down['LFC'], y=down['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Down-regulated",
+                    color="blue")
+        plt.scatter(x=up['LFC'], y=up['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Up-regulated",
+                    color="red")
+        plt.xlabel("log2FC")
+        plt.ylabel('-log10(p-value)')
+        plt.axvline(x=-logthresh,color="grey",linestyle="--")
+        plt.axvline(x=logthresh, color="grey", linestyle="--")
+        #plt.axhline(y=-thresh, color="grey", linestyle="--")
+        plt.axhline(y=-np.log10(thresh), color="grey", linestyle="--")
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+        return fig
+
+    def infoTest(self,group1,group2,feature,pthresh,logthresh):
         size = len(self.ttest_res[self.ttest_res['Significant']==True])
-        info = {'Test: ': {'information': 'T-test'}, 'Multi-sample correction: ': {'information': 'Bonferroni'},
+        info = {'Test: ': {'information': 'T-test'}, 'Multi-sample correction: ': {'information': 'Benjamini/Hochberg'},
                 'Groups compared: ': {'information': '{}: {} vs {}'.format(feature,group1,group2)},
-                'P-value threshold: ': {'information': pthresh},
+                'P-value threshold: ': {'information': pthresh},'log2 FC threshold: ': {'information': logthresh},
                 'Num. Significant transcripts: ': {'information': size}}
         df = pd.DataFrame(data=info).T
         style = df.style.hide_index()
         style.hide_columns()
         return st.dataframe(df, use_container_width=True)
+
+    def diffAnalysis_response(self,subgroup,pthresh, logthresh):
+        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"]==0]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
+        self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+        self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
+                                             axis=1)
+        self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
+        print(len(self.ttest_res))
+        fig = DEA.volcanoPlot(self, pthresh, logthresh)
+        st.subheader("Volcano plot")
+        DEA.saveplot(fig, "DEA:resp")
+        st.pyplot(fig)
+        st.subheader("Results")
+        DEA.savedf(self.ttest_res, "interaction")
+        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
+        self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
+        st.dataframe(self.ttest_res, use_container_width=True)
+        st.caption("Ordered by most significantly different (highest adj p-value).")
+
+
 
 """
 ##Similarity between clusters/groups ??
