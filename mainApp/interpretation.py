@@ -232,23 +232,23 @@ class DEA():
             #    l2fc = None
             ttest_results.append((column, t, p))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value'])
-        _, dea_results['P-Value (Bonferroni)'],_, _ = multipletests(dea_results['P-Value'],
+        _, dea_results['Adjusted P-value'],_, _ = multipletests(dea_results['P-Value'],
                                                                      method='bonferroni')
-        dea_results['Significant'] = dea_results['P-Value (Bonferroni)'] < pthresh
+        dea_results['Significant'] = dea_results['Adjusted P-value'] < pthresh
         return dea_results
 
     def diffAnalysis_simple(self,option1, option2, feature,pthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh)
-        self.ttest_res.sort_values(by='P-Value (Bonferroni)', ascending=True)
+        self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
         fig = DEA.pPlot(self)
         fig_html = mpld3.fig_to_html(fig)
         DEA.saveplot(fig,"DEA")
         components.html(fig_html, height=500, width=1200)
         DEA.savedf(self.ttest_res, feature)
         st.dataframe(self.ttest_res, use_container_width=True)
-        st.caption("Ordered by most significantly different.")
+        st.caption("Ordered by most significantly different (highest adj p-value).")
 
     def diffAnalysis_inter(self,subgroup,pthresh):
         indexes = subgroup.index
@@ -261,7 +261,7 @@ class DEA():
         components.html(fig_html, height=500, width=1200)
         DEA.savedf(self.ttest_res, "interaction")
         st.dataframe(self.ttest_res, use_container_width=True)
-        st.caption("Ordered by most significantly different.")
+        st.caption("Ordered by most significantly different (highest adj p-value).")
 
     def pPlot(self):
         fig =plt.figure(figsize=(9,5))
@@ -284,6 +284,22 @@ class DEA():
         return st.dataframe(df, use_container_width=True)
 
 """
+##Similarity between clusters/groups ??
+    def JaccardCoef(self,option1, option2):
+        # Convert the clusters to sets
+        set_cluster1 = set(cluster1)
+        set_cluster2 = set(cluster2)
+
+        # Calculate the intersection and union
+        intersection = set_cluster1.intersection(set_cluster2)
+        union = set_cluster1.union(set_cluster2)
+
+        # Calculate the Jaccard coefficient
+        jaccard_coefficient = len(intersection) / len(union)
+
+        # Print the Jaccard coefficient
+        print("Jaccard Coefficient:", jaccard_coefficient)
+
     #SHAPley values
     # Create a dummy explainer by passing the prediction values directly
     explainer = shap.KernelExplainer(lambda x: y_train, X_train)
@@ -305,7 +321,6 @@ class FI():
         self.importance = Results.importance_df
 
     def plotImportance(self):
-
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
         importance_vals=  importance_sort['importance_score'].values[:25]
         importance_feats = importance_sort.index[:25]

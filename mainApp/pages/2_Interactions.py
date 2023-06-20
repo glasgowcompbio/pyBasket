@@ -43,30 +43,29 @@ if "data" in st.session_state:
     st.subheader("Explore interactions")
     col11, col12 = st.columns((2, 2))
     with col11:
-        #st.write("##### Select a cluster")
 
         cluster = st.selectbox("Select a cluster", data.setClusters(),
                                key="cluster")
     with col12:
-        #st.write("##### Select a basket/tissue")
 
         basket = st.selectbox("Select a basket/tissue", data.setBaskets(),
                               key="basket")
     subgroup, size = analysis_data.findInteraction(cluster, basket)
     st.text("")
-    st.write("##### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket,size))
+    st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket,size))
     st.text("")
     tab1, tab2,tab3,tab4= st.tabs(["Interactions","PCA","Prototypes", "Differential Expression"])
     with tab1:
         variable = st.selectbox("Select information to display", ['Number of samples', 'Number of responsive samples'],
                                 key="info")
         if variable == 'Number of samples':
-            heatmap = analysis_data.heatmapNum(data, int(cluster), basket)
-            saveheatmap(heatmap, cluster, basket)
-            st.pyplot(heatmap)
+            heatmap_samples = analysis_data.heatmapNum(data, int(cluster), basket)
+            saveheatmap(heatmap_samples, cluster, basket)
+            st.pyplot(heatmap_samples)
         elif variable == 'Number of responsive samples':
-            heat = analysis_data.heatmapResponse(data, int(cluster), basket)
-            st.pyplot(heat)
+            heatmap_response = analysis_data.heatmapResponse(data, int(cluster), basket)
+            saveheatmap(heatmap_response, cluster, basket)
+            st.pyplot(heatmap_response)
         try:
             st.write("#### Response to drug")
             st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
@@ -117,7 +116,11 @@ if "data" in st.session_state:
         with col42:
             st.write(" ")
             st.write(" ")
-            dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh)
+            try:
+                dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh)
+            except:
+                st.write(" ")
+
 
 
 
