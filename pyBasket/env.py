@@ -217,12 +217,14 @@ class Trial():
 
         self.current_stage = 0
         self.iresults = None
+        self.idfs = None
         self.analyses = {}
         self.pbar = pbar
 
     def reset(self):
         self.current_stage = 0
         self.iresults = defaultdict(list)
+        self.idfs = defaultdict(list)
 
         # reset sites
         for k in range(self.K):
@@ -263,9 +265,10 @@ class Trial():
             for analysis_name in self.analysis_names:
                 logger.debug(f'Running inference for {analysis_name}')
                 analysis = self.analyses[analysis_name]
-                analysis.infer(self.current_stage, self.num_posterior_samples,
+                df = analysis.infer(self.current_stage, self.num_posterior_samples,
                                self.num_burn_in)
                 self.iresults[analysis_name].append(analysis.idata)
+                self.idfs[analysis_name].append(df)
 
         # for analysis_name in self.analysis_names:
         #     if self.save_analysis:
@@ -332,3 +335,10 @@ class Trial():
     def final_report(self, analysis_name):
         analysis = self.analyses[analysis_name]
         display(analysis.group_report())
+
+
+class TrialResult:
+    def __init__(self, prob_values, idfs, final_df):
+        self.prob_values = prob_values
+        self.idfs = idfs
+        self.final_df = final_df

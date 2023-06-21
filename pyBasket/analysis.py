@@ -73,7 +73,7 @@ class Analysis(ABC):
 
         # generate df to report the futility and efficacy
         self.df = self._check_futility_efficacy(current_step)
-        return self.df
+        return self.df.copy()
 
     def get_cluster_df(self, class_labels, cluster_labels):
         unique_clusters = np.unique(cluster_labels)

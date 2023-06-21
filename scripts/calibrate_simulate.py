@@ -14,12 +14,7 @@ import seaborn as sns
 
 from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, \
     MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET, save_obj
-from pyBasket.env import Trial, TrueResponseWithClusteringSite, TrueResponseSite
-
-
-class TrialResult:
-    def __init__(self, analysis_results):
-        self.analysis_results = analysis_results
+from pyBasket.env import Trial, TrueResponseWithClusteringSite, TrueResponseSite, TrialResult
 
 
 def simulate_trial(i, num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
@@ -39,9 +34,13 @@ def simulate_trial(i, num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
         done = trial.step()
 
     # return 'prob' values for each analysis as a TrialResult object
-    return TrialResult(
-        {analysis_name: trial.analyses[analysis_name].df['prob'].values for analysis_name in
-         analysis_names})
+    prob_values = {}
+    final_reports = {}
+    for analysis_name in analysis_names:
+        prob_values[analysis_name] = trial.analyses[analysis_name].df['prob'].values
+        final_reports[analysis_name] = trial.final_report(analysis_name)
+    idfs = trial.idfs
+    return TrialResult(prob_values, idfs, final_reports)
 
 
 def simulate_trials(num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
@@ -62,22 +61,27 @@ def calculate_quantiles(trial_results, analysis_names, alpha):
     for analysis_name in analysis_names:
         logger.debug(f"Calculating quantiles for {analysis_name}")
         posterior_ind = np.array(
-            [result.analysis_results[analysis_name] for result in trial_results])
+            [result.prob_values[analysis_name] for result in trial_results])
         Q = np.quantile(posterior_ind, 1 - alpha)
         Qs[analysis_name] = (posterior_ind.flatten(), Q)
     return Qs
 
 
 def get_output_filenames(args):
-    base_filename = f'calibration_clustering_{args.with_clustering_info}'
+    if args.scenario == 0:
+        base_filename = f'calibration_clustering_{args.with_clustering_info}'
+    else:
+        base_filename = f'scenario_{args.scenario}_clustering_{args.with_clustering_info}'
+
     if args.with_clustering_info:
         base_filename += f'_ncluster_{args.n_clusters}'
 
     out_pickle = os.path.join('results', base_filename + '.p')
     out_plot = os.path.join('results', base_filename + '.png')
     out_txt = os.path.join('results', base_filename + '.txt')
+    out_trial_results = os.path.join('results', base_filename + '_trial_results.p')
 
-    return out_pickle, out_plot, out_txt
+    return out_pickle, out_plot, out_txt, out_trial_results
 
 
 def plot_posteriors(Qs, analysis_names, out_plot):
@@ -120,6 +124,9 @@ def main():
     parser.add_argument('--parallel', action='store_true', help='Run simulations in parallel')
     parser.add_argument('--n_jobs', type=int, default=-1,
                         help='Number of jobs for parallel execution')
+    parser.add_argument('--scenario', type=int, default=0,
+                        choices=[0, 1, 2, 3, 4, 5, 6],
+                        help='Simulation scenario. Defaults to 0 (null).')
     parser.set_defaults(with_clustering_info=True)
     args = parser.parse_args()
 
@@ -139,8 +146,11 @@ def main():
     logger.remove()  # Remove the default logger
     logger.add(sys.stderr, level='WARNING')  # Add a new logger with the desired log level
 
-    # simulate basket trial process under the null hypothesis
-    true_response_rates = [p0, p0, p0, p0, p0, p0]
+    # simulate basket trial process under the selected scenario
+    true_response_rates = [p0] * K
+    if args.scenario > 0:
+        for i in range(args.scenario):
+            true_response_rates[i] = p1
 
     if args.with_clustering_info:
         site = TrueResponseWithClusteringSite(enrollments, K, args.n_clusters,
@@ -160,9 +170,10 @@ def main():
     Qs = calculate_quantiles(trial_results, analysis_names, args.alpha)
 
     # save the results
-    out_file, out_plot, out_txt = get_output_filenames(args)
+    out_file, out_plot, out_txt, out_trial_results = get_output_filenames(args)
     save_obj(Qs, out_file)
     save_Q(Qs, out_txt)
+    save_obj(trial_results, out_trial_results)
     plot_posteriors(Qs, analysis_names, out_plot)
 
 
