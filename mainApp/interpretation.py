@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 from sklearn_extra.cluster import KMedoids
 from processing import readPickle, Results, add_logo, defaultPlot_leg, Analysis, hideRows, defaultPlot_leg
 from scipy.spatial.distance import cdist
-from statsmodels.stats.multitest import multipletests
+from statsmodels.stats.multitest import fdrcorrection
 from lime import lime_tabular
 from sklearn.inspection import permutation_importance
 import sklearn
@@ -230,8 +230,9 @@ class DEA():
             l2fc = np.mean(df1[column].values) - np.mean(df2[column].values)
             ttest_results.append((column, t, p, l2fc))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value', 'LFC'])
-        _, dea_results['Adjusted P-value'],_, _ = multipletests(dea_results['P-Value'],
-                                                                     method='fdr_bh')
+        dea_results['Adjusted P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
+        #_, dea_results['Adjusted P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
+                                                                     #method='fdr_bh')
 
         dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
         return dea_results
