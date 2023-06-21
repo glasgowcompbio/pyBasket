@@ -5,6 +5,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
@@ -18,6 +19,7 @@ from statsmodels.stats.multitest import fdrcorrection
 from lime import lime_tabular
 from sklearn.inspection import permutation_importance
 import sklearn
+import shap
 import plotly.graph_objects as go
 import plotly.express as px
 #from bioinfokit import analys, visuz
@@ -249,11 +251,37 @@ class DEA():
         st.pyplot(fig)
         #components.html(fig_html, height=500, width=1200)
 
+    def diffAnalysis_response(self,subgroup,pthresh, logthresh):
+        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"]==0]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
+        self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+        self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
+                                             axis=1)
+        self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
+        fig = DEA.volcanoPlot(self, pthresh, logthresh)
+        st.subheader("Volcano plot")
+        DEA.saveplot(fig, "DEA:resp")
+        st.pyplot(fig)
+
+    def showResults(self,feature):
         st.subheader("Results")
         self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
         self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
-        DEA.savedf(self.ttest_res, feature)
-        st.dataframe(self.ttest_res, use_container_width=True)
+        only_sig = st.checkbox('Show only significant transcripts')
+        num_sig = len(self.ttest_res[self.ttest_res["Significant"] == True])
+        if only_sig and num_sig >0:
+            numShow = st.slider('Select transcripts to show', 0,)
+            show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
+        elif only_sig:
+            st.warning("No significant transcripts found.")
+            show = None
+        else:
+            numShow = st.slider('Select transcripts to show', 0,len(self.ttest_res))
+            show = self.ttest_res[:numShow]
+        #print(self.ttest_res[self.ttest_res["Significant"] == True])
+        DEA.savedf(show, feature)
+        st.dataframe(show, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
 
     def diffAnalysis_inter(self,subgroup,pthresh,logthresh):
@@ -267,13 +295,6 @@ class DEA():
         st.pyplot(fig)
         #fig_html = mpld3.fig_to_html(fig)
         #components.html(fig_html, height=500, width=1200)
-
-        st.subheader("Results")
-        DEA.savedf(self.ttest_res, "interaction")
-        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
-        self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
-        st.dataframe(self.ttest_res, use_container_width=True)
-        st.caption("Ordered by most significantly different (highest adj p-value).")
 
     def pPlot(self):
         fig =plt.figure(figsize=(9,5))
@@ -315,57 +336,6 @@ class DEA():
         style.hide_columns()
         return st.dataframe(df, use_container_width=True)
 
-    def diffAnalysis_response(self,subgroup,pthresh, logthresh):
-        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"]==0]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
-        self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
-        self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
-                                             axis=1)
-        self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
-        print(len(self.ttest_res))
-        fig = DEA.volcanoPlot(self, pthresh, logthresh)
-        st.subheader("Volcano plot")
-        DEA.saveplot(fig, "DEA:resp")
-        st.pyplot(fig)
-        st.subheader("Results")
-        DEA.savedf(self.ttest_res, "interaction")
-        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
-        self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
-        st.dataframe(self.ttest_res, use_container_width=True)
-        st.caption("Ordered by most significantly different (highest adj p-value).")
-
-
-
-"""
-##Similarity between clusters/groups ??
-    def JaccardCoef(self,option1, option2):
-        # Convert the clusters to sets
-        set_cluster1 = set(cluster1)
-        set_cluster2 = set(cluster2)
-
-        # Calculate the intersection and union
-        intersection = set_cluster1.intersection(set_cluster2)
-        union = set_cluster1.union(set_cluster2)
-
-        # Calculate the Jaccard coefficient
-        jaccard_coefficient = len(intersection) / len(union)
-
-        # Print the Jaccard coefficient
-        print("Jaccard Coefficient:", jaccard_coefficient)
-
-    #SHAPley values
-    # Create a dummy explainer by passing the prediction values directly
-    explainer = shap.KernelExplainer(lambda x: y_train, X_train)
-    #shap_values = explainer.shap_values(X_train)
-    shap_values = explainer.shap_values(X_test, nsamples=100)
-    print(shap_values)
-
-    # plot the SHAP values for the Setosa output of the first instance
-   # shap.force_plot(explainer.expected_value[0], shap_values[0][0,:], X_test.iloc[0,:], link="logit")
-
-    """
-
 class FI():
     def __init__(self, Results):
         self.expr_df_selected = Results.expr_df_selected
@@ -373,12 +343,17 @@ class FI():
         self.cluster_labels = Results.cluster_labels
         self.patient_df = Results.patient_df
         self.importance = Results.importance_df
+        self.drug_response = Results.drug_response
+        self.X_train = []
+        self.X_test = []
+        self.y_train = []
+        self.y_test = []
+
 
     def plotImportance(self):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
         importance_vals=  importance_sort['importance_score'].values[:25]
         importance_feats = importance_sort.index[:25]
-        print(importance_vals)
         fig = plt.figure(figsize=(12, 6))
 
         # Create the horizontal bar plot
@@ -390,35 +365,32 @@ class FI():
 
         return st.pyplot(fig)
 
-    def limeInterpretation(self,n_features):
+    def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
-        X_train, X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
-        y_train, y_test = self.patient_df["responsive"].iloc[:train_size], self.patient_df["responsive"].iloc[train_size:]
-        y_train = y_train.values.flatten()
-        #y_test = y_test.values.flatten()
-        #i = np.random.randint(0, X_test.shape[0])
+        self.X_train, self.X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
+        y_train, self.y_test = y.iloc[:train_size], y.iloc[
+                                                                           train_size:]
+        self.y_train = y_train.values.flatten()
 
+    def limeInterpretation(self,n_features):
+        FI.prepareData(self,self.patient_df["responsive"])
         rf = sklearn.ensemble.RandomForestClassifier(n_estimators=100, random_state=42)
-        rf.fit(X_train, y_train)
+        rf.fit(self.X_train, self.y_train)
 
-        explainer = lime_tabular.LimeTabularExplainer(X_train.values, feature_names=X_train.columns, class_names=y_train,
+        explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=self.y_train,
                                                       discretize_continuous=True)
-        exp = explainer.explain_instance(X_test.iloc[0], rf.predict_proba, num_features=n_features)
+        exp = explainer.explain_instance(self.X_test.iloc[0], rf.predict_proba, num_features=n_features)
         fig = exp.as_pyplot_figure()
 
         return st.pyplot(fig)
 
     def permutationImportance(self):
-        train_size = int(len(self.expr_df_selected) * .8)
-        X_train, X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
-        y_train, y_test = self.patient_df["responsive"].iloc[:train_size], self.patient_df["responsive"].iloc[
-                                                                           train_size:]
-        y_train = y_train.values.flatten()
+        FI.prepareData(self, self.drug_response)
         rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100,random_state=42)
-        rf.fit(X_train, y_train)
+        rf.fit(self.X_train, self.y_train)
 
         # the permutation based importance
-        perm_importance = permutation_importance(rf, X_test, y_test)
+        perm_importance = permutation_importance(rf, self.X_test, self.y_test)
 
         sorted_idx = perm_importance.importances_mean.argsort()
         top_positive_indices = sorted_idx[-15:]
@@ -432,14 +404,29 @@ class FI():
         # The top 50 values (both negative and positive) can be accessed using:
         #top_values = perm_importance.importances_mean[top_indices]
         fig = plt.figure(figsize = (10,8))
-        plt.barh(X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
+        plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
         plt.xlabel("Permutation Importance")
         return st.pyplot(fig)
 
+    def SHAP(self):
+        FI.prepareData(self, self.drug_response)
+        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
+        rf.fit(self.X_train, self.y_train)
 
+        explainer = shap.TreeExplainer(rf)
+        shap_values = explainer.shap_values(self.expr_df_selected)
+        return explainer, shap_values
 
+    def SHAP_forces(self, index):
+        explainer,values = FI.SHAP(self)
+        fig = shap.force_plot(explainer.expected_value, values[index, :], self.expr_df_selected.iloc[index, :], matplotlib=True, show=False)
+        return fig
 
-
+    def SHAP_summary(self):
+        explainer, values = FI.SHAP(self)
+        fig, ax = plt.subplots()
+        shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
+        return fig
 
 
 

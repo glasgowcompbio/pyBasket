@@ -100,7 +100,7 @@ if "data" in st.session_state:
                 #st.write('The current p-value threshold is: ', pthresh)
             dea = DEA(data)
             dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh,logthresh)
-            #st.pyplot(volcano)
+            dea.showResults(feature)
             with col52:
                 st.write(" ")
                 st.write(" ")

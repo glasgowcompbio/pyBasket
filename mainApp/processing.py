@@ -74,6 +74,7 @@ class Results():
         self.cluster_labels = pickle_data[list(pickle_data)[4]]
         self.patient_df = pickle_data[list(pickle_data)[5]]
         self.importance_df = pickle_data[list(pickle_data)[8]]
+        self.stacked_posterior = pickle_data[list(pickle_data)[6]]
 
     def setClusters(self):
         clusters = list(self.patient_df['cluster_number'].unique())
@@ -258,6 +259,8 @@ class Analysis():
         self.pca_variance = None
         self.pca_adv = None
         self.pca_adv_var = None
+        self.stacked_posterior = Results.stacked_posterior
+        self.num_samples = None
 
     def main_PCA(self, feature):
         rawX = self.expr_df_selected
@@ -382,11 +385,9 @@ class Analysis():
         num = len(sub_transcript)
         return sub_transcript, num
 
-    def heatmapNum(self,results,x_highlight=None, y_highlight=None):
+    def heatmapNum(self,results):
         clusters = results.setClusters()
         baskets = results.setBaskets()
-        x_highlight = clusters.index(x_highlight)
-        y_highlight = baskets.index(y_highlight)
         data = []
         for basket in baskets:
             clus = []
@@ -395,16 +396,8 @@ class Analysis():
                 clus.append(num)
             data.append(clus)
         df = pd.DataFrame(data, baskets,clusters)
-        fig = plt.figure(figsize=(10, 10))
-        sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
-        plt.title('Number of samples in basket')
-        plt.xlabel('Clusters')
-        plt.ylabel('Baskets')
-        plt.yticks(fontsize=8)
-        if x_highlight is not None and y_highlight is not None:
-            plt.gca().add_patch(
-                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
-        return fig
+        self.num_samples = df
+        return df
 
     def heatmapTranscripts(self,df):
         fig = plt.figure(figsize=(10, 10))
@@ -417,11 +410,9 @@ class Analysis():
         plt.xticks(fontsize=9)
         return fig
 
-    def heatmapResponse(self,results,x_highlight=None, y_highlight=None):
+    def heatmapResponse(self,results):
         clusters = results.setClusters()
         baskets = results.setBaskets()
-        x_highlight = clusters.index(x_highlight)
-        y_highlight = baskets.index(y_highlight)
         data = []
         for basket in baskets:
             response = []
@@ -430,16 +421,7 @@ class Analysis():
                 response.append(sub)
             data.append(response)
         df = pd.DataFrame(data, baskets,clusters)
-        fig = plt.figure(figsize=(10, 10))
-        sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
-        plt.title('Number of responsive samples per basket')
-        plt.xlabel('Clusters')
-        plt.ylabel('Baskets')
-        plt.yticks(fontsize=8)
-        if x_highlight is not None and y_highlight is not None:
-            plt.gca().add_patch(
-                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
-        return fig
+        return df
 
     def samplesCount(self,subgroup):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
@@ -462,5 +444,38 @@ class Analysis():
         fulldf.index.name = 'Sample'
         fulldf['responsive'] = fulldf['responsive'] == 1
         return fulldf
+
+    def HM_inferredProb(self,results):
+        basket_coords, cluster_coords = results.setBaskets(),results.setClusters()
+        stacked = self.stacked_posterior
+        predt_basket = np.mean(stacked.basket_p.values, axis=1)
+        inferred_basket = pd.DataFrame({'prob': predt_basket}, index = basket_coords)
+        inferred_basket =  inferred_basket.values
+        inferred_cluster = np.mean(stacked.cluster_p.values, axis=2)
+        inferred_mat = inferred_basket * inferred_cluster
+        inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
+        return inferred_df
+
+    def heatmap_interaction(self,results,df, title,num_Sum,x_highlight=None, y_highlight=None):
+        Analysis.heatmapNum(self,results)
+        x_highlight = results.setClusters().index(x_highlight)
+        y_highlight = results.setBaskets().index(y_highlight)
+        fig = plt.figure(figsize=(10, 10))
+        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
+        plt.title(title)
+        plt.xlabel('Clusters')
+        plt.ylabel('Baskets')
+        plt.yticks(fontsize=8)
+
+        for i, c in enumerate(self.num_samples.columns):
+            for j, v in enumerate(self.num_samples[c]):
+                if v >= num_Sum:
+                    ax.text(i + 0.5, j + 0.5, '★', color='gold', size=20, ha='center', va='center')
+        if x_highlight is not None and y_highlight is not None:
+            plt.gca().add_patch(
+                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+
+        plt.show()
+        return fig
 
 

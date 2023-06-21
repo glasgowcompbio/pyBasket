@@ -43,29 +43,44 @@ if "data" in st.session_state:
     st.subheader("Explore interactions")
     col11, col12 = st.columns((2, 2))
     with col11:
-
-        cluster = st.selectbox("Select a cluster", data.setClusters(),
-                               key="cluster")
+        cluster = st.selectbox("Select a cluster", data.setClusters(),key="cluster")
     with col12:
 
-        basket = st.selectbox("Select a basket/tissue", data.setBaskets(),
-                              key="basket")
+        basket = st.selectbox("Select a basket/tissue", data.setBaskets(),key="basket")
     subgroup, size = analysis_data.findInteraction(cluster, basket)
     st.text("")
     st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket,size))
     st.text("")
     tab1, tab2,tab3,tab4= st.tabs(["Interactions","PCA","Prototypes", "Differential Expression"])
     with tab1:
-        variable = st.selectbox("Select information to display", ['Number of samples', 'Number of responsive samples'],
-                                key="info")
+        col11, col12 = st.columns((2,2))
+        with col11:
+            st.write("")
+            st.write("")
+            variable = st.radio("Select information to display", ['Number of samples', 'Number of responsive samples', "Inferred response"],
+                                key="HM_info")
+        with col12:
+            min_num = st.slider('Mark interactions with minimum number of samples', 0,70)
+            st.info("\:star: : basket+cluster interactions with at least {} samples.\n"
+                    
+                    "\:large_red_square: : selected basket+cluster interaction ".format(min_num))
         if variable == 'Number of samples':
-            heatmap_samples = analysis_data.heatmapNum(data, int(cluster), basket)
-            saveheatmap(heatmap_samples, cluster, basket)
-            st.pyplot(heatmap_samples)
+            num_samples = analysis_data.heatmapNum(data)
+            HM_samples = analysis_data.heatmap_interaction(data, num_samples, "Number of samples per interaction"
+                                                            ,min_num,int(cluster), basket)
+            saveheatmap(HM_samples, cluster, basket)
+            st.pyplot(HM_samples)
         elif variable == 'Number of responsive samples':
-            heatmap_response = analysis_data.heatmapResponse(data, int(cluster), basket)
-            saveheatmap(heatmap_response, cluster, basket)
-            st.pyplot(heatmap_response)
+            response_df = analysis_data.heatmapResponse(data)
+            HM_response = analysis_data.heatmap_interaction(data, response_df, "Responsive samples per interaction",min_num,
+                                                            int(cluster), basket)
+            saveheatmap(HM_response, cluster, basket)
+            st.pyplot(HM_response)
+        else:
+            inferred_df = analysis_data.HM_inferredProb(data)
+            HM_inferred = analysis_data.heatmap_interaction(data,inferred_df,"Inferred basket*cluster interaction",min_num,int(cluster), basket)
+            saveheatmap(HM_inferred, cluster, basket)
+            st.pyplot(HM_inferred)
         try:
             st.write("#### Response to drug")
             st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(cluster, basket, size))
@@ -114,6 +129,7 @@ if "data" in st.session_state:
             if subgroup.size > 0:
                 dea = DEA(data)
                 dea.diffAnalysis_inter(subgroup,pthresh,logthresh)
+                dea.showResults("interaction")
             else:
                 st.warning("Not enough samples. Please try a different combination.")
             with col42:
@@ -125,13 +141,14 @@ if "data" in st.session_state:
                     st.write(" ")
         else:
             st.write("##### Responsive vs non-responsive samples within interaction")
-            col41, col42 = st.columns((2, 2))
+            col41, col42 = st.columns((2, 3))
             with col41:
                 pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
                 logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
             if subgroup.size > 0:
                 dea = DEA(data)
                 dea.diffAnalysis_response(subgroup, pthresh, logthresh)
+                dea.showResults("interaction")
             else:
                 st.warning("Not enough samples. Please try a different combination.")
             with col42:
