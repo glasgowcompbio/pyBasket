@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # DEBUG flag
-DEBUG=true
+DEBUG=false
 
 # Set parameters based on the DEBUG flag
 if [ "$DEBUG" = true ] ; then
@@ -30,9 +30,12 @@ echo -e "\n"
 
 # No clustering info
 python calibration.py --num_burn_in $num_burn_in --num_posterior_samples $num_posterior_samples --num_chains $num_chains --num_sim $num_sim --no-with_clustering_info --parallel --n_jobs $n_jobs
+rm -rf /home/joewandy/.pytensor/compiledir_Linux-5.4--generic-x86_64-with-glibc2.27-x86_64-3.9.0-64/
 
 # With clustering info, n_clusters = 5
 python calibration.py --num_burn_in $num_burn_in --num_posterior_samples $num_posterior_samples --num_chains $num_chains --num_sim $num_sim --with_clustering_info --n_clusters 5 --parallel --n_jobs $n_jobs
+rm -rf /home/joewandy/.pytensor/compiledir_Linux-5.4--generic-x86_64-with-glibc2.27-x86_64-3.9.0-64/
 
 # With clustering info, n_clusters = 10
 python calibration.py --num_burn_in $num_burn_in --num_posterior_samples $num_posterior_samples --num_chains $num_chains --num_sim $num_sim --with_clustering_info --n_clusters 10 --parallel --n_jobs $n_jobs
+rm -rf /home/joewandy/.pytensor/compiledir_Linux-5.4--generic-x86_64-with-glibc2.27-x86_64-3.9.0-64/
