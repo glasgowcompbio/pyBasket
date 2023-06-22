@@ -7,7 +7,8 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
-from interpretation import Prototypes, DEA, FI
+from interpretation import Prototypes, DEA
+from importance import FI
 from lime import lime_tabular
 from sklearn.cluster import KMeans
 import sklearn
@@ -20,7 +21,7 @@ if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
     feature_inter = FI(data)
-    tab1, tab2 = st.tabs(["Global Importance","Individual predictions (LIME)"])
+    tab1, tab2 = st.tabs(["Global Importance","Individual predictions"])
     with tab1:
         global_model = st.selectbox("Select a model", ["RF feature importance", "SHAP", "Permutation"], key="model1")
         if global_model == "RF feature importance":
@@ -35,11 +36,25 @@ if "data" in st.session_state:
             #st.subheader("Permutation based")
             #feature_inter.permutationImportance()
     with tab2:
+        st.subheader("Local methods")
         local_model = st.selectbox("Select a model", ["LIME", "SHAP"], key="model2")
-        if local_model == "LIME":
-            st.subheader("LIME for individual predictions")
-            feature_inter.limeInterpretation(20)
-        elif local_model == "SHAP":
-            forces = feature_inter.SHAP_forces(0)
-            st.pyplot(forces)
-
+        col21, col22 = st.columns((2,2))
+        with col21:
+            cluster = st.selectbox("Select a cluster", ["None"]+data.setClusters(),key="cluster")
+            #responsive = st.selectbox("Select response to treatment", ["Responsive (1)", "Non-responsive (0)"],key="response")
+        with col22:
+            basket = st.selectbox("Select a tissue/basket", ["None"]+data.setBaskets(),key="basket")
+        transc, size = feature_inter.displaySamples(cluster,basket)
+        st.info("###### Samples in selection: {}".format(size))
+        if size >1:
+            responses = st.radio("",
+                                ['All', 'Only responsive samples', "Only non-responsive samples"],
+                                key="responsive",horizontal=True)
+            transc = feature_inter.filterSamples(transc, responses)
+            sample = st.selectbox("Select a sample", transc, key="sample")
+            if local_model == "LIME":
+                st.subheader("LIME for individual predictions")
+                feature_inter.limeInterpretation(sample,20)
+            elif local_model == "SHAP":
+                forces = feature_inter.SHAP_forces(sample)
+                st.pyplot(forces)

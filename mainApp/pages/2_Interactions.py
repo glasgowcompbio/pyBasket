@@ -45,7 +45,6 @@ if "data" in st.session_state:
     with col11:
         cluster = st.selectbox("Select a cluster", data.setClusters(),key="cluster")
     with col12:
-
         basket = st.selectbox("Select a basket/tissue", data.setBaskets(),key="basket")
     subgroup, size = analysis_data.findInteraction(cluster, basket)
     st.text("")
@@ -53,17 +52,16 @@ if "data" in st.session_state:
     st.text("")
     tab1, tab2,tab3,tab4= st.tabs(["Interactions","PCA","Prototypes", "Differential Expression"])
     with tab1:
-        col11, col12 = st.columns((2,2))
-        with col11:
-            st.write("")
-            st.write("")
-            variable = st.radio("Select information to display", ['Number of samples', 'Number of responsive samples', "Inferred response"],
-                                key="HM_info")
-        with col12:
-            min_num = st.slider('Mark interactions with minimum number of samples', 0,70)
-            st.info("\:star: : basket+cluster interactions with at least {} samples.\n"
-                    
-                    "\:large_red_square: : selected basket+cluster interaction ".format(min_num))
+        st.write("")
+        variable = st.radio("Select information to display", ['Number of samples', 'Number of responsive samples', "Inferred response"],
+                            key="HM_info", horizontal=True)
+        st.write("")
+
+        min_num = st.slider('Mark interactions with minimum number of samples', 0,70)
+        st.info("\:star: : basket+cluster interactions with at least {} samples.\n"
+                
+                "\:large_red_square: : selected basket+cluster interaction.\n".format(min_num))
+        st.write("")
         if variable == 'Number of samples':
             num_samples = analysis_data.heatmapNum(data)
             HM_samples = analysis_data.heatmap_interaction(data, num_samples, "Number of samples per interaction"
