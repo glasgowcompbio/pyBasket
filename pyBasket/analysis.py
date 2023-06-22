@@ -13,19 +13,16 @@ from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBaske
 
 
 class Analysis(ABC):
-    def __init__(self, K, total_steps, p0, p_mid,
-                 futility_cutoff, efficacy_cutoff,
-                 early_futility_stop, early_efficacy_stop,
-                 num_chains, target_accept, progress_bar):
+    def __init__(self, K, total_steps, p0, p_mid, dt, dt_interim, early_futility_stop, num_chains,
+                 target_accept, progress_bar):
         self.K = K
         self.total_steps = total_steps
         self.idata = None
         self.p0 = p0
         self.p_mid = p_mid
-        self.futility_cutoff = futility_cutoff
-        self.efficacy_cutoff = efficacy_cutoff
+        self.dt = dt
+        self.dt_interim = dt_interim
         self.early_futility_stop = early_futility_stop
-        self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
         self.pbar = progress_bar
@@ -73,7 +70,7 @@ class Analysis(ABC):
 
         # generate df to report the futility and efficacy
         self.df = self._check_futility_efficacy(current_step)
-        return self.df.copy()
+        return self.df
 
     def get_cluster_df(self, class_labels, cluster_labels):
         unique_clusters = np.unique(cluster_labels)
@@ -106,33 +103,30 @@ class Analysis(ABC):
         data = []
 
         last_step = current_step == self.total_steps
-        final_threshold = self.p0 if last_step else self.p_mid
+        threshold = self.p0 if last_step else self.p_mid
+        Q = self.dt if last_step else self.dt_interim
         for k in range(self.K):
+            group = self.groups[k]
             group_response = post[k]
-            prob = np.count_nonzero(group_response > final_threshold) / len(group_response)
-            futile = prob < self.futility_cutoff if not last_step else None
-            effective = prob >= self.efficacy_cutoff
-            row = [k, prob, futile, effective]
-            data.append(row)
+            prob = np.count_nonzero(group_response > threshold) / len(group_response)
+            effective = (prob>=Q)
 
             if not last_step:  # update interim stage status
-                if futile:
+                if not effective and self.early_futility_stop:
                     new_status = GROUP_STATUS_EARLY_STOP_FUTILE
-                    if self.early_futility_stop:
-                        self._update_open_group_status(self.groups[k], new_status)
-                elif effective:
-                    new_status = GROUP_STATUS_EARLY_STOP_EFFECTIVE
-                    if self.early_efficacy_stop:
-                        self._update_open_group_status(self.groups[k], new_status)
+                    self._update_open_group_status(group, new_status)
 
             else:  # final stage update
                 if effective:
                     new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
                 else:
                     new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
-                self._update_open_group_status(self.groups[k], new_status)
+                self._update_open_group_status(group, new_status)
 
-        columns = ['k', 'prob', 'futile', 'effective']
+            row = [k, prob, Q, effective, group.status]
+            data.append(row)
+
+        columns = ['k', 'prob', 'Q', 'effective', 'group_status']
         df = pd.DataFrame(data, columns=columns).set_index('k')
         return df
 

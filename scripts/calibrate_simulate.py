@@ -12,22 +12,19 @@ import numpy as np
 import pylab as plt
 import seaborn as sns
 
-from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, \
+from pyBasket.common import DEFAULT_DECISION_THRESHOLD, DEFAULT_DECISION_THRESHOLD_INTERIM, \
     MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET, save_obj
 from pyBasket.env import Trial, TrueResponseWithClusteringSite, TrueResponseSite, TrialResult
 
 
 def simulate_trial(i, num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
-                   num_posterior_samples, analysis_names, futility_cutoff,
-                   efficacy_cutoff, early_futility_stop, early_efficacy_stop,
-                   num_chains, pbar):
+                   num_posterior_samples, analysis_names, dt, dt_interim,
+                   early_futility_stop, num_chains, pbar):
     logger.warning(f"Running trial {i + 1}/{num_sim}")
     trial = Trial(K, p0, p1, site, evaluate_interim,
                   num_burn_in, num_posterior_samples, analysis_names,
-                  futility_cutoff=futility_cutoff, efficacy_cutoff=efficacy_cutoff,
-                  early_futility_stop=early_futility_stop,
-                  early_efficacy_stop=early_efficacy_stop,
-                  num_chains=num_chains, pbar=pbar)
+                  dt=dt, dt_interim=dt_interim,
+                  early_futility_stop=early_futility_stop, num_chains=num_chains, pbar=pbar)
 
     done = trial.reset()
     while not done:
@@ -44,18 +41,17 @@ def simulate_trial(i, num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
 
 
 def simulate_trials(num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
-                    num_posterior_samples, analysis_names, futility_cutoff,
-                    efficacy_cutoff, early_futility_stop, early_efficacy_stop,
+                    num_posterior_samples, analysis_names, dt,
+                    dt_interim, early_futility_stop,
                     num_chains, pbar, n_jobs):
     trials = Parallel(n_jobs=n_jobs)(delayed(simulate_trial)(
         i, num_sim, K, p0, p1, site, evaluate_interim, num_burn_in,
-        num_posterior_samples, analysis_names, futility_cutoff,
-        efficacy_cutoff, early_futility_stop, early_efficacy_stop,
-        num_chains, pbar) for i in range(num_sim))
+        num_posterior_samples, analysis_names, dt,
+        dt_interim, early_futility_stop, num_chains, pbar) for i in range(num_sim))
     return trials
 
 
-def calculate_quantiles(trial_results, analysis_names, alpha):
+def calibrate_quantiles(trial_results, analysis_names, alpha):
     # calculate quantiles
     Qs = {}
     for analysis_name in analysis_names:
@@ -63,7 +59,10 @@ def calculate_quantiles(trial_results, analysis_names, alpha):
         posterior_ind = np.array(
             [result.prob_values[analysis_name] for result in trial_results])
         Q = np.quantile(posterior_ind, 1 - alpha)
-        Qs[analysis_name] = (posterior_ind.flatten(), Q)
+        Qs[analysis_name] = {
+            'posterior_ind': posterior_ind.flatten(),
+            'calibrated_threshold': Q
+        }
     return Qs
 
 
@@ -76,12 +75,12 @@ def get_output_filenames(args):
     if args.with_clustering_info:
         base_filename += f'_ncluster_{args.n_clusters}'
 
-    out_pickle = os.path.join('results', base_filename + '.p')
     out_plot = os.path.join('results', base_filename + '.png')
     out_txt = os.path.join('results', base_filename + '.txt')
+    out_quantile = os.path.join('results', base_filename + '_quantiles.p')
     out_trial_results = os.path.join('results', base_filename + '_trial_results.p')
 
-    return out_pickle, out_plot, out_txt, out_trial_results
+    return out_plot, out_txt, out_quantile, out_trial_results
 
 
 def plot_posteriors(Qs, analysis_names, out_plot):
@@ -102,7 +101,8 @@ def plot_posteriors(Qs, analysis_names, out_plot):
 
 def save_Q(Qs, out_txt):
     with open(out_txt, 'w') as f:
-        for analysis_name, (posterior_ind, Q) in Qs.items():
+        for analysis_name in Qs:
+            Q = Qs[analysis_name]['calibrated_threshold']
             f.write(f'{analysis_name}: {Q}\n')
 
 
@@ -137,10 +137,9 @@ def main():
     enrollments = [[14, 10] for _ in range(K)]
     evaluate_interim = [True, True]  # evaluate every interim stage
     analysis_names = [MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET]
-    futility_cutoff = DEFAULT_FUTILITY_CUTOFF
-    efficacy_cutoff = DEFAULT_EFFICACY_CUTOFF
+    dt = DEFAULT_DECISION_THRESHOLD
+    dt_interim = DEFAULT_DECISION_THRESHOLD_INTERIM
     early_futility_stop = True
-    early_efficacy_stop = False
     pbar = False
 
     logger.remove()  # Remove the default logger
@@ -159,22 +158,52 @@ def main():
         site = TrueResponseSite(true_response_rates, enrollments)
 
     n_jobs = args.n_jobs if args.parallel else 1
+
+    if args.scenario == 0:
+
+        # Calibration run
+        # simulate basket trial process under the selected scenario
+        trial_results = simulate_trials(args.num_sim, K, p0, p1, site, evaluate_interim,
+                                        args.num_burn_in, args.num_posterior_samples,
+                                        analysis_names, dt, dt_interim, early_futility_stop,
+                                        args.num_chains, pbar, n_jobs)
+
+        # calculate quantiles for calibration in the simulation run
+        Qs = calibrate_quantiles(trial_results, analysis_names, args.alpha)
+
+        out_plot, out_txt, out_quantile, out_trial_results = get_output_filenames(args)
+        plot_posteriors(Qs, analysis_names, out_plot)
+        save_Q(Qs, out_txt)
+        save_obj(Qs, out_quantile)
+        save_obj(trial_results, out_trial_results)
+
+
+    else:
+
+        # Simulation run
+        # load quantiles from calibration run
+        out_quantile = get_output_filenames(args, calibration=True)[2]
+        Qs = load_quantiles(out_quantile)
+        # set decision threshold using calibrated quantiles
+        dt = {analysis: Qs[analysis]['calibrated_threshold'] for analysis in analysis_names}
+
+
+
+
     trial_results = simulate_trials(args.num_sim, K, p0, p1, site, evaluate_interim,
                                     args.num_burn_in, args.num_posterior_samples,
-                                    analysis_names, futility_cutoff, efficacy_cutoff,
-                                    early_futility_stop, early_efficacy_stop, args.num_chains,
-                                    pbar,
-                                    n_jobs)
+                                    analysis_names, dt, dt_interim, early_futility_stop,
+                                    args.num_chains, pbar, n_jobs)
 
-    # calculate quantiles
-    Qs = calculate_quantiles(trial_results, analysis_names, args.alpha)
+    # calculate quantiles for calibration in the simulation run
+    Qs = calibrate_quantiles(trial_results, analysis_names, args.alpha)
 
     # save the results
-    out_file, out_plot, out_txt, out_trial_results = get_output_filenames(args)
-    save_obj(Qs, out_file)
-    save_Q(Qs, out_txt)
-    save_obj(trial_results, out_trial_results)
+    out_plot, out_txt, out_quantile, out_trial_results = get_output_filenames(args)
     plot_posteriors(Qs, analysis_names, out_plot)
+    save_Q(Qs, out_txt)
+    save_obj(Qs, out_quantile)
+    save_obj(trial_results, out_trial_results)
 
 
 if __name__ == '__main__':

@@ -12,8 +12,8 @@ from scipy.stats import halfnorm
 
 from pyBasket.analysis import IndependentAnalysis, BHMAnalysis, PyBasketAnalysis, \
     IndependentBernAnalysis
-from pyBasket.common import DEFAULT_EFFICACY_CUTOFF, DEFAULT_FUTILITY_CUTOFF, DEFAULT_NUM_CHAINS, \
-    GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, DEFAULT_EARLY_EFFICACY_STOP, \
+from pyBasket.common import DEFAULT_DECISION_THRESHOLD, DEFAULT_DECISION_THRESHOLD_INTERIM, \
+    DEFAULT_NUM_CHAINS, GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, \
     MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT, MODEL_INDEPENDENT_BERN
 
 
@@ -192,9 +192,8 @@ class Trial():
 
     def __init__(self, K, p0, p1, site,
                  evaluate_interim, num_burn_in, num_posterior_samples, analysis_names,
-                 futility_cutoff=DEFAULT_FUTILITY_CUTOFF, efficacy_cutoff=DEFAULT_EFFICACY_CUTOFF,
+                 dt=DEFAULT_DECISION_THRESHOLD, dt_interim=DEFAULT_DECISION_THRESHOLD_INTERIM,
                  early_futility_stop=DEFAULT_EARLY_FUTILITY_STOP,
-                 early_efficacy_stop=DEFAULT_EARLY_EFFICACY_STOP,
                  num_chains=DEFAULT_NUM_CHAINS, target_accept=DEFAULT_TARGET_ACCEPT,
                  save_analysis=False, pbar=False):
         self.K = K
@@ -204,10 +203,9 @@ class Trial():
         self.num_burn_in = int(num_burn_in)
         self.num_posterior_samples = int(num_posterior_samples)
         self.analysis_names = analysis_names
-        self.futility_cutoff = futility_cutoff
-        self.efficacy_cutoff = efficacy_cutoff
+        self.decision_threshold = dt
+        self.decision_threshold_interim = dt_interim
         self.early_futility_stop = early_futility_stop
-        self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
 
@@ -233,9 +231,8 @@ class Trial():
         # initialise all the models
         for analysis_name in self.analysis_names:
             analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid,
-                                         self.futility_cutoff, self.efficacy_cutoff,
-                                         self.early_futility_stop, self.early_efficacy_stop,
-                                         self.pbar)
+                                         self.decision_threshold, self.decision_threshold_interim,
+                                         self.early_futility_stop, self.pbar)
             self.analyses[analysis_name] = analysis
 
         return False
@@ -278,31 +275,31 @@ class Trial():
         return last_step
 
     def get_analysis(self, analysis_name, K, p0, p_mid,
-                     futility_cutoff, efficacy_cutoff,
-                     early_futility_stop, early_efficacy_stop, pbar):
+                     decision_threshold, decision_threshold_interim,
+                     early_futility_stop, pbar):
         assert analysis_name in [MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM,
                                  MODEL_PYBASKET]
         total_steps = len(self.evaluate_interim) - 1
         if analysis_name == MODEL_INDEPENDENT:
             return IndependentAnalysis(K, total_steps, p0, p_mid,
-                                       futility_cutoff, efficacy_cutoff,
-                                       early_futility_stop, early_efficacy_stop,
-                                       self.num_chains, self.target_accept, pbar)
+                                       decision_threshold, decision_threshold_interim,
+                                       early_futility_stop, self.num_chains,
+                                       self.target_accept, pbar)
         elif analysis_name == MODEL_INDEPENDENT_BERN:
             return IndependentBernAnalysis(K, total_steps, p0, p_mid,
-                                           futility_cutoff, efficacy_cutoff,
-                                           early_futility_stop, early_efficacy_stop,
-                                           self.num_chains, self.target_accept, pbar)
+                                           decision_threshold, decision_threshold_interim,
+                                           early_futility_stop, self.num_chains,
+                                           self.target_accept, pbar)
         elif analysis_name == MODEL_BHM:
             return BHMAnalysis(K, total_steps, p0, p_mid,
-                               futility_cutoff, efficacy_cutoff,
-                               early_futility_stop, early_efficacy_stop,
-                               self.num_chains, self.target_accept, pbar)
+                               decision_threshold, decision_threshold_interim,
+                               early_futility_stop, self.num_chains,
+                               self.target_accept, pbar)
         elif analysis_name == MODEL_PYBASKET:
             return PyBasketAnalysis(K, total_steps, p0, p_mid,
-                                    futility_cutoff, efficacy_cutoff,
-                                    early_futility_stop, early_efficacy_stop,
-                                    self.num_chains, self.target_accept, pbar)
+                                    decision_threshold, decision_threshold_interim,
+                                    early_futility_stop, self.num_chains,
+                                    self.target_accept, pbar)
 
     def visualise_model(self, analysis_name):
         try:
@@ -331,6 +328,10 @@ class Trial():
             az.plot_forest(idata, var_names='basket_p')
         except IndexError:
             logger.warning('No model to visualise')
+
+    def interim_report(self, analysis_name):
+        for df in self.idfs[analysis_name]:
+            display(df)
 
     def final_report(self, analysis_name):
         analysis = self.analyses[analysis_name]
