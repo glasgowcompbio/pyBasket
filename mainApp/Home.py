@@ -1,6 +1,7 @@
 import streamlit as st
 import tempfile
 from processing import *
+from common import add_logo
 import base64
 
 st.set_page_config(

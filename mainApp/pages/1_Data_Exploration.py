@@ -1,11 +1,7 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 from processing import readPickle, Results, Analysis, dim_PCA
-from common import add_logo, hideRows
-import numpy as np
-import seaborn as sns
-import mpld3
-import streamlit.components.v1 as components
+from common import add_logo, hideRows, savePlot
 from interpretation import Prototypes, Kmedoids,DEA
 
 hide_rows = hideRows()
@@ -104,14 +100,20 @@ if "data" in st.session_state:
             with col51:
                 pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
                 logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
-                #st.write('The current p-value threshold is: ', pthresh)
             dea = DEA(data)
             dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh,logthresh)
-            dea.showResults(feature)
+            results = dea.showResults(feature)
             with col52:
                 st.write(" ")
                 st.write(" ")
                 dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
+            st.subheader("Individual transcripts DEA")
+            transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+            fig = dea.boxplot(groups[0],groups[1],feature,transcript)
+            savePlot(fig, "DEA"+transcript)
+            st.pyplot(fig)
+
+
 
 
 

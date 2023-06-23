@@ -180,6 +180,7 @@ class DEA():
         self.df_group2 = None
         self.subgroup = None
         self.ttest_res = None
+        self.transcripts = None
 
     def selectGroups(self,option,feature):
         transcripts= self.expr_df_selected
@@ -246,6 +247,7 @@ class DEA():
         saveTable(show, feature)
         st.dataframe(show, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
+        return self.ttest_res
 
     def diffAnalysis_inter(self,subgroup,pthresh,logthresh):
         indexes = subgroup.index
@@ -298,6 +300,20 @@ class DEA():
         style = df.style.hide_index()
         style.hide_columns()
         return st.dataframe(df, use_container_width=True)
+
+    def boxplot(self, option1, option2,feature,transcript):
+        self.df_group1 = DEA.selectGroups(self, option1, feature)
+        self.df_group2 = DEA.selectGroups(self, option2, feature)
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : option1})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : option2})
+        full_df = pd.concat([df1, df2])
+        fig= plt.figure(figsize=(7, 6))
+        ax = sns.boxplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        ax = sns.stripplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        plt.ylabel("Expression level")
+        plt.xlabel("Group")
+        return fig
+
 
 
 

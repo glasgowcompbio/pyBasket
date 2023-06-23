@@ -1,5 +1,5 @@
 import streamlit as st
-from processing import readPickle, Results, add_logo, defaultPlot_leg, Analysis, hideRows
+from processing import readPickle, Results, defaultPlot_leg, Analysis
 from mpld3 import plugins
 from mpld3.utils import get_id
 import mpld3
@@ -9,10 +9,7 @@ import numpy as np
 import streamlit.components.v1 as components
 from interpretation import Prototypes, DEA
 from importance import FI
-from lime import lime_tabular
-from sklearn.cluster import KMeans
-import sklearn
-import sklearn.ensemble
+from common import add_logo, hideRows
 
 add_logo()
 hide_rows = hideRows()
