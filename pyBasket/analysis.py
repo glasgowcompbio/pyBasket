@@ -87,16 +87,7 @@ class Analysis(ABC):
         return cluster_df
 
     def group_report(self):
-        data = []
-        for k in range(len(self.groups)):
-            group = self.groups[k]
-            nnz = np.count_nonzero(group.responses)
-            total = len(group.responses)
-            row = [k, group.status, nnz, total]
-            data.append(row)
-        columns = ['k', 'status', 'nnz', 'total']
-        df = pd.DataFrame(data, columns=columns).set_index('k')
-        return df
+        return self.df
 
     def _check_futility_efficacy(self, current_step):
         post = self.get_posterior_response()
@@ -104,29 +95,39 @@ class Analysis(ABC):
 
         last_step = current_step == self.total_steps
         threshold = self.p0 if last_step else self.p_mid
-        Q = self.dt if last_step else self.dt_interim
         for k in range(self.K):
             group = self.groups[k]
             group_response = post[k]
             prob = np.count_nonzero(group_response > threshold) / len(group_response)
-            effective = (prob>=Q)
+            effective = None
 
             if not last_step:  # update interim stage status
+                Q = self.dt_interim
+                assert Q is not None
+
+                effective = (prob >= Q)
                 if not effective and self.early_futility_stop:
                     new_status = GROUP_STATUS_EARLY_STOP_FUTILE
                     self._update_open_group_status(group, new_status)
 
             else:  # final stage update
-                if effective:
-                    new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
+                Q = self.dt
+                if Q is None:
+                    # for calibration step, no dt is provided, so no status is needed either
+                    new_status = None
                 else:
-                    new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
+                    # for simulation step, we do the usual significance check
+                    effective = (prob >= Q)
+                    if effective:
+                        new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
+                    else:
+                        new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
                 self._update_open_group_status(group, new_status)
 
-            row = [k, prob, Q, effective, group.status]
+            row = [k, prob, Q, effective, group.status, group.nnz, group.total]
             data.append(row)
 
-        columns = ['k', 'prob', 'Q', 'effective', 'group_status']
+        columns = ['k', 'prob', 'Q', 'effective', 'group_status', 'group_nnz', 'group_total']
         df = pd.DataFrame(data, columns=columns).set_index('k')
         return df
 

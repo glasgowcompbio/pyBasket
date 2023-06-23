@@ -94,17 +94,19 @@ class Group():
         self.classes = []
         self.clusters = []
         self.status = GROUP_STATUS_OPEN
+        self.nnz = 0
+        self.total = 0
 
     def register(self, patient_data):
         self.responses.extend(patient_data.responses)
         self.classes.extend(patient_data.classes)
         self.clusters.extend(patient_data.clusters)
+        self.nnz = np.count_nonzero(self.responses)
+        self.total = len(self.responses)
 
     @property
     def response_indices(self):
         return [self.idx] * len(self.responses)
 
     def __repr__(self):
-        nnz = np.count_nonzero(self.responses)
-        total = len(self.responses)
-        return 'Group %d (%s): %d/%d' % (self.idx, self.status, nnz, total)
+        return 'Group %d (%s): %d/%d' % (self.idx, self.status, self.nnz, self.total)

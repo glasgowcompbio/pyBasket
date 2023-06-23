@@ -203,8 +203,8 @@ class Trial():
         self.num_burn_in = int(num_burn_in)
         self.num_posterior_samples = int(num_posterior_samples)
         self.analysis_names = analysis_names
-        self.decision_threshold = dt
-        self.decision_threshold_interim = dt_interim
+        self.dt = self._dt2dict(dt, self.analysis_names)
+        self.dt_interim = self._dt2dict(dt_interim, self.analysis_names)
         self.early_futility_stop = early_futility_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
@@ -231,7 +231,7 @@ class Trial():
         # initialise all the models
         for analysis_name in self.analysis_names:
             analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid,
-                                         self.decision_threshold, self.decision_threshold_interim,
+                                         self.dt[analysis_name], self.dt_interim[analysis_name],
                                          self.early_futility_stop, self.pbar)
             self.analyses[analysis_name] = analysis
 
@@ -336,6 +336,16 @@ class Trial():
     def final_report(self, analysis_name):
         analysis = self.analyses[analysis_name]
         display(analysis.group_report())
+
+    def _dt2dict(self, dt, analysis_names):
+        """
+        If dt is a number, convert it to a dictionary with keys as analysis names and value as the number.
+        If dt is a dictionary, just return it as is.
+        """
+        if not isinstance(dt, dict):
+            return {analysis: dt for analysis in analysis_names}
+        else:
+            return dt
 
 
 class TrialResult:
