@@ -1,5 +1,5 @@
 import streamlit as st
-from processing import readPickle, Results, add_logo, defaultPlot_leg, Analysis, hideRows
+from processing import readPickle, Results, defaultPlot_leg, Analysis, dim_PCA, heatMap
 from mpld3 import plugins
 from mpld3.utils import get_id
 import mpld3
@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
 from interpretation import Prototypes, DEA
+from common import add_logo,hideRows
 
 add_logo()
 hide_rows = hideRows()
@@ -40,6 +41,7 @@ def saveheatmap_transpt(df,c,b):
 if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = Analysis(data)
+    heatmap = heatMap(data)
     st.subheader("Explore interactions")
     col11, col12 = st.columns((2, 2))
     with col11:
@@ -63,20 +65,20 @@ if "data" in st.session_state:
                 "\:large_red_square: : selected basket+cluster interaction.\n".format(min_num))
         st.write("")
         if variable == 'Number of samples':
-            num_samples = analysis_data.heatmapNum(data)
-            HM_samples = analysis_data.heatmap_interaction(data, num_samples, "Number of samples per interaction"
+            num_samples = heatmap.heatmapNum(data)
+            HM_samples = heatmap.heatmap_interaction(data, num_samples, "Number of samples per interaction"
                                                             ,min_num,int(cluster), basket)
             saveheatmap(HM_samples, cluster, basket)
             st.pyplot(HM_samples)
         elif variable == 'Number of responsive samples':
-            response_df = analysis_data.heatmapResponse(data)
-            HM_response = analysis_data.heatmap_interaction(data, response_df, "Responsive samples per interaction",min_num,
+            response_df = heatmap.heatmapResponse(data)
+            HM_response = heatmap.heatmap_interaction(data, response_df, "Responsive samples per interaction",min_num,
                                                             int(cluster), basket)
             saveheatmap(HM_response, cluster, basket)
             st.pyplot(HM_response)
         else:
-            inferred_df = analysis_data.HM_inferredProb(data)
-            HM_inferred = analysis_data.heatmap_interaction(data,inferred_df,"Inferred basket*cluster interaction",min_num,int(cluster), basket)
+            inferred_df = heatmap.HM_inferredProb(data)
+            HM_inferred = heatmap.heatmap_interaction(data,inferred_df,"Inferred basket*cluster interaction",min_num,int(cluster), basket)
             saveheatmap(HM_inferred, cluster, basket)
             st.pyplot(HM_inferred)
         try:
@@ -96,7 +98,7 @@ if "data" in st.session_state:
                 saveRawDInt(subgroup,cluster,basket)
                 st.dataframe(subgroup, use_container_width=True)
             else:
-                heatmap2= analysis_data.heatmapTranscripts(subgroup)
+                heatmap2= heatmap.heatmapTranscripts(subgroup)
                 saveheatmap_transpt(heatmap2,cluster,basket)
                 st.pyplot(heatmap2)
         except:
@@ -106,7 +108,8 @@ if "data" in st.session_state:
         st.subheader("Advanced PCA")
         #st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
-        analysis_data.adv_PCA(subgroup,RawD)
+        pca = dim_PCA(data)
+        pca.adv_PCA(subgroup,RawD)
     with tab3:
         st.subheader("Prototypes of subgroup")
         try:

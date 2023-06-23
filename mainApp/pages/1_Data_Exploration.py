@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import streamlit as st
-from processing import readPickle, Results, add_logo, hideRows, Analysis
+from processing import readPickle, Results, Analysis, dim_PCA
+from common import add_logo, hideRows
 import numpy as np
 import seaborn as sns
 import mpld3
@@ -14,7 +15,7 @@ st.header("Data exploration")
 if "data" in st.session_state:
     data = st.session_state["data"]
 
-    tab1, tab2,tab3, tab4,tab5 = st.tabs(["Number of samples", "AAC response", "PCA analysis", "Prototypes", "Differential expression"])
+    tab1, tab2,tab3, tab4,tab5 = st.tabs(["Number of samples", "AAC response", "Dimensionality reduction", "Prototypes", "Differential expression"])
     with tab1:
         st.subheader("Number of samples")
         col11, col12 = st.columns((1, 1))
@@ -55,17 +56,23 @@ if "data" in st.session_state:
 
     with tab3:
         analysis_data = Analysis(data)
-        st.subheader("Samples PCA")
-        option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
-        RawD = st.checkbox("Show raw data", key="raw-data-PCA")
+        pca = dim_PCA(data)
+        st.subheader("Dimensionality reduction")
+        technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
+        col31, col32 = st.columns((2,2))
+        with col31:
+            option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
+            RawD = st.checkbox("Show raw data", key="raw-data-PCA")
+        with col32:
+            pca.infoPCA(option)
         if option == "Clusters":
             choices = analysis_data.patient_df["cluster_number"].unique()
-            analysis_data.PCA_analysis("cluster_number", RawD)
+            pca.PCA_analysis("cluster_number", RawD)
         elif option == "Responsive":
-            analysis_data.PCA_analysis("responsive", RawD)
+            pca.PCA_analysis("responsive", RawD)
             choices = analysis_data.patient_df["responsive"].unique()
         elif option == 'Baskets/Tissues':
-            analysis_data.PCA_analysis("tissues", RawD)
+            pca.PCA_analysis("tissues", RawD)
             choices = analysis_data.patient_df["tissues"].unique()
     with tab4:
         st.subheader("Prototypes")

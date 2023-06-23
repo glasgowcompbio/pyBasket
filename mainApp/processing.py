@@ -10,36 +10,11 @@ import pandas as pd
 import streamlit.components.v1 as components
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from common import savePlot,saveTable
 import warnings
 #warnings.filterwarnings("ignore", category=FutureWarning)
 
 genes_path = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/Data/Entrez_to_Ensg99.mapping_table.tsv'
-
-def add_logo():
-    st.markdown(
-        """
-        <style>
-            [data-testid="stSidebarNav"]::before {
-                content: "pyBasket";
-                margin-left: 20px;
-                margin-top: 20px;
-                font-size: 30px;
-                position: relative;
-                top: 50px;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-def hideRows():
-    hide_table_row_index = """
-                <style>
-                thead tr th:first-child {display:none}
-                tbody th {display:none}
-                </style>
-                """
-    return hide_table_row_index
 
 def readPickle(pick_file):
     try:
@@ -62,6 +37,7 @@ def defaultPlot_leg(title, ax):
     plt.xticks(fontsize=12)  # X-axis tick label font size
     plt.yticks(fontsize=12)
     ax.legend(title=title, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
+
 
 class Results():
 
@@ -124,22 +100,6 @@ class Results():
                 genes.append(col)
         return genes
 
-    @staticmethod
-    def savePlot(fig, feat):
-        if st.button('Save Plot', key="plot_"+feat):  # Update the key to a unique value
-            fig.savefig('plot_'+feat+'.png')
-            st.info('Plot saved as .png in working directory', icon="ℹ️")
-        else:
-            st.write("")
-
-    @staticmethod
-    def saveTable(df, feat):
-        if st.button('Save table', key="table_"+feat):  # Update the key to a unique value
-            df.to_csv('raw_data_'+feat+'.csv', index=False)
-            st.info('Data saved as .csv file in working directory', icon="ℹ️")
-        else:
-            st.write("")
-
     def count_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 8))
         plt.title(title)
@@ -158,11 +118,11 @@ class Results():
     def displayNums(self,feature, feature_title, RD, RawD, title_plot):
         if RawD is True:
             raw_num = Results.raw_data_count(self,feature, feature_title, RD)
-            Results.saveTable(raw_num, "NumOfS")
+            saveTable(raw_num, "NumOfS")
             st.dataframe(raw_num, use_container_width=True)
         else:
             num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
-            Results.savePlot(num_plot,"NumOfS")
+            savePlot(num_plot,"NumOfS")
             st.pyplot(num_plot)
 
     def AAC_plot(self,feature, title, x_lab, response):
@@ -185,12 +145,12 @@ class Results():
     def displayAAC(self,feature, feature_title,RD,RawD, title_plot):
         if RawD is True:
             raw_AAC = Results.raw_data_AAC(self,feature, feature_title)
-            Results.saveTable(raw_AAC, "AAC")
+            saveTable(raw_AAC, "AAC")
             st.dataframe(raw_AAC,use_container_width = True)
         else:
             AAC = Results.AAC_plot(self,feature, title_plot,
                                 feature_title, RD)
-            Results.savePlot(AAC,"AAC")
+            savePlot(AAC,"AAC")
             st.pyplot(AAC)
 
     def raw_data_count(self, feature, x_variable, response):
@@ -220,7 +180,7 @@ class Results():
 
     def non_group_plot(self, feature,RawD):
         if RawD is True:
-            Results.saveTable(self.patient_df, "rawAAC")
+            saveTable(self.patient_df, "rawAAC")
             df = self.patient_df
             df["responsive"] = df["responsive"] <1
             st.dataframe(df)
@@ -241,7 +201,7 @@ class Results():
             plt.xlabel("Sample index")
             fig.subplots_adjust(right=0.63, top=1)
             plt.ylabel("AAC response")
-            Results.savePlot(fig, "AAC")
+            savePlot(fig, "AAC")
             fig_html = mpld3.fig_to_html(fig)
             components.html(fig_html, height=670, width=1000)
 
@@ -255,28 +215,132 @@ class Analysis():
         self.class_labels = Results.class_labels
         self.cluster_labels = Results.cluster_labels
         self.patient_df = Results.patient_df
+        self.stacked_posterior = Results.stacked_posterior
+
+    def findSubgroup(self,feature,subgroup):
+        transcriptomics = self.expr_df_selected
+        sub_patients = self.patient_df[self.patient_df[feature]==subgroup]
+        indexes = list(sub_patients.index.values)
+        sub_transcript = transcriptomics.loc[indexes]
+        return sub_transcript
+
+    def findInteraction(self,cluster,basket):
+        transcriptomics = self.expr_df_selected
+        sub_patients = self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)]
+        indexes = list(sub_patients.index.values)
+        sub_transcript = transcriptomics.loc[indexes]
+        num = len(sub_transcript)
+        return sub_transcript, num
+
+    def samplesCount(self,subgroup):
+        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        feature = fulldf['responsive'].values
+        fig = plt.figure(figsize=(2, 2))  # Set the size of the figure
+        ax = sns.countplot(data=subgroup, x=feature, palette= ["#F72585", "#4CC9F0"])  # Use a specific color palette
+        ax.bar_label(ax.containers[0], fontsize=4)
+        plt.xlabel('Responsive', fontsize=5)  # Add x-axis label
+        plt.ylabel('Count',fontsize=5)
+        plt.xticks(fontsize=5)  # Set the font size of x-axis tick labels
+        plt.yticks(fontsize=5)
+        plt.title('Count of Responsive vs Non-responsive samples',fontsize=5)
+        return fig
+
+    def responseSamples(self,subgroup):
+        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        feature = fulldf['responsive'].values
+        fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
+        fulldf = fulldf.sort_values(by='responses')
+        fulldf.index.name = 'Sample'
+        fulldf['responsive'] = fulldf['responsive'] == 1
+        return fulldf
+
+
+class heatMap(Analysis):
+    def __init__(self, Results):
+        super().__init__(Results)
+        self.num_samples = None
+
+    def heatmapNum(self,results):
+        clusters = results.setClusters()
+        baskets = results.setBaskets()
+        data = []
+        for basket in baskets:
+            clus = []
+            for cluster in clusters:
+                subgroup, num = self.findInteraction(cluster,basket)
+                clus.append(num)
+            data.append(clus)
+        df = pd.DataFrame(data, baskets,clusters)
+        self.num_samples = df
+        return df
+
+    def heatmapTranscripts(self,df):
+        fig = plt.figure(figsize=(10, 10))
+        sns.heatmap(data=df, cmap="RdBu_r", yticklabels=True)
+        plt.title('Transcriptional expression per sample')
+        plt.xlabel('Transcripts')
+        plt.ylabel('Samples')
+        plt.yticks(fontsize=9)
+        plt.xticks(fontsize=9)
+        return fig
+
+    def heatmapResponse(self, results):
+        clusters = results.setClusters()
+        baskets = results.setBaskets()
+        data = []
+        for basket in baskets:
+            response = []
+            for cluster in clusters:
+                sub = len(self.patient_df[(self.patient_df['cluster_number'] == cluster) & (
+                            self.patient_df['tissues'] == basket) & (self.patient_df['responsive'] == 1)])
+                response.append(sub)
+            data.append(response)
+        df = pd.DataFrame(data, baskets, clusters)
+        return df
+
+
+
+    def HM_inferredProb(self,results):
+        basket_coords, cluster_coords = results.setBaskets(),results.setClusters()
+        stacked = self.stacked_posterior
+        predt_basket = np.mean(stacked.basket_p.values, axis=1)
+        inferred_basket = pd.DataFrame({'prob': predt_basket}, index = basket_coords)
+        inferred_basket =  inferred_basket.values
+        inferred_cluster = np.mean(stacked.cluster_p.values, axis=2)
+        inferred_mat = inferred_basket * inferred_cluster
+        inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
+        return inferred_df
+
+    def heatmap_interaction(self, results, df, title, num_Sum, x_highlight=None, y_highlight=None):
+        heatMap.heatmapNum(self, results)
+        x_highlight = results.setClusters().index(x_highlight)
+        y_highlight = results.setBaskets().index(y_highlight)
+        fig = plt.figure(figsize=(10, 10))
+        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
+        plt.title(title)
+        plt.xlabel('Clusters')
+        plt.ylabel('Baskets')
+        plt.yticks(fontsize=8)
+
+        for i, c in enumerate(self.num_samples.columns):
+            for j, v in enumerate(self.num_samples[c]):
+                if v >= num_Sum:
+                    ax.text(i + 0.5, j + 0.5, '★', color='gold', size=20, ha='center', va='center')
+        if x_highlight is not None and y_highlight is not None:
+            plt.gca().add_patch(
+                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+
+        plt.show()
+        return fig
+
+class dim_PCA(Analysis):
+    def __init__(self, Results):
+        super().__init__(Results)
         self.pca_df = None
         self.pca_variance = None
         self.pca_adv = None
         self.pca_adv_var = None
-        self.stacked_posterior = Results.stacked_posterior
         self.num_samples = None
-
-    def main_PCA(self, feature):
-        rawX = self.expr_df_selected
-        y = self.patient_df[feature]
-        # data scaling
-        x_scaled = StandardScaler().fit_transform(rawX)
-        pca = PCA(n_components=5)
-        pca_features = pca.fit_transform(x_scaled)
-        pca_df = pd.DataFrame(
-            data=pca_features,
-            columns=['PC1', 'PC2', 'PC3', 'PC4', 'PC5'])
-        pca_df.index = rawX.index
-        pca_df[feature] = y
-        variance = pca.explained_variance_
-        self.pca_df = pca_df
-        self.pca_variance = variance
 
     def advanced_PCA(self, df):
         y = self.patient_df["responsive"]
@@ -314,168 +378,67 @@ class Analysis():
         pca_df = df[['PC1', 'PC2', 'PC3', 'PC4', 'PC5']]
         return pca_df,var_df
 
-    @staticmethod
-    def saveRawD_PCA(feature,name):
-        if st.button('Save Data', key="data_PCA"+name):  # Update the key to a unique value
-            feature.to_csv('dataPCA.csv')
-            st.info('Data saved as .csv in working directory', icon="ℹ️")
-        else:
-            st.write("")
+    def infoPCA(self, feature):
+        info = {'Technique: ': {'information': 'Principal Component Analysis'}, 'Feature: ': {'information': feature},
+                'Number of components: ': {'information': 5}}
+        df = pd.DataFrame(data=info).T
+        style = df.style.hide_index()
+        style.hide_columns()
+        return st.dataframe(df, use_container_width=True)
 
-    @staticmethod
-    def savePlot_PCA(fig, feature):
-        if st.button('Save Plot', key="plot_PCA"):  # Update the key to a unique value
-            fig.savefig('plot_PCA_' + feature + '.png')
-            st.info('Plot saved as .png in working directory', icon="ℹ️")
-        else:
-            st.write("")
+    def main_PCA(self, feature):
+        rawX = self.expr_df_selected
+        y = self.patient_df[feature]
+        # data scaling
+        x_scaled = StandardScaler().fit_transform(rawX)
+        pca = PCA(n_components=5)
+        pca_features = pca.fit_transform(x_scaled)
+        pca_df = pd.DataFrame(
+            data=pca_features,
+            columns=['PC1', 'PC2', 'PC3', 'PC4', 'PC5'])
+        pca_df.index = rawX.index
+        pca_df[feature] = y
+        variance = pca.explained_variance_
+        self.pca_df = pca_df
+        self.pca_variance = variance
+
     def PCA_analysis(self,feature, RawD):
-        Analysis.main_PCA(self,feature)
+        dim_PCA.main_PCA(self,feature)
         if RawD is True:
-            pcaDF, var_df = Analysis.showRawData_PCA(self.pca_df, self.pca_variance)
+            pcaDF, var_df = dim_PCA.showRawData_PCA(self.pca_df, self.pca_variance)
             col11, col12 = st.columns((2, 3))
             with col11:
                 st.write('##### Variance explained by component')
-                Analysis.saveRawD_PCA(self.pca_variance, "var")
+                saveTable(self.pca_variance, "var")
                 st.dataframe(var_df, use_container_width=True)
             with col12:
                 st.write('##### PCA results')
-                Analysis.saveRawD_PCA(self.pca_df, "PCA")
+                saveTable(self.pca_df, "PCA")
                 st.dataframe(pcaDF, use_container_width=True)
         else:
-            fig = Analysis.plot_PCA(self,feature,adv=False)
-            Analysis.savePlot_PCA(fig, feature)
+            fig = dim_PCA.plot_PCA(self,feature,adv=False)
+            savePlot(fig, "PCA_"+feature)
             fig_html = mpld3.fig_to_html(fig)
             components.html(fig_html, height=650, width=1000)
 
     def adv_PCA(self,sub_df, RawD):
         try:
-            Analysis.advanced_PCA(self, sub_df)
+            dim_PCA.advanced_PCA(self, sub_df)
             if RawD is True:
-                pcaDF, var_df = Analysis.showRawData_PCA(self.pca_adv, self.pca_adv_var)
+                pcaDF, var_df = dim_PCA.showRawData_PCA(self.pca_adv, self.pca_adv_var)
                 col11, col12 = st.columns((2, 3))
                 with col11:
                     st.write('##### Variance explained by component')
-                    Analysis.saveRawD_PCA(self.pca_adv_var, "var")
+                    saveTable(self.pca_adv_var, "var")
                     st.dataframe(var_df, use_container_width=True)
                 with col12:
                     st.write('##### PCA results')
-                    Analysis.saveRawD_PCA(self.pca_adv, "PCA")
+                    saveTable(self.pca_adv, "PCA")
                     st.dataframe(pcaDF, use_container_width=True)
             else:
-                fig = Analysis.plot_PCA(self, "responsive",adv= True)
-                Analysis.savePlot_PCA(fig, "subgroup")
+                fig = dim_PCA.plot_PCA(self, "responsive",adv= True)
+                savePlot(fig, "PCA_subgroup")
                 fig_html = mpld3.fig_to_html(fig)
                 components.html(fig_html, height=600, width=3000)
         except:
             st.warning("Not enough samples. Please try a different combination.")
-
-    def findSubgroup(self,feature,subgroup):
-        transcriptomics = self.expr_df_selected
-        sub_patients = self.patient_df[self.patient_df[feature]==subgroup]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcriptomics.loc[indexes]
-        return sub_transcript
-
-    def findInteraction(self,cluster,basket):
-        transcriptomics = self.expr_df_selected
-        sub_patients = self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcriptomics.loc[indexes]
-        num = len(sub_transcript)
-        return sub_transcript, num
-
-    def heatmapNum(self,results):
-        clusters = results.setClusters()
-        baskets = results.setBaskets()
-        data = []
-        for basket in baskets:
-            clus = []
-            for cluster in clusters:
-                subgroup, num = self.findInteraction(cluster,basket)
-                clus.append(num)
-            data.append(clus)
-        df = pd.DataFrame(data, baskets,clusters)
-        self.num_samples = df
-        return df
-
-    def heatmapTranscripts(self,df):
-        fig = plt.figure(figsize=(10, 10))
-        sns.heatmap(data=df, cmap="RdBu_r", yticklabels=True)
-        #sns.clustermap(data=df, cmap = "RdBu_r", yticklabels='auto')
-        plt.title('Transcriptional expression per sample')
-        plt.xlabel('Transcripts')
-        plt.ylabel('Samples')
-        plt.yticks(fontsize=9)
-        plt.xticks(fontsize=9)
-        return fig
-
-    def heatmapResponse(self,results):
-        clusters = results.setClusters()
-        baskets = results.setBaskets()
-        data = []
-        for basket in baskets:
-            response = []
-            for cluster in clusters:
-                sub = len(self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)& (self.patient_df['responsive'] == 1)])
-                response.append(sub)
-            data.append(response)
-        df = pd.DataFrame(data, baskets,clusters)
-        return df
-
-    def samplesCount(self,subgroup):
-        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        feature = fulldf['responsive'].values
-        fig = plt.figure(figsize=(2, 2))  # Set the size of the figure
-        ax = sns.countplot(data=subgroup, x=feature, palette= ["#F72585", "#4CC9F0"])  # Use a specific color palette
-        ax.bar_label(ax.containers[0], fontsize=4)
-        plt.xlabel('Responsive', fontsize=5)  # Add x-axis label
-        plt.ylabel('Count',fontsize=5)
-        plt.xticks(fontsize=5)  # Set the font size of x-axis tick labels
-        plt.yticks(fontsize=5)
-        plt.title('Count of Responsive vs Non-responsive samples',fontsize=5)
-        return fig
-
-    def responseSamples(self,subgroup):
-        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        feature = fulldf['responsive'].values
-        fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
-        fulldf = fulldf.sort_values(by='responses')
-        fulldf.index.name = 'Sample'
-        fulldf['responsive'] = fulldf['responsive'] == 1
-        return fulldf
-
-    def HM_inferredProb(self,results):
-        basket_coords, cluster_coords = results.setBaskets(),results.setClusters()
-        stacked = self.stacked_posterior
-        predt_basket = np.mean(stacked.basket_p.values, axis=1)
-        inferred_basket = pd.DataFrame({'prob': predt_basket}, index = basket_coords)
-        inferred_basket =  inferred_basket.values
-        inferred_cluster = np.mean(stacked.cluster_p.values, axis=2)
-        inferred_mat = inferred_basket * inferred_cluster
-        inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
-        return inferred_df
-
-    def heatmap_interaction(self,results,df, title,num_Sum,x_highlight=None, y_highlight=None):
-        Analysis.heatmapNum(self,results)
-        x_highlight = results.setClusters().index(x_highlight)
-        y_highlight = results.setBaskets().index(y_highlight)
-        fig = plt.figure(figsize=(10, 10))
-        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
-        plt.title(title)
-        plt.xlabel('Clusters')
-        plt.ylabel('Baskets')
-        plt.yticks(fontsize=8)
-
-        for i, c in enumerate(self.num_samples.columns):
-            for j, v in enumerate(self.num_samples[c]):
-                if v >= num_Sum:
-                    ax.text(i + 0.5, j + 0.5, '★', color='gold', size=20, ha='center', va='center')
-        if x_highlight is not None and y_highlight is not None:
-            plt.gca().add_patch(
-                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
-
-        plt.show()
-        return fig
-
-

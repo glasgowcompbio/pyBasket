@@ -6,10 +6,10 @@ import sklearn
 import shap
 import numpy as np
 import pandas as pd
+from common import savePlot, saveTable
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-
 
 class FI():
     def __init__(self, Results):
@@ -40,21 +40,6 @@ class FI():
 
         return st.pyplot(fig)
 
-    @staticmethod
-    def saveplot(fig, feature):
-        if st.button('Save Plot', key="plot_"+feature):  # Update the key to a unique value
-            fig.savefig('plot_' + feature + '.png')
-            st.info('Plot saved as .png in working directory', icon="ℹ️")
-        else:
-            st.write("")
-
-    @staticmethod
-    def savedf(tab, feature):
-        if st.button('Save Data', key="table_"+feature):  # Update the key to a unique value
-            tab.to_csv('table_' + feature + '.csv')
-            st.info('Data saved as .csv in working directory', icon="ℹ️")
-        else:
-            st.write("")
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
         self.X_train, self.X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
@@ -77,10 +62,10 @@ class FI():
         fig = exp.as_pyplot_figure()
         raw_data = pd.DataFrame(exp.as_list(), columns=['Feature', 'Contribution'])
         if RawD:
-            FI.savedf(raw_data, sample + "LIME")
+            saveTable(raw_data, sample + "LIME")
             st.dataframe(raw_data)
         else:
-            FI.saveplot(fig,sample+"LIME")
+            savePlot(fig,sample+"LIME")
             st.pyplot(fig)
         st.caption(
             "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
@@ -129,12 +114,11 @@ class FI():
         fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
         st.write("  ")
         if RawD:
-            FI.savedf(raw_data, sample + "SHAP")
+            saveTable(raw_data, sample + "SHAP")
             st.write("  ")
             st.dataframe(raw_data)
         else:
-
-            FI.saveplot(fig, sample + "SHAP")
+            savePlot(fig, sample + "SHAP")
             st.write("  ")
             st.pyplot(fig)
 
