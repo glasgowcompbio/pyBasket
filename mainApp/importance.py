@@ -5,9 +5,11 @@ import streamlit as st
 import sklearn
 import shap
 import numpy as np
+import pandas as pd
 
 if "data" in st.session_state:
     data = st.session_state["data"]
+
 
 class FI():
     def __init__(self, Results):
@@ -38,6 +40,21 @@ class FI():
 
         return st.pyplot(fig)
 
+    @staticmethod
+    def saveplot(fig, feature):
+        if st.button('Save Plot', key="plot_"+feature):  # Update the key to a unique value
+            fig.savefig('plot_' + feature + '.png')
+            st.info('Plot saved as .png in working directory', icon="ℹ️")
+        else:
+            st.write("")
+
+    @staticmethod
+    def savedf(tab, feature):
+        if st.button('Save Data', key="table_"+feature):  # Update the key to a unique value
+            tab.to_csv('table_' + feature + '.csv')
+            st.info('Data saved as .csv in working directory', icon="ℹ️")
+        else:
+            st.write("")
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
         self.X_train, self.X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
@@ -45,19 +62,28 @@ class FI():
                                                                            train_size:]
         self.y_train = y_train.values.flatten()
 
-    def limeInterpretation(self,sample,n_features):
+    def limeInterpretation(self,sample,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
-        FI.prepareData(self,self.patient_df["responsive"])
-        rf = sklearn.ensemble.RandomForestClassifier(n_estimators=100, random_state=42)
+        df = df.drop("index",axis = 1)
+        FI.prepareData(self,self.drug_response)
+        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100,random_state=42)
         rf.fit(self.X_train, self.y_train)
 
-        explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=self.y_train,
-                                                      discretize_continuous=True)
-        exp = explainer.explain_instance(self.X_test.iloc[0], rf.predict_proba, num_features=n_features)
-        fig = exp.as_pyplot_figure()
+        explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=["drug response"],
+                                                      verbose=True, mode='regression')
 
-        return st.pyplot(fig)
+        exp = explainer.explain_instance(df.iloc[index[0]], rf.predict, num_features=n_features)
+        fig = exp.as_pyplot_figure()
+        raw_data = pd.DataFrame(exp.as_list(), columns=['Feature', 'Contribution'])
+        if RawD:
+            FI.savedf(raw_data, sample + "LIME")
+            st.dataframe(raw_data)
+        else:
+            FI.saveplot(fig,sample+"LIME")
+            st.pyplot(fig)
+        st.caption(
+            "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
 
     def permutationImportance(self):
         FI.prepareData(self, self.drug_response)
@@ -91,15 +117,28 @@ class FI():
         shap_values = explainer.shap_values(self.expr_df_selected)
         return explainer, shap_values
 
-    def SHAP_forces(self, sample):
+    def SHAP_forces(self, sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"]==sample].index
-        explainer,values = FI.SHAP(self)
-        fig = shap.force_plot(explainer.expected_value, values[index, :], self.expr_df_selected.iloc[index, :], matplotlib=True, show=False)
-        return fig
+        top_feature_indices = np.argsort(np.abs(values[index]))[::-1]
+        top_feature_indices = top_feature_indices[0][:n_features+1]
 
-    def SHAP_summary(self):
-        explainer, values = FI.SHAP(self)
+        selected_shap_values = values[index, top_feature_indices]
+        selected_features = round(self.expr_df_selected.iloc[index, top_feature_indices],3)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
+        fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
+        st.write("  ")
+        if RawD:
+            FI.savedf(raw_data, sample + "SHAP")
+            st.write("  ")
+            st.dataframe(raw_data)
+        else:
+
+            FI.saveplot(fig, sample + "SHAP")
+            st.write("  ")
+            st.pyplot(fig)
+
+    def SHAP_summary(self,explainer,values):
         fig, ax = plt.subplots()
         shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
         return fig
@@ -124,8 +163,10 @@ class FI():
         df = self.patient_df.loc[self.patient_df["samples"].isin(samples.tolist())]
         if response == 'Only responsive samples':
             resp = 1
+            df = df[df["responsive"] == resp]
         elif response == "Only non-responsive samples":
             resp = 0
-
-        df = df[df["responsive"]==resp]
+            df = df[df["responsive"]==resp]
+        else:
+            df = df
         return df
