@@ -99,9 +99,9 @@ def get_model_bhm(data_df, p0, p1):
         # Prior for the alpha parameters of the logistic function
         α = pm.Normal('alpha', mu=μ_α, sigma=σ_α, dims='basket')
 
-        # Logistic model for the success probabilities
-        p = α
-        p_adj = pm.Deterministic('p_adj', α - response_adj, dims='basket')
+        # Logistic model for the
+        p_adj = α
+        p = pm.Deterministic('p', p_adj + response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # The observed successes for each basket are assumed to follow
@@ -162,12 +162,13 @@ def get_model_bhm_nc(data_df, p0, p1):
         # Define priors using non-centered parameterization
         α = pm.Deterministic('alpha', μ_α + (z_α * σ_α), dims='basket')
 
-        # Define the linear model using dot product
-        p = α
-        p_adj = pm.Deterministic('p_adj', α - response_adj, dims='basket')
+        # Logistic model for the
+        p_adj = α
+        p = pm.Deterministic('p', p_adj + response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
-        # Define the likelihood
+        # The observed successes for each basket are assumed to follow
+        # a Binomial distribution with the basket-specific success probabilities.
         y = pm.Binomial('y', n=ns, p=θ, observed=ks, dims='basket')
 
         # Return the model
