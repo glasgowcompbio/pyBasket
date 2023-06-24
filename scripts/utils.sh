@@ -14,8 +14,8 @@ check_debug_mode() {
 
   # Set parameters based on the DEBUG flag
   if [ "$DEBUG" = true ] ; then
-      num_burn_in=100
-      num_posterior_samples=100
+      num_burn_in=1000
+      num_posterior_samples=1000
       num_chains=1
       num_sim=3
       n_jobs=3

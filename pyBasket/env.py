@@ -230,7 +230,7 @@ class Trial():
 
         # initialise all the models
         for analysis_name in self.analysis_names:
-            analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid,
+            analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid, self.p1,
                                          self.dt[analysis_name], self.dt_interim[analysis_name],
                                          self.early_futility_stop, self.pbar)
             self.analyses[analysis_name] = analysis
@@ -274,29 +274,29 @@ class Trial():
         self.current_stage += 1
         return last_step
 
-    def get_analysis(self, analysis_name, K, p0, p_mid,
+    def get_analysis(self, analysis_name, K, p0, p_mid, p1,
                      decision_threshold, decision_threshold_interim,
                      early_futility_stop, pbar):
         assert analysis_name in [MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM,
                                  MODEL_PYBASKET]
         total_steps = len(self.evaluate_interim) - 1
         if analysis_name == MODEL_INDEPENDENT:
-            return IndependentAnalysis(K, total_steps, p0, p_mid,
+            return IndependentAnalysis(K, total_steps, p0, p_mid, p1,
                                        decision_threshold, decision_threshold_interim,
                                        early_futility_stop, self.num_chains,
                                        self.target_accept, pbar)
         elif analysis_name == MODEL_INDEPENDENT_BERN:
-            return IndependentBernAnalysis(K, total_steps, p0, p_mid,
+            return IndependentBernAnalysis(K, total_steps, p0, p_mid, p1,
                                            decision_threshold, decision_threshold_interim,
                                            early_futility_stop, self.num_chains,
                                            self.target_accept, pbar)
         elif analysis_name == MODEL_BHM:
-            return BHMAnalysis(K, total_steps, p0, p_mid,
+            return BHMAnalysis(K, total_steps, p0, p_mid, p1,
                                decision_threshold, decision_threshold_interim,
                                early_futility_stop, self.num_chains,
                                self.target_accept, pbar)
         elif analysis_name == MODEL_PYBASKET:
-            return PyBasketAnalysis(K, total_steps, p0, p_mid,
+            return PyBasketAnalysis(K, total_steps, p0, p_mid, p1,
                                     decision_threshold, decision_threshold_interim,
                                     early_futility_stop, self.num_chains,
                                     self.target_accept, pbar)

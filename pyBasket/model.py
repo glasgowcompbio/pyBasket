@@ -1,4 +1,5 @@
 import pymc as pm
+import numpy as np
 
 
 def get_model_simple(data_df):
@@ -51,7 +52,7 @@ def get_model_simple(data_df):
         return model
 
 
-def get_model_bhm(data_df):
+def get_model_bhm(data_df, p0, p1):
     '''
     Construct a Bayesian Hierarchical Model using PyMC3.
 
@@ -83,10 +84,15 @@ def get_model_bhm(data_df):
     # Setting the 'basket' to data frame's index
     coords = {'basket': df.index}
 
+    # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
+    # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
+    mu0 = np.log(p0/(1-p0))
+    response_adj = np.log(p1/(1-p1))
+
     # Constructing the model
     with pm.Model(coords=coords) as model:
         # Hyper-priors for the mean and variance of the alpha parameters
-        μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)  # Mean of the alpha parameters
+        μ_α = pm.Normal('mu_alpha', mu=mu0, sigma=10)  # Mean of the alpha parameters
         σ_α = pm.InverseGamma('sigma_alpha', alpha=0.0005,
                               beta=0.000005)  # Variance of the alpha parameters
 
@@ -95,6 +101,7 @@ def get_model_bhm(data_df):
 
         # Logistic model for the success probabilities
         p = α
+        p_adj = pm.Deterministic('p_adj', α - response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # The observed successes for each basket are assumed to follow
@@ -105,7 +112,7 @@ def get_model_bhm(data_df):
         return model
 
 
-def get_model_bhm_nc(data_df):
+def get_model_bhm_nc(data_df, p0, p1):
     '''
     Construct a non-centered Bayesian Hierarchical Model using PyMC3.
 
@@ -138,6 +145,11 @@ def get_model_bhm_nc(data_df):
     # Setting the 'basket' to data frame's index
     coords = {'basket': df.index}
 
+    # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
+    # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
+    mu0 = np.log(p0/(1-p0))
+    response_adj = np.log(p1/(1-p1))
+
     # Constructing the model
     with pm.Model(coords=coords) as model:
         # Define the standard normal random variables for non-centered parameterization
@@ -152,6 +164,7 @@ def get_model_bhm_nc(data_df):
 
         # Define the linear model using dot product
         p = α
+        p_adj = pm.Deterministic('p_adj', α - response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # Define the likelihood

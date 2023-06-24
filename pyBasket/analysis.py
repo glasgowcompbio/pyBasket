@@ -5,21 +5,23 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 
-from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
-    GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
+from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_COMPLETED_EFFECTIVE, \
+    GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
 from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBasket_nc, \
     get_model_simple_bern
 
 
 class Analysis(ABC):
-    def __init__(self, K, total_steps, p0, p_mid, dt, dt_interim, early_futility_stop, num_chains,
-                 target_accept, progress_bar):
+    def __init__(self, K, total_steps, p0, p_mid, p1,
+                 dt, dt_interim, early_futility_stop,
+                 num_chains, target_accept, progress_bar):
         self.K = K
         self.total_steps = total_steps
         self.idata = None
         self.p0 = p0
         self.p_mid = p_mid
+        self.p1 = p1
         self.dt = dt
         self.dt_interim = dt_interim
         self.early_futility_stop = early_futility_stop
@@ -62,7 +64,7 @@ class Analysis(ABC):
             })
 
         # create model and draw posterior samples
-        self.model = self.model_definition(count_df, obs_df)
+        self.model = self.model_definition(count_df, obs_df, self.p0, self.p1)
         with self.model:
             self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
                                    chains=self.num_chains, idata_kwargs={'log_likelihood': True},
@@ -149,7 +151,7 @@ class Analysis(ABC):
 
 
 class IndependentAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df):
+    def model_definition(self, count_df, obs_df, p0, p1):
         return get_model_simple(count_df)
 
     def get_posterior_response(self):
@@ -158,7 +160,7 @@ class IndependentAnalysis(Analysis):
 
 
 class IndependentBernAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df):
+    def model_definition(self, count_df, obs_df, p0, p1):
         return get_model_simple_bern(obs_df)
 
     def get_posterior_response(self):
@@ -167,8 +169,8 @@ class IndependentBernAnalysis(Analysis):
 
 
 class BHMAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df):
-        return get_model_bhm_nc(count_df)
+    def model_definition(self, count_df, obs_df, p0, p1):
+        return get_model_bhm_nc(count_df, p0, p1)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
@@ -176,7 +178,7 @@ class BHMAnalysis(Analysis):
 
 
 class PyBasketAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df):
+    def model_definition(self, count_df, obs_df, p0, p1):
         return get_model_pyBasket_nc(obs_df)
 
     def get_posterior_response(self):
