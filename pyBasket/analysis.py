@@ -5,28 +5,29 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 
-from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_EARLY_STOP_EFFECTIVE, \
-    GROUP_STATUS_COMPLETED_EFFECTIVE, GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
+from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_COMPLETED_EFFECTIVE, \
+    GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
-from pyBasket.model import get_model_simple, get_model_bhm
+from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBasket_nc, \
+    get_model_simple_bern
 
 
 class Analysis(ABC):
-    def __init__(self, K, total_steps, p0, p_mid,
-                 futility_cutoff, efficacy_cutoff,
-                 early_futility_stop, early_efficacy_stop,
-                 num_chains, target_accept):
+    def __init__(self, K, total_steps, p0, p_mid, p1,
+                 dt, dt_interim, early_futility_stop,
+                 num_chains, target_accept, progress_bar):
         self.K = K
         self.total_steps = total_steps
         self.idata = None
         self.p0 = p0
         self.p_mid = p_mid
-        self.futility_cutoff = futility_cutoff
-        self.efficacy_cutoff = efficacy_cutoff
+        self.p1 = p1
+        self.dt = dt
+        self.dt_interim = dt_interim
         self.early_futility_stop = early_futility_stop
-        self.early_efficacy_stop = early_efficacy_stop
         self.num_chains = num_chains
         self.target_accept = target_accept
+        self.pbar = progress_bar
 
         self.groups = [Group(k) for k in range(self.K)]
         self.df = None
@@ -37,37 +38,37 @@ class Analysis(ABC):
     def get_posterior_response(self):
         pass
 
-    @abstractmethod
-    def clustering(self, **kwargs):
-        pass
-
     def infer(self, current_step, num_posterior_samples, num_burn_in):
-        # prepare data in the right format for inference
-        observed_data = []
-        group_idx = []
+        # prepare count data
+        responses = []
+        classes = []
+        clusters = []
         for k in range(self.K):
             group = self.groups[k]
-            observed_data.extend(group.responses)
-            group_idx.extend(group.response_indices)
-        data_df = self._prepare_data(group_idx, observed_data)
+            responses.extend(group.responses)
+            classes.extend(group.classes)
+            clusters.extend(group.clusters)
+        count_df = self._prepare_data(classes, responses)
 
-        # if there are clustering results available
-        if self.clustering_method is not None:
-            classes = np.array(self.clustering_method.classes)
-            clusters = np.array(self.clustering_method.clusters)
-            # print(classes)
-            # print(clusters)
-
-            cluster_df = self.get_cluster_df(classes, clusters)
-            data_df = pd.concat([cluster_df, data_df], axis=1)
-        # print(data_df)
+        # prepare individual observation data
+        if len(clusters) > 0:
+            obs_df = pd.DataFrame({
+                'basket_number': classes,
+                'cluster_number': clusters,
+                'responsive': responses
+            })
+        else:
+            obs_df = pd.DataFrame({
+                'basket_number': classes,
+                'responsive': responses
+            })
 
         # create model and draw posterior samples
-        self.model = self.model_definition(data_df)
+        self.model = self.model_definition(count_df, obs_df, self.p0, self.p1)
         with self.model:
             self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
                                    chains=self.num_chains, idata_kwargs={'log_likelihood': True},
-                                   target_accept=self.target_accept)
+                                   target_accept=self.target_accept, progressbar=self.pbar)
 
         # generate df to report the futility and efficacy
         self.df = self._check_futility_efficacy(current_step)
@@ -88,49 +89,47 @@ class Analysis(ABC):
         return cluster_df
 
     def group_report(self):
-        data = []
-        for k in range(len(self.groups)):
-            group = self.groups[k]
-            nnz = np.count_nonzero(group.responses)
-            total = len(group.responses)
-            row = [k, group.status, nnz, total]
-            data.append(row)
-        columns = ['k', 'status', 'nnz', 'total']
-        df = pd.DataFrame(data, columns=columns).set_index('k')
-        return df
+        return self.df
 
     def _check_futility_efficacy(self, current_step):
         post = self.get_posterior_response()
         data = []
 
         last_step = current_step == self.total_steps
-        final_threshold = self.p0 if last_step else self.p_mid
+        threshold = self.p0 if last_step else self.p_mid
         for k in range(self.K):
+            group = self.groups[k]
             group_response = post[k]
-            prob = np.count_nonzero(group_response > final_threshold) / len(group_response)
-            futile = prob < self.futility_cutoff if not last_step else None
-            effective = prob > self.efficacy_cutoff
-            row = [k, prob, futile, effective]
-            data.append(row)
+            prob = np.count_nonzero(group_response > threshold) / len(group_response)
+            effective = None
 
             if not last_step:  # update interim stage status
-                if futile:
+                Q = self.dt_interim
+                assert Q is not None
+
+                effective = (prob >= Q)
+                if not effective and self.early_futility_stop:
                     new_status = GROUP_STATUS_EARLY_STOP_FUTILE
-                    if self.early_futility_stop:
-                        self._update_open_group_status(self.groups[k], new_status)
-                elif effective:
-                    new_status = GROUP_STATUS_EARLY_STOP_EFFECTIVE
-                    if self.early_efficacy_stop:
-                        self._update_open_group_status(self.groups[k], new_status)
+                    self._update_open_group_status(group, new_status)
 
             else:  # final stage update
-                if effective:
-                    new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
+                Q = self.dt
+                if Q is None:
+                    # for calibration step, no dt is provided, so no status is needed either
+                    new_status = None
                 else:
-                    new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
-                self._update_open_group_status(self.groups[k], new_status)
+                    # for simulation step, we do the usual significance check
+                    effective = (prob >= Q)
+                    if effective:
+                        new_status = GROUP_STATUS_COMPLETED_EFFECTIVE
+                    else:
+                        new_status = GROUP_STATUS_COMPLETED_INEFFECTIVE
+                self._update_open_group_status(group, new_status)
 
-        columns = ['k', 'prob', 'futile', 'effective']
+            row = [k, prob, Q, effective, group.status, group.nnz, group.total]
+            data.append(row)
+
+        columns = ['k', 'prob', 'Q', 'effective', 'group_status', 'group_nnz', 'group_total']
         df = pd.DataFrame(data, columns=columns).set_index('k')
         return df
 
@@ -138,12 +137,12 @@ class Analysis(ABC):
         if group.status == GROUP_STATUS_OPEN:
             group.status = new_status
 
-    def _prepare_data(self, group_idx, observed_data):
-        observed_data = np.array(observed_data)
-        group_idx = np.array(group_idx)
-        unique_group_idx = np.unique(group_idx)
-        ns = [len(observed_data[group_idx == idx]) for idx in unique_group_idx]
-        ks = [np.sum(observed_data[group_idx == idx]) for idx in unique_group_idx]
+    def _prepare_data(self, classes, responses):
+        responses = np.array(responses)
+        classes = np.array(classes)
+        unique_classes = np.unique(classes)
+        ns = [len(responses[classes == idx]) for idx in unique_classes]
+        ks = [np.sum(responses[classes == idx]) for idx in unique_classes]
         data_df = pd.DataFrame({
             'n_success': ks,
             'n_trial': ns
@@ -151,24 +150,36 @@ class Analysis(ABC):
         return data_df
 
 
-class Simple(Analysis):
-    def model_definition(self, data_df):
-        return get_model_simple(data_df)
-
-    def clustering(self, **kwargs):
-        pass
+class IndependentAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df, p0, p1):
+        return get_model_simple(count_df)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
         return stacked.basket_p.values
 
 
-class BHM(Analysis):
-    def model_definition(self, data_df):
-        return get_model_bhm(data_df)
+class IndependentBernAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df, p0, p1):
+        return get_model_simple_bern(obs_df)
 
-    def clustering(self, **kwargs):
-        pass
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.basket_p.values
+
+
+class BHMAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df, p0, p1):
+        return get_model_bhm_nc(count_df, p0, p1)
+
+    def get_posterior_response(self):
+        stacked = az.extract(self.idata)
+        return stacked.basket_p.values
+
+
+class PyBasketAnalysis(Analysis):
+    def model_definition(self, count_df, obs_df, p0, p1):
+        return get_model_pyBasket_nc(obs_df)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)

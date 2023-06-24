@@ -7,11 +7,10 @@ import numpy as np
 from loguru import logger
 
 DEFAULT_NUM_CHAINS = None  # let pymc decide
-DEFAULT_EFFICACY_CUTOFF = 0.90
-DEFAULT_FUTILITY_CUTOFF = 0.05
+DEFAULT_DECISION_THRESHOLD = 0.90
+DEFAULT_DECISION_THRESHOLD_INTERIM = 0.05
 DEFAULT_EARLY_FUTILITY_STOP = False
-DEFAULT_EARLY_EFFICACY_STOP = False
-DEFAULT_TARGET_ACCEPT = 0.95
+DEFAULT_TARGET_ACCEPT = 0.99
 
 GROUP_STATUS_OPEN = 'OPEN'
 GROUP_STATUS_EARLY_STOP_FUTILE = 'EARLY_STOP_FUTILE'
@@ -19,9 +18,10 @@ GROUP_STATUS_EARLY_STOP_EFFECTIVE = 'EARLY_STOP_EFFECTIVE'
 GROUP_STATUS_COMPLETED_INEFFECTIVE = 'COMPLETED_INEFFECTIVE'
 GROUP_STATUS_COMPLETED_EFFECTIVE = 'COMPLETED_EFFECTIVE'
 
-MODEL_SIMPLE = 'simple'
-MODEL_BHM = 'bhm'
-MODEL_LOGRES = 'logres'
+MODEL_INDEPENDENT = 'independent'
+MODEL_INDEPENDENT_BERN = 'independent_bern'
+MODEL_BHM = 'BHM'
+MODEL_PYBASKET = 'pyBasket'
 
 def create_if_not_exist(out_dir):
     """
@@ -91,21 +91,22 @@ class Group():
     def __init__(self, group_id):
         self.idx = group_id
         self.responses = []
-        self.features = None
+        self.classes = []
+        self.clusters = []
         self.status = GROUP_STATUS_OPEN
+        self.nnz = 0
+        self.total = 0
 
     def register(self, patient_data):
         self.responses.extend(patient_data.responses)
-        if self.features is None:
-            self.features = patient_data.features
-        else:
-            self.features = np.concatenate([self.features, patient_data.features], axis=0)
+        self.classes.extend(patient_data.classes)
+        self.clusters.extend(patient_data.clusters)
+        self.nnz = np.count_nonzero(self.responses)
+        self.total = len(self.responses)
 
     @property
     def response_indices(self):
         return [self.idx] * len(self.responses)
 
     def __repr__(self):
-        nnz = np.count_nonzero(self.responses)
-        total = len(self.responses)
-        return 'Group %d (%s): %d/%d' % (self.idx, self.status, nnz, total)
+        return 'Group %d (%s): %d/%d' % (self.idx, self.status, self.nnz, self.total)
