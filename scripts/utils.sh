@@ -17,12 +17,12 @@ check_debug_mode() {
       num_burn_in=1000
       num_posterior_samples=1000
       num_chains=1
-      num_sim=3
-      n_jobs=3
+      num_sim=5
+      n_jobs=5
       echo -e "\n\033[1;34m--- DEBUG MODE ENABLED ---\033[0m"
   else
-      num_burn_in=5000
-      num_posterior_samples=5000
+      num_burn_in=2000
+      num_posterior_samples=2000
       num_chains=1
       num_sim=500
       n_jobs=50
