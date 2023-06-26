@@ -74,8 +74,8 @@ class Results():
         num_feat_select = len(self.expr_df_selected.axes[1])
         clusters = len(np.unique(self.cluster_labels))
         tissues = len(np.unique(self.class_labels))
-        name = self.file_name
-        info = {'File name: ': {'information': name},'Number of samples: ': {'information': num_samples}, 'Num. transcripts (after filtering): ': {'information': num_feat_filt},
+        drug = self.file_name.split('_')[2]
+        info = {'File name: ': {'information': self.file_name},'Drug: ': {'information': drug}, 'Num. transcripts (after filtering): ': {'information': num_feat_filt},
                 'Num. transcripts (after feature selection): ': {'information': num_feat_select}, 'Num.clusters: ': {'information': clusters}, 'Num. tissues/baskets: ' : {'information': tissues} }
         df = pd.DataFrame(data=info).T
         style = df.style.hide_index()

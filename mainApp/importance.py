@@ -26,7 +26,7 @@ class FI():
         self.y_test = []
 
 
-    def plotImportance(self):
+    def plotImportance(self, RawD):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
         #importance_sort = importance_sort[::-1]
         importance_vals= importance_sort['importance_score'].values[:25]
@@ -34,16 +34,21 @@ class FI():
 
         importance_feats = importance_sort.index[:25]
         importance_feats = importance_feats[::-1]
+        raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         fig = plt.figure(figsize=(12, 6))
 
-        # Create the horizontal bar plot
         plt.barh(range(len(importance_vals)), importance_vals, align='center')
         plt.yticks(range(len(importance_vals)), importance_feats)
         plt.xlabel('Importance')
         plt.ylabel('Features')
         plt.title('Feature Importance')
+        if RawD:
+            saveTable(raw_D,"RF-FI")
+            st.dataframe(raw_D)
+        else:
+            savePlot(fig, "RF-FI")
+            st.pyplot(fig)
 
-        return st.pyplot(fig)
 
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
