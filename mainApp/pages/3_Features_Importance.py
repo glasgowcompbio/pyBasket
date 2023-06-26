@@ -9,7 +9,7 @@ import numpy as np
 import streamlit.components.v1 as components
 from interpretation import Prototypes, DEA
 from importance import FI
-from common import add_logo, hideRows
+from common import add_logo, hideRows, saveTable, savePlot
 
 add_logo()
 hide_rows = hideRows()
@@ -19,21 +19,41 @@ if "data" in st.session_state:
     analysis_data = Analysis(data)
     feature_inter = FI(data)
     explainer, values = feature_inter.SHAP()
-    tab1, tab2 = st.tabs(["Global Importance","Individual predictions"])
+    tab1, tab2, tab3 = st.tabs(["Overview","Global Methods","Local Methods"])
     with tab1:
-        global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation"], key="model1")
+        st.write(" ")
+        st.subheader("Features importance overview")
+        st.write('Further exploration of the most important features (transcripts) for predicting AAC response')
+        global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation FI"], key="model1")
         if global_model == "RF feature importance":
-            st.subheader("Transcripts with the highest importance")
+            st.subheader("Most important features (Random Forest)")
+            st.write("Top 25 most important features calculated from Random Forest.")
             feature_inter.plotImportance()
         elif global_model == "SHAP":
             st.subheader("SHAP values")
-            fig = feature_inter.SHAP_summary(explainer,values)
-            st.pyplot(fig)
-        elif global_model == "Permutation":
-            None
-            #st.subheader("Permutation based")
-            #feature_inter.permutationImportance()
+            RawD = st.checkbox("Show raw data", key="raw-data-LIME")
+            if RawD:
+                raw_df = feature_inter.SHAP_results(values)
+                saveTable(raw_df, "SHAP")
+                st.dataframe(raw_df, use_container_width=True)
+            else:
+                fig = feature_inter.SHAP_summary(explainer, values)
+                savePlot(fig, "Global_SHAP")
+                st.pyplot(fig)
+
+        elif global_model == "Permutation FI":
+            st.subheader("Permutation feature importance")
+            st.write('The importance of a feature is measured by calculating the increase in the model’s prediction'
+                     'error when re-shuffling each predictor. How much impact have these features in the model’s prediction for AAC response.')
+            feature_inter.permutationImportance()
     with tab2:
+        st.write(" ")
+        st.subheader("Global methods")
+        st.write(" ")
+        st.write('Global methods are used to interpret the average behaviour of a Machine Learning model'
+                 'and how it makes predictions as a whole. ')
+
+    with tab3:
         st.subheader("Local methods")
         local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
         col21, col22 = st.columns((2,2))
@@ -61,5 +81,13 @@ if "data" in st.session_state:
             elif local_model == "SHAP":
                 st.write("  ")
                 st.write("##### SHAP explanation for sample: {}".format(sample))
-                RawD = st.checkbox("Show raw data", key="raw-data-LIME")
+                st.write("  ")
+                st.write("##### Forces plot")
+                st.write("  ")
+                RawD = st.checkbox("Show raw data", key="raw-data-SHAP")
                 feature_inter.SHAP_forces(sample,explainer,values,n_features, RawD)
+                st.write("  ")
+                st.write("##### Bar plot")
+                st.write("  ")
+                RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
+                feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)

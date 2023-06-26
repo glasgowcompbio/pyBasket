@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from lime import lime_tabular
 from sklearn.inspection import permutation_importance
+#from rfpimp import permutation_importances
 import streamlit as st
 import sklearn
 import shap
@@ -27,8 +28,12 @@ class FI():
 
     def plotImportance(self):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
+        #importance_sort = importance_sort[::-1]
         importance_vals= importance_sort['importance_score'].values[:25]
+        importance_vals = importance_vals[::-1]
+
         importance_feats = importance_sort.index[:25]
+        importance_feats = importance_feats[::-1]
         fig = plt.figure(figsize=(12, 6))
 
         # Create the horizontal bar plot
@@ -46,14 +51,15 @@ class FI():
         y_train, self.y_test = y.iloc[:train_size], y.iloc[
                                                                            train_size:]
         self.y_train = y_train.values.flatten()
+        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
+        rf.fit(self.X_train, self.y_train)
+        return rf
 
     def limeInterpretation(self,sample,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
         df = df.drop("index",axis = 1)
-        FI.prepareData(self,self.drug_response)
-        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100,random_state=42)
-        rf.fit(self.X_train, self.y_train)
+        rf = FI.prepareData(self,self.drug_response)
 
         explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=["drug response"],
                                                       verbose=True, mode='regression')
@@ -71,56 +77,102 @@ class FI():
             "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
 
     def permutationImportance(self):
-        FI.prepareData(self, self.drug_response)
-        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100,random_state=42)
-        rf.fit(self.X_train, self.y_train)
+        rf = FI.prepareData(self, self.drug_response)
 
         # the permutation based importance
-        perm_importance = permutation_importance(rf, self.X_test, self.y_test)
+        perm_importance = permutation_importance(rf, self.X_test, self.y_test,n_repeats=10, random_state=42)
 
-        sorted_idx = perm_importance.importances_mean.argsort()
-        top_positive_indices = sorted_idx[-15:]
+        #sorted_idx = perm_importance.importances_mean.argsort()
+        perm_sorted_idx = perm_importance.importances_mean.argsort()
+        perm_sorted_idx = perm_sorted_idx[:25]
+        perm_sorted_idx = perm_sorted_idx[::-1]
+        #top_positive_indices = sorted_idx[-15:]
 
         # Get the indices of the top 50 negative values
-        top_negative_indices = sorted_idx[:15]
+        #top_negative_indices = sorted_idx[:15]
 
         # Combining the indices of top positive and negative values
-        top_indices = np.concatenate((top_negative_indices, top_positive_indices))
+        #top_indices = np.concatenate((top_negative_indices, top_positive_indices))
 
         # The top 50 values (both negative and positive) can be accessed using:
         #top_values = perm_importance.importances_mean[top_indices]
         fig = plt.figure(figsize = (10,8))
-        plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
+        plt.boxplot(
+            perm_importance.importances[perm_sorted_idx].T,
+            vert=False,
+            labels=self.X_test.columns[perm_sorted_idx],
+        )
+        #plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
         plt.xlabel("Permutation Importance")
         return st.pyplot(fig)
 
+
+        #perm = PermutationImportance(rf, cv=None, refit=False, n_iter=50).fit(X_train, y_train)
+        #perm_imp_eli5 = imp_df(X_train.columns, perm.feature_importances_)
+
+
     def SHAP(self):
-        FI.prepareData(self, self.drug_response)
-        rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
-        rf.fit(self.X_train, self.y_train)
+        rf = FI.prepareData(self, self.drug_response)
         explainer = shap.TreeExplainer(rf)
         shap_values = explainer.shap_values(self.expr_df_selected)
         return explainer, shap_values
 
+    def SHAP_bar_indiv(self,sample, explainer,values,n_features,RawD):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index
+        shap_values = explainer(self.expr_df_selected)
+        fig, ax = plt.subplots()
+        shap.plots.bar(shap_values[index], show=True, max_display=n_features)
+        #shap.waterfall_plot(shap_values[index].base_values[0], values[0], self.expr_df_selected.iloc[0])
+        mean_values = np.abs(values[index]).mean(0)
+        raw_df = pd.DataFrame({'Feature': self.expr_df_selected.columns, 'mean |SHAP value|': mean_values})
+        raw_df = raw_df.sort_values(by=['mean |SHAP value|'], ascending=False)
+        raw_df = raw_df.iloc[:n_features]
+        if RawD:
+            saveTable(raw_df, sample + "SHAP_bar")
+            st.write("  ")
+            st.dataframe(raw_df)
+        else:
+            savePlot(fig, sample + "SHAP_bar")
+            st.write("  ")
+            st.pyplot(fig)
+
+
+    def SHAP_results(self,values):
+        shap_sum = np.abs(values).mean(axis=0)
+        importance_df = pd.DataFrame([self.expr_df_selected.columns.tolist(), shap_sum.tolist()]).T
+        importance_df.columns = ['Transcript', 'SHAP importance']
+        importance_df = importance_df.sort_values('SHAP importance', ascending=False)
+        return importance_df
+
     def SHAP_forces(self, sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"]==sample].index
-        top_feature_indices = np.argsort(np.abs(values[index]))[::-1]
-        top_feature_indices = top_feature_indices[0][:n_features+1]
+        #top_feature_indices = np.argsort(np.abs(values[index]))[::-1]
+        #top_feature_indices = top_feature_indices[0][:n_features+1]
 
-        selected_shap_values = values[index, top_feature_indices]
-        selected_features = round(self.expr_df_selected.iloc[index, top_feature_indices],3)
-        raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
-        fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
+        selected_shap_values = values[index, :n_features]
+        selected_features = round(self.expr_df_selected.iloc[index, :n_features],3)
+        #raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
+        #fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
+        fig = shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",matplotlib=True, show=False)
         st.write("  ")
         if RawD:
             saveTable(raw_data, sample + "SHAP")
             st.write("  ")
             st.dataframe(raw_data)
         else:
-            savePlot(fig, sample + "SHAP")
+            savePlot(fig, sample + "SHAP_force")
             st.write("  ")
             st.pyplot(fig)
+
+    def SHAP_bar(self,explainer,sample):
+        shap_values = explainer(self.expr_df_selected)
+        fig, ax = plt.subplots()
+        shap.plots.bar(shap_values, max_display=15)
+        #shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
+        return fig
 
     def SHAP_summary(self,explainer,values):
         fig, ax = plt.subplots()
