@@ -17,7 +17,7 @@ import pylab as plt
 from scipy.special import expit as logistic
 
 from pyBasket.preprocessing import get_pivot_count_df
-from pyBasket.model import get_patient_model_hierarchical_log_odds_nc
+from pyBasket.model import get_model_pyBasket_nc
 from pyBasket.model import get_model_simple, get_model_bhm_nc
 from pyBasket.common import create_if_not_exist
 
@@ -80,14 +80,16 @@ def run_experiment(data_df, true_basket_p, true_cluster_p, n_burn_in=int(5E3), n
     stacked_s = az.extract(trace_s)
 
     # BHM (Berry 2013)
-    model_bhm = get_model_bhm_nc(df_pivot)
+    p0 = 0.2
+    p1 = 0.4
+    model_bhm = get_model_bhm_nc(df_pivot, p0, p1)
     with model_bhm:
         trace_h1 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                              target_accept=target_accept)
     stacked_h1 = az.extract(trace_h1)
 
     # pyBasket
-    model_h2_nc = get_patient_model_hierarchical_log_odds_nc(data_df)
+    model_h2_nc = get_model_pyBasket_nc(data_df)
     with model_h2_nc:
         trace_h2 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                              target_accept=target_accept)
