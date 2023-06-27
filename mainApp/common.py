@@ -6,7 +6,8 @@ from loguru import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
-import pandas as pd
+from processing import *
+
 
 
 def add_logo():
@@ -49,3 +50,21 @@ def saveTable(df, feature):
         st.info('Data saved as .csv file in working directory', icon="ℹ️")
     else:
         st.write("")
+
+def sideBar():
+    if "data" in st.session_state:
+        data = st.session_state["data"]
+        analysis_data = st.session_state["analysis"]
+        st.sidebar.title("Select basket*cluster interaction")
+        with st.sidebar:
+            cluster = st.selectbox("Select a cluster", data.setClusters(), key="cluster")
+            if "cluster" not in st.session_state:
+                st.session_state["cluster"] = cluster
+            basket = st.selectbox("Select a basket", data.setBaskets(), key="basket")
+            if "basket" not in st.session_state:
+                st.session_state["basket"] = basket
+            subgroup, size = analysis_data.findInteraction(cluster, basket)
+            st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
+    else:
+        with st.sidebar:
+            st.warning("Results not found. Please upload in a results file in Home.")

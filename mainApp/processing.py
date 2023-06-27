@@ -153,6 +153,12 @@ class Results():
             savePlot(AAC,"AAC")
             st.pyplot(AAC)
 
+    def displayAAC_none(feature):
+        fig = Results.non_group_plot(feature)
+        savePlot(fig, "AAC")
+        fig_html = mpld3.fig_to_html(fig)
+        components.html(fig_html, height=600, width=1000)
+
     def raw_data_count(self, feature, x_variable, response):
         self.patient_df['Number of samples'] = 1
         if response == True:
@@ -191,19 +197,19 @@ class Results():
             else:
                 hue = feature
                 palette = sns.color_palette("pastel", 25)
-            fig = plt.figure(figsize=(10, 5))
+            fig = plt.figure(figsize=(15, 6))
             x = np.arange(298)
             ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
             plt.title("AAC response per sample")
             fig.subplots_adjust(right=0.63, top=1)
-            defaultPlot_leg(feature, ax)
+            plt.legend(loc='lower left', bbox_to_anchor=(1.1,0))
             #ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
             plt.xlabel("Sample index")
             fig.subplots_adjust(right=0.63, top=1)
             plt.ylabel("AAC response")
             savePlot(fig, "AAC")
             fig_html = mpld3.fig_to_html(fig)
-            components.html(fig_html, height=670, width=1000)
+            components.html(fig_html, height=670, width=1500)
 
 
 class Analysis():

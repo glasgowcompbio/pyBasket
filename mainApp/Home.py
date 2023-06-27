@@ -1,9 +1,10 @@
 import streamlit as st
 import tempfile
 from processing import *
-from common import add_logo
+from common import add_logo,sideBar
 import base64
 import webbrowser
+from interpretation import *
 
 import streamlit.components.v1 as components
 
@@ -17,6 +18,8 @@ add_logo()
 
 st.header("pyBasket")
 
+sideBar()
+
 
 st.markdown("#### Please upload your data")
 input_file = st.file_uploader('Upload your data file (.py format)', type='p')
@@ -27,13 +30,13 @@ if input_file is not None:
         tmp_file.write(input_file.getvalue())
         tmp_file.flush()
         file_name = tmp_file.name
-        print(tmp_file.name)
         st.success('The file was successfully uploaded!', icon="✅")
         save_data = readPickle(tmp_file.name)
         dict = Results(save_data,input_file.name)
+        analysis_data = Analysis(dict)
         dict.setFeatures()
         st.session_state["data"] = dict
-        print(input_file.name)
+        st.session_state["analysis"] = analysis_data
         st.session_state["File Name"] = input_file.name
 
 else:

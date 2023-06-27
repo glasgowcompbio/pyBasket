@@ -50,15 +50,13 @@ class FI():
             savePlot(fig, "RF-FI")
             st.pyplot(fig)
 
-
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
         self.X_train, self.X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
-        y_train, self.y_test = y.iloc[:train_size], y.iloc[
-                                                                           train_size:]
+        y_train, self.y_test = y.iloc[:train_size], y.iloc[train_size:]
         self.y_train = y_train.values.flatten()
         rf = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
-        rf.fit(self.X_train, self.y_train)
+        rf.fit(self.X_train.values, self.y_train)
         return rf
 
     def limeInterpretation(self,sample,n_features,RawD):
@@ -66,13 +64,12 @@ class FI():
         index = df[df["index"] == sample].index
         df = df.drop("index",axis = 1)
         rf = FI.prepareData(self,self.drug_response)
-
         explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=["drug response"],
                                                       verbose=True, mode='regression')
-
-        exp = explainer.explain_instance(df.iloc[index[0]], rf.predict, num_features=n_features)
+        exp = explainer.explain_instance(df.iloc[index[0]], rf.predict, num_features=n_features,)
         fig = exp.as_pyplot_figure()
         raw_data = pd.DataFrame(exp.as_list(), columns=['Feature', 'Contribution'])
+        st.write("##### The predicted value for sample {} is {}".format(sample, round(exp.local_pred[0],3)))
         if RawD:
             saveTable(raw_data, sample + "LIME")
             st.dataframe(raw_data)

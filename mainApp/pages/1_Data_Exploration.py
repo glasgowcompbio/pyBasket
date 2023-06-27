@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 from processing import readPickle, Results, Analysis, dim_PCA
-from common import add_logo, hideRows, savePlot
+from common import add_logo, hideRows, savePlot,sideBar
 from interpretation import Prototypes, Kmedoids,DEA
 
 hide_rows = hideRows()
 add_logo()
+sideBar()
 st.header("Data exploration")
 
 if "data" in st.session_state:
