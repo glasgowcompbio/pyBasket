@@ -15,7 +15,7 @@ from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBaske
 class Analysis(ABC):
     def __init__(self, K, total_steps, p0, p_mid, p1,
                  dt, dt_interim, early_futility_stop,
-                 num_chains, target_accept, progress_bar):
+                 num_chains, target_accept, progress_bar, n_clusters):
         self.K = K
         self.total_steps = total_steps
         self.idata = None
@@ -32,7 +32,7 @@ class Analysis(ABC):
         self.groups = [Group(k) for k in range(self.K)]
         self.df = None
         self.model = None
-        self.clustering_method = None
+        self.n_clusters = n_clusters
 
     @abstractmethod
     def get_posterior_response(self):
@@ -64,7 +64,8 @@ class Analysis(ABC):
             })
 
         # create model and draw posterior samples
-        self.model = self.model_definition(count_df, obs_df, self.p0, self.p1)
+        self.model = self.model_definition(count_df, obs_df, self.p0, self.p1, self.K,
+                                           self.n_clusters)
         with self.model:
             self.idata = pm.sample(draws=num_posterior_samples, tune=num_burn_in,
                                    chains=self.num_chains, idata_kwargs={'log_likelihood': True},
@@ -151,7 +152,7 @@ class Analysis(ABC):
 
 
 class IndependentAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1):
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
         return get_model_simple(count_df)
 
     def get_posterior_response(self):
@@ -160,8 +161,8 @@ class IndependentAnalysis(Analysis):
 
 
 class IndependentBernAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1):
-        return get_model_simple_bern(obs_df)
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
+        return get_model_simple_bern(obs_df, n_basket, n_cluster)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
@@ -169,8 +170,8 @@ class IndependentBernAnalysis(Analysis):
 
 
 class HierarchicalBernAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1):
-        return get_model_hierarchical_bern(obs_df)
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
+        return get_model_hierarchical_bern(obs_df, n_basket, n_cluster)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
@@ -178,7 +179,7 @@ class HierarchicalBernAnalysis(Analysis):
 
 
 class BHMAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1):
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
         return get_model_bhm_nc(count_df, p0, p1)
 
     def get_posterior_response(self):
@@ -187,8 +188,8 @@ class BHMAnalysis(Analysis):
 
 
 class PyBasketAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1):
-        return get_model_pyBasket_nc(obs_df)
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
+        return get_model_pyBasket_nc(obs_df, n_basket, n_cluster)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)

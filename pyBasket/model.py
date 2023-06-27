@@ -86,8 +86,8 @@ def get_model_bhm(data_df, p0, p1):
 
     # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
     # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
-    mu0 = np.log(p0/(1-p0))
-    response_adj = np.log(p1/(1-p1))
+    mu0 = np.log(p0 / (1 - p0))
+    response_adj = np.log(p1 / (1 - p1))
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
@@ -147,8 +147,8 @@ def get_model_bhm_nc(data_df, p0, p1):
 
     # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
     # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
-    mu0 = np.log(p0/(1-p0))
-    response_adj = np.log(p1/(1-p1))
+    mu0 = np.log(p0 / (1 - p0))
+    response_adj = np.log(p1 / (1 - p1))
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
@@ -157,7 +157,8 @@ def get_model_bhm_nc(data_df, p0, p1):
 
         # Define hyper-priors
         μ_α = pm.Normal('mu_alpha', mu=0, sigma=10)  # Mean of the alpha parameters
-        σ_α = pm.InverseGamma('sigma_alpha', alpha=0.0005, beta=0.000005)  # Variance of the alpha parameters
+        σ_α = pm.InverseGamma('sigma_alpha', alpha=0.0005,
+                              beta=0.000005)  # Variance of the alpha parameters
 
         # Define priors using non-centered parameterization
         α = pm.Deterministic('alpha', μ_α + (z_α * σ_α), dims='basket')
@@ -175,8 +176,7 @@ def get_model_bhm_nc(data_df, p0, p1):
         return model
 
 
-
-def get_model_simple_bern(data_df):
+def get_model_simple_bern(data_df, n_basket, n_cluster):
     '''
     Construct a probabilistic model using PyMC3 to assess patient response.
 
@@ -205,8 +205,8 @@ def get_model_simple_bern(data_df):
     '''
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        data_df['basket_number'].unique()
-    cluster_coords = data_df['cluster_number'].unique()
+        np.arange(n_basket)
+    cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords, 'cluster': cluster_coords}
@@ -231,8 +231,7 @@ def get_model_simple_bern(data_df):
         return model
 
 
-
-def get_model_hierarchical_bern(data_df):
+def get_model_hierarchical_bern(data_df, n_basket, n_cluster):
     '''
     Construct a hierarchical probabilistic model using PyMC3 to assess patient response.
 
@@ -264,8 +263,8 @@ def get_model_hierarchical_bern(data_df):
     '''
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        data_df['basket_number'].unique()
-    cluster_coords = data_df['cluster_number'].unique()
+        np.arange(n_basket)
+    cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords, 'cluster': cluster_coords}
@@ -297,8 +296,7 @@ def get_model_hierarchical_bern(data_df):
         return model
 
 
-
-def get_model_pyBasket(data_df):
+def get_model_pyBasket(data_df, n_basket, n_cluster):
     '''
     Construct a probabilistic model using PyMC3 for patient response,
     considering different tissues and clusters with different success probabilities.
@@ -328,8 +326,8 @@ def get_model_pyBasket(data_df):
     '''
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        data_df['basket_number'].unique()
-    cluster_coords = data_df['cluster_number'].unique()
+        np.arange(n_basket)
+    cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords, 'cluster': cluster_coords}
@@ -365,8 +363,7 @@ def get_model_pyBasket(data_df):
         return model
 
 
-
-def get_model_pyBasket_nc(data_df):
+def get_model_pyBasket_nc(data_df, n_basket, n_cluster):
     '''
     Constructs a probabilistic model using PyMC3 for patient response,
     considering different tissues and clusters with different success probabilities.
@@ -392,8 +389,8 @@ def get_model_pyBasket_nc(data_df):
     '''
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        data_df['basket_number'].unique()
-    cluster_coords = data_df['cluster_number'].unique()
+        np.arange(n_basket)
+    cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords, 'cluster': cluster_coords}

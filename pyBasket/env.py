@@ -50,6 +50,7 @@ class TrueResponseSite(Site):
         self.true_response_rates = true_response_rates
         self.enrollments = enrollments
         self.pos = [0] * len(true_response_rates)
+        self.n_clusters = None
 
     def enroll(self, k):
         try:
@@ -160,6 +161,7 @@ class EmpiricalSite(Site):
         self.site_names = site_names
         self.num_responses = num_responses
         self.sample_sizes = sample_sizes
+        self.n_clusters = None
 
     def enroll(self, k):
         responses = self._get_responses(self.num_responses[k], self.sample_sizes[k])
@@ -232,6 +234,7 @@ class Trial():
         # initialise all the models
         for analysis_name in self.analysis_names:
             analysis = self.get_analysis(analysis_name, self.K, self.p0, self.p_mid, self.p1,
+                                         self.site.n_clusters,
                                          self.dt[analysis_name], self.dt_interim[analysis_name],
                                          self.early_futility_stop, self.pbar)
             self.analyses[analysis_name] = analysis
@@ -275,7 +278,7 @@ class Trial():
         self.current_stage += 1
         return last_step
 
-    def get_analysis(self, analysis_name, K, p0, p_mid, p1,
+    def get_analysis(self, analysis_name, K, p0, p_mid, p1, n_clusters,
                      decision_threshold, decision_threshold_interim,
                      early_futility_stop, pbar):
         assert analysis_name in [MODEL_INDEPENDENT,
@@ -288,27 +291,27 @@ class Trial():
             return IndependentAnalysis(K, total_steps, p0, p_mid, p1,
                                        decision_threshold, decision_threshold_interim,
                                        early_futility_stop, self.num_chains,
-                                       self.target_accept, pbar)
+                                       self.target_accept, pbar, self.site.n_clusters)
         elif analysis_name == MODEL_INDEPENDENT_BERN:
             return IndependentBernAnalysis(K, total_steps, p0, p_mid, p1,
                                            decision_threshold, decision_threshold_interim,
                                            early_futility_stop, self.num_chains,
-                                           self.target_accept, pbar)
+                                           self.target_accept, pbar, self.site.n_clusters)
         elif analysis_name == MODEL_HIERARCHICAL_BERN:
             return HierarchicalBernAnalysis(K, total_steps, p0, p_mid, p1,
                                            decision_threshold, decision_threshold_interim,
                                            early_futility_stop, self.num_chains,
-                                           self.target_accept, pbar)
+                                           self.target_accept, pbar, self.site.n_clusters)
         elif analysis_name == MODEL_BHM:
             return BHMAnalysis(K, total_steps, p0, p_mid, p1,
                                decision_threshold, decision_threshold_interim,
                                early_futility_stop, self.num_chains,
-                               self.target_accept, pbar)
+                               self.target_accept, pbar, self.site.n_clusters)
         elif analysis_name == MODEL_PYBASKET:
             return PyBasketAnalysis(K, total_steps, p0, p_mid, p1,
                                     decision_threshold, decision_threshold_interim,
                                     early_futility_stop, self.num_chains,
-                                    self.target_accept, pbar)
+                                    self.target_accept, pbar, self.site.n_clusters)
 
     def visualise_model(self, analysis_name):
         try:
