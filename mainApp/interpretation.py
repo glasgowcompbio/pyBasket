@@ -168,7 +168,7 @@ class Prototypes():
         st.subheader("Prototype samples")
         table = Prototypes.showMedoids(self, feature)
         saveTable(table, "subgroup")
-        st.dataframe(table)
+        st.dataframe(table, use_container_width=True)
 
 class DEA():
     def __init__(self, Results):
@@ -243,7 +243,6 @@ class DEA():
         else:
             numShow = st.slider('Select transcripts to show', 0,len(self.ttest_res))
             show = self.ttest_res[:numShow]
-        #print(self.ttest_res[self.ttest_res["Significant"] == True])
         saveTable(show, feature)
         st.dataframe(show, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
@@ -258,8 +257,6 @@ class DEA():
         st.subheader("Volcano plot")
         savePlot(fig, "DEA")
         st.pyplot(fig)
-        #fig_html = mpld3.fig_to_html(fig)
-        #components.html(fig_html, height=500, width=1200)
 
     def pPlot(self):
         fig =plt.figure(figsize=(9,5))
@@ -300,6 +297,37 @@ class DEA():
         style = df.style.hide_index()
         style.hide_columns()
         return st.dataframe(df, use_container_width=True)
+
+    def boxplot_inter(self, subgroup, transcript):
+        indexes = subgroup.index
+        filtered_df = self.expr_df_selected.drop(indexes)
+        self.df_group1 = subgroup
+        self.df_group2 = filtered_df
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
+        full_df = pd.concat([df1, df2])
+        fig= plt.figure(figsize=(7, 6))
+        ax = sns.boxplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        ax = sns.stripplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        plt.ylabel("Expression level")
+        plt.xlabel("Group")
+        return fig
+
+    def boxplot_resp(self, subgroup, transcript):
+        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"] == 0]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
+        self.df_group1["Response"] = "Non-responsive"
+        self.df_group2["Response"] = "Responsive"
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["Response"]})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["Response"]})
+        full_df = pd.concat([df1, df2])
+        fig= plt.figure(figsize=(7, 6))
+        ax = sns.boxplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        ax = sns.stripplot(x="class", y=transcript, data=full_df, palette=["#F72585", "#4CC9F0"])
+        plt.ylabel("Expression level")
+        plt.xlabel("Response to treatment")
+        return fig
 
     def boxplot(self, option1, option2,feature,transcript):
         self.df_group1 = DEA.selectGroups(self, option1, feature)

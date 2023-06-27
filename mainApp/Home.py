@@ -62,11 +62,11 @@ if "File Name" in st.session_state:
             #print(st.session_state["data"].fileInfo())
             #st.markdown("Number of samples:  " + str(dict.numSamples(st.session_state["data"].expr_df_selected)))
     with col12:
-        with st.expander("Drug information"):
+        with st.expander("Treatment information"):
             name = st.session_state["File Name"].split('_')
             drug = name[2]
             st.subheader("**{}**".format(drug))
-            st.write("Further information about the treatment/therapy used to generate the results.")
+            st.write("Further information about the drug used in the pyBasket analysis.")
             accession_num = "0"
             if drug == "Erlotinib":
                 accession_num = "DB00530"

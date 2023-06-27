@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import streamlit.components.v1 as components
 from interpretation import Prototypes, DEA
-from common import add_logo,hideRows
+from common import add_logo,hideRows,savePlot
 
 add_logo()
 hide_rows = hideRows()
@@ -119,18 +119,18 @@ if "data" in st.session_state:
             st.warning("Not enough samples. Please try a different combination.")
     with tab4:
         st.subheader("Differential expression analysis (DEA)")
-        option = st.selectbox("Select analysis", ("Samples in interaction vs rest of samples", "Within interaction: responsive vs non-responsive"), key="DEA")
+        dea = DEA(data)
+        col41, col42 = st.columns((2, 2))
+        with col41:
+            option = st.selectbox("Select analysis", (
+            "Samples in interaction vs rest of samples", "Within interaction: responsive vs non-responsive"), key="DEA")
+            pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
+            logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
         if option == "Samples in interaction vs rest of samples":
             st.write("##### Samples in interaction vs all other interactions")
-            col41, col42 = st.columns((2,2))
-            with col41:
-                pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
-                logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
-            #st.write("##### Samples in **cluster {}** & **basket {}**".format(cluster, basket))
             if subgroup.size > 0:
-                dea = DEA(data)
                 dea.diffAnalysis_inter(subgroup,pthresh,logthresh)
-                dea.showResults("interaction")
+                results = dea.showResults("interaction")
             else:
                 st.warning("Not enough samples. Please try a different combination.")
             with col42:
@@ -140,25 +140,32 @@ if "data" in st.session_state:
                     dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh,logthresh)
                 except:
                     st.write(" ")
+            st.subheader("Individual transcripts DEA")
+            transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+            fig = dea.boxplot_inter(subgroup, transcript)
+            savePlot(fig, "DEA" + transcript)
+            st.pyplot(fig)
         else:
-            st.write("##### Responsive vs non-responsive samples within interaction")
-            col41, col42 = st.columns((2, 3))
-            with col41:
-                pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
-                logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
+            st.write("##### Responsive vs non-responsive samples within basket*cluster interaction")
             if subgroup.size > 0:
                 dea = DEA(data)
                 dea.diffAnalysis_response(subgroup, pthresh, logthresh)
-                dea.showResults("interaction")
+                results = dea.showResults("interaction")
             else:
                 st.warning("Not enough samples. Please try a different combination.")
             with col42:
                 st.write(" ")
                 st.write(" ")
                 try:
-                    dea.infoTest("responsive", "non-responsive", 'Interaction', pthresh, logthresh)
+                    dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh,logthresh)
                 except:
                     st.write(" ")
+            st.subheader("Individual transcripts DEA")
+            transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+            fig = dea.boxplot_resp(subgroup, transcript)
+            savePlot(fig, "DEA" + transcript)
+            st.pyplot(fig)
+
 
 
 

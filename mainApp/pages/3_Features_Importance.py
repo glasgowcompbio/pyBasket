@@ -30,7 +30,6 @@ if "data" in st.session_state:
             st.write("Top 25 most important features calculated from Random Forest.")
             RawD = st.checkbox("Show raw data", key="rd-RF")
             feature_inter.plotImportance(RawD)
-
         elif global_model == "SHAP":
             st.subheader("SHAP values")
             RawD = st.checkbox("Show raw data", key="rd-SHAP")

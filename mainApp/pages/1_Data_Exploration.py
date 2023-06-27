@@ -54,12 +54,15 @@ if "data" in st.session_state:
         analysis_data = Analysis(data)
         pca = dim_PCA(data)
         st.subheader("Dimensionality reduction")
-        technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
+
         col31, col32 = st.columns((2,2))
         with col31:
+            technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
             RawD = st.checkbox("Show raw data", key="raw-data-PCA")
         with col32:
+            st.write(" ")
+            st.write(" ")
             pca.infoPCA(option)
         if option == "Clusters":
             choices = analysis_data.patient_df["cluster_number"].unique()

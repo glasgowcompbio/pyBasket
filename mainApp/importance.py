@@ -8,6 +8,7 @@ import shap
 import numpy as np
 import pandas as pd
 from common import savePlot, saveTable
+import seaborn as sns
 
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -37,7 +38,7 @@ class FI():
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         fig = plt.figure(figsize=(12, 6))
 
-        plt.barh(range(len(importance_vals)), importance_vals, align='center')
+        plt.barh(range(len(importance_vals)), importance_vals, align='center', color = sns.color_palette("pastel",25))
         plt.yticks(range(len(importance_vals)), importance_feats)
         plt.xlabel('Importance')
         plt.ylabel('Features')
@@ -115,7 +116,6 @@ class FI():
         #perm = PermutationImportance(rf, cv=None, refit=False, n_iter=50).fit(X_train, y_train)
         #perm_imp_eli5 = imp_df(X_train.columns, perm.feature_importances_)
 
-
     def SHAP(self):
         rf = FI.prepareData(self, self.drug_response)
         explainer = shap.TreeExplainer(rf)
@@ -157,7 +157,7 @@ class FI():
         #top_feature_indices = top_feature_indices[0][:n_features+1]
 
         selected_shap_values = values[index, :n_features]
-        selected_features = round(self.expr_df_selected.iloc[index, :n_features],3)
+        selected_features = round(self.expr_df_selected.iloc[index, :n_features],2)
         #raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
         #fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
         raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
