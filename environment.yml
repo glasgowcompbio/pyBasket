@@ -17,6 +17,7 @@ dependencies:
   - autopep8
   - pytest
   - pytest-cov
+  - statsmodels
   - pip
   - pip:
     - pymc
