@@ -372,7 +372,7 @@ class dim_PCA(Analysis):
             palette = sns.color_palette("pastel",25)
         pc1_values = df['PC1']
         pc2_values = df['PC2']
-        fig = plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(11, 6))
         fig.subplots_adjust(right=0.63, top=1)
         ax = sns.scatterplot(x=pc1_values, y=pc2_values,hue=df[feature], s=30, palette=palette)
         ax.set(title='PCA decomposition')

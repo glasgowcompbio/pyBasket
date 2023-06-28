@@ -15,23 +15,36 @@ if "data" in st.session_state:
     tab1, tab2,tab3, tab4,tab5 = st.tabs(["Number of samples", "AAC response", "Dimensionality reduction", "Prototypes", "Differential expression"])
     with tab1:
         st.subheader("Number of samples")
+        st.write("The number of samples is shown by cluster or basket/tissue. The number of responsive and non-responsive"
+                    " samples within groups can also be explored.")
+        st.write(" ")
         col11, col12 = st.columns((1, 1))
         with col11:
             option_tab1 = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="option-tab1")
         with col12:
+            st.write(" ")
             RD = st.checkbox("Group by responsiveness", key="responsive")
             RawD = st.checkbox("Show raw data", key="raw-data")
         if option_tab1 == "Clusters":
             data.displayNums("cluster_number","Cluster number",RD, RawD,"Samples per cluster")
         elif option_tab1 == 'Baskets/Tissues':
             data.displayNums("tissues", "Tissue",RD, RawD, "Samples per tissue")
-
     with tab2:
         st.subheader("AAC response")
+        st.write("The Area Above the Curve (AAC) is a measure used to analyse drug response and quantify the effect of"
+                 " a drug over a period of time. In the context of he GDSC dataset, the AAC is the measure of the cell"
+                 " or cell line overall survival in response to the drug: the larger the AAC, the more resistance to the"
+                 " drug is shown."
+                 " "
+                 "The AAC values per cluster o basket/tissue is shown, as well as within these for Responsive and Non-"
+                 "responsive samples.")
+        st.write(" ")
         col21, col22 = st.columns((1, 1))
         with col21:
             option_tab2 = st.selectbox("Select how to group samples", ('None','Clusters', 'Baskets/Tissues'), key="option-tab2")
         with col22:
+            st.write(" ")
+            st.write(" ")
             RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
         if option_tab2 == 'None':
             with col21:
@@ -55,7 +68,12 @@ if "data" in st.session_state:
         analysis_data = Analysis(data)
         pca = dim_PCA(data)
         st.subheader("Dimensionality reduction")
-
+        st.write("The goal of dimensionality reduction techniques is to project high-dimensionality data to a lower "
+                 "dimensional subspace while preserving the essence of the data and the maximum amount of information.")
+        st.write("Principal Component Analysis (PCA) is a dimensionality reduction method that enables the visualisation"
+                 " of high-dimensional data. The results for PCA on the data can be explored for the data grouped by "
+                 "clusters, baskets/tissues or responsiveness.")
+        st.write(" ")
         col31, col32 = st.columns((2,2))
         with col31:
             technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
@@ -76,6 +94,10 @@ if "data" in st.session_state:
             choices = analysis_data.patient_df["tissues"].unique()
     with tab4:
         st.subheader("Prototypes")
+        st.write("The prototypical sample of each cluster, basket/tissue or pattern of response has been calculated using"
+                 " KMedoids. KMedoids is a partitioning technique that finds the sample (medoid or prototype)"
+                " that is the closest to the rest of samples in the same group.")
+        st.write(" ")
         option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="Prototypes")
         prototype = Prototypes(data)
         prototype.findPrototypes(option)
@@ -83,6 +105,13 @@ if "data" in st.session_state:
 
     with tab5:
         st.subheader("Differential expression")
+        st.write(" ")
+        st.write("The goal of Differential Expression Analysis (DEA) is to discover whether the expression "
+                 "level of a feature (gene or transcript) is quantitatively different between experimental "
+                 "groups or conditions.")
+        st.write("T-test for the means of each feature in two independent groups or conditions is calculated."
+                 "The null hypothesis is that the feature has identical average values across conditions.")
+        st.write(" ")
         col51, col52 = st.columns((2, 2))
         with col51:
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")

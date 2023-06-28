@@ -13,7 +13,6 @@ if "data" in st.session_state:
     data = st.session_state["data"]
     analysis_data = st.session_state["analysis"]
     heatmap = heatMap(data)
-    st.subheader("Explore interactions")
     if "basket" in st.session_state:
         basket = st.session_state["basket"]
     if "cluster" in st.session_state:
@@ -39,18 +38,25 @@ if "data" in st.session_state:
                 "\:large_red_square: : selected basket+cluster interaction.\n".format(min_num))
         st.write("")
         if variable == 'Number of samples':
+            st.write("#### Number of samples per basket*cluster interaction")
+            st.write("Explore the number of samples in each basket and cluster combination.")
             num_samples = heatmap.heatmapNum(data)
             HM_samples = heatmap.heatmap_interaction(data, num_samples, "Number of samples per interaction"
                                                             ,min_num,int(cluster), basket)
             savePlot(HM_samples, str(cluster)+"_"+basket)
             st.pyplot(HM_samples)
         elif variable == 'Number of responsive samples':
+            st.write("#### Number of samples per basket*cluster interaction that respond to the drug")
+            st.write("Explore the number of samples in each basket and cluster combination that are responsive to the drug.")
             response_df = heatmap.heatmapResponse(data)
             HM_response = heatmap.heatmap_interaction(data, response_df, "Responsive samples per interaction",min_num,
                                                             int(cluster), basket)
             savePlot(HM_response, str(cluster)+"_"+basket)
             st.pyplot(HM_response)
         else:
+            st.write("#### Inferred response probability per basket*cluster interaction.")
+            st.write(
+                "Explore the inferred response probability of each tissue/basket calculated by the HBM based on observed responses.")
             inferred_df = heatmap.HM_inferredProb(data)
             HM_inferred = heatmap.heatmap_interaction(data,inferred_df,"Inferred basket*cluster interaction",min_num,int(cluster), basket)
             savePlot(HM_inferred, str(cluster)+"_"+basket)
@@ -81,9 +87,10 @@ if "data" in st.session_state:
     with tab2:
         st.subheader("Advanced PCA")
         st.write("")
-        st.write("Principal Component Analysis (PCA) results for samples in the selected basket*cluster interaction."
-                 "Will show whether there is a clear separation between samples depending on their behaviour against"
-                "the treatment: Responsive vs Non-responsive.")
+        st.write("Principal Component Analysis (PCA) is a dimensionality reduction method that enables the visualisation"
+            " of high-dimensional data. The results for PCA on the data can be explored for the samples in the selected"
+                 " basket*cluster interaction, that are grouped by responsiveness: Responsive vs Non-responsive.")
+        st.write(" ")
         #st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
         RawD = st.checkbox("Show raw data", key="raw-data")
         pca = dim_PCA(data)
@@ -102,8 +109,12 @@ if "data" in st.session_state:
     with tab4:
         st.subheader("Differential expression analysis (DEA)")
         st.write("")
-        st.write("Differential Expression Analysis (DEA) shows whether the expression profile of transcripts is "
-                "found to be significantly different between conditions being compared.")
+        st.write("The goal of Differential Expression Analysis (DEA) is to discover whether the expression "
+                 "level of a feature (gene or transcript) is quantitatively different between experimental "
+                 "groups or conditions.")
+        st.write("T-test for the means of each feature in two independent groups or conditions is calculated."
+                 "The null hypothesis is that the feature has identical average values across conditions.")
+        st.write(" ")
         try:
             dea = DEA(data)
         except:
