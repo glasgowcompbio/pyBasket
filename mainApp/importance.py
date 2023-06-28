@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from common import savePlot, saveTable
 import seaborn as sns
+from PyALE import ale
+from alibi.explainers import ALE, plot_ale
 
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -21,10 +23,10 @@ class FI():
         self.patient_df = Results.patient_df
         self.importance = Results.importance_df
         self.drug_response = Results.drug_response
-        self.X_train = []
-        self.X_test = []
-        self.y_train = []
-        self.y_test = []
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
 
 
     def plotImportance(self, RawD):
@@ -208,3 +210,110 @@ class FI():
         else:
             df = df
         return df
+
+class Global(FI):
+    def __init__(self, Results):
+        super().__init__(Results)
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
+        self.transcripts = self.expr_df_selected.columns.tolist()
+
+    def global_ALE_mult(self, feature, g1, g2, option):
+        rf = super(Global, self).prepareData(self.drug_response)
+        if option =="clusters":
+            group1, num1 = super(Global,self).displaySamples(g1, "None")
+            group2, num2 = super(Global, self).displaySamples(g2, "None")
+        elif option == "baskets":
+            group1, num1 = super(Global, self).displaySamples("None",g1)
+            group2, num2 = super(Global, self).displaySamples("None",g2)
+        samples_g1 = group1.values
+        samples_g2 = group2.values
+        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
+        df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
+        lr_exp1 = lr_ale.explain(df1)
+        lr_exp2 = lr_ale.explain(df2)
+        index = self.transcripts.index(feature)
+        values1 = lr_exp1.data['ale_values'][index]
+        values2 = lr_exp2.data['ale_values'][index]
+        fig, ax = plt.subplots(figsize=(12, 6))
+        plot_ale(lr_exp1, features=[feature],ax=ax, line_kw={'label': g1})
+        plot_ale(lr_exp2, features=[feature], ax=ax,line_kw={'label': g2})
+        min1 = min(values1)
+        min2 = min(values2)
+        min_limit = min1 if min1<min2 else min2
+        max1 = max(values1)
+        max2 = max(values2)
+        max_limit = max1 if max1 > max2 else max2
+        ax.set_ylim(min_limit+(min_limit*2), max_limit+(max_limit/5))
+        plt.title("ALE for transcript {} in groups {} vs {}".format(feature, g1, g2))
+        return st.pyplot(fig)
+
+    def global_ALE(self,feature):
+        rf = super(Global, self).prepareData(self.drug_response)
+        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        self.expr_df_selected = self.expr_df_selected.to_numpy()
+        lr_exp = lr_ale.explain(self.expr_df_selected)
+        index = self.transcripts.index(feature)
+        values = lr_exp.data['ale_values'][index]
+        fig, ax = plt.subplots(figsize=(12, 6))
+        plot_ale(lr_exp, features=[feature], ax=ax)
+        ax.set_ylim(min(values) - 0.01, max(values) + 0.01)
+        plt.title("ALE for transcript {}".format(feature))
+        return st.pyplot(fig)
+
+    def global_ALE_single(self,feature,g1,g2,option):
+        rf = super(Global, self).prepareData(self.drug_response)
+        if option =="clusters":
+            group1, num1 = super(Global,self).displaySamples(g1, "None")
+        elif option == "baskets":
+            group1, num1 = super(Global, self).displaySamples("None",g1)
+        elif option == "interaction":
+            group1, num1 = super(Global, self).displaySamples(g1,g2)
+        samples_g1 = group1.values
+        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
+        lr_exp1 = lr_ale.explain(df1)
+        index = self.transcripts.index(feature)
+        values = lr_exp1.data['ale_values'][index]
+        fig, ax = plt.subplots(figsize=(12, 6))
+        plot_ale(lr_exp1, features=[feature], ax=ax)
+        ax.set_ylim(min(values) +min(values)*2, max(values) +max(values)/5)
+        plt.title("ALE for transcript {} in group {}".format(feature,option))
+        return st.pyplot(fig)
+
+    def splitResponse(self, resp):
+        self.patient_df = self.patient_df.reset_index()
+        selection = self.patient_df[(self.patient_df['responsive'] == resp)]
+        samples = selection["samples"]
+        transcript_df = self.expr_df_selected.loc[samples]
+        return samples
+
+    def global_ALE_resp(self,feature):
+        rf = super(Global, self).prepareData(self.drug_response)
+        samples_g1 = Global.splitResponse(self,0).values
+        samples_g2 = Global.splitResponse(self,1).values
+        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
+        print(df1)
+        df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
+        lr_exp1 = lr_ale.explain(df1)
+        lr_exp2 = lr_ale.explain(df2)
+        index = self.transcripts.index(feature)
+        values1 = lr_exp1.data['ale_values'][index]
+        values2 = lr_exp2.data['ale_values'][index]
+        fig, ax = plt.subplots(figsize=(12, 6))
+        plot_ale(lr_exp1, features=[feature], ax=ax, line_kw={'label': "Non-responsive"})
+        plot_ale(lr_exp2, features=[feature], ax=ax, line_kw={'label': "Responsive"})
+        min1 = min(values1)
+        min2 = min(values2)
+        min_limit = min1 if min1 < min2 else min2
+        max1 = max(values1)
+        max2 = max(values2)
+        max_limit = max1 if max1 > max2 else max2
+        ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit / 5))
+        plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
+        return st.pyplot(fig)
+

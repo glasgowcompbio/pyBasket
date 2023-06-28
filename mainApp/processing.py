@@ -51,6 +51,8 @@ class Results():
         self.patient_df = pickle_data[list(pickle_data)[5]]
         self.importance_df = pickle_data[list(pickle_data)[8]]
         self.stacked_posterior = pickle_data[list(pickle_data)[6]]
+        self.clusters_names = sorted(list(self.patient_df['cluster_number'].unique()))
+        self.baskets_names = sorted(list(self.patient_df['tissues'].unique()))
 
     def setClusters(self):
         clusters = list(self.patient_df['cluster_number'].unique())

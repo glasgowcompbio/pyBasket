@@ -86,7 +86,7 @@ if "data" in st.session_state:
         col51, col52 = st.columns((2, 2))
         with col51:
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
-            if option ==  'Clusters':
+            if option == 'Clusters':
                 subgroups = data.setClusters()
                 feature = "cluster_number"
             elif option == 'Baskets/Tissues':

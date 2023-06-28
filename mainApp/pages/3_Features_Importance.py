@@ -1,6 +1,6 @@
 import streamlit as st
 from processing import readPickle, Results, defaultPlot_leg, Analysis
-from importance import FI
+from importance import FI, Global
 from common import add_logo, hideRows, saveTable, savePlot,sideBar
 
 
@@ -11,6 +11,10 @@ hide_rows = hideRows()
 st.header("Features importance")
 if "data" in st.session_state:
     data = st.session_state["data"]
+    if "basket" in st.session_state:
+        basket = st.session_state["basket"]
+    if "cluster" in st.session_state:
+        cluster = st.session_state["cluster"]
     analysis_data = Analysis(data)
     feature_inter = FI(data)
     explainer, values = feature_inter.SHAP()
@@ -46,19 +50,50 @@ if "data" in st.session_state:
         st.write(" ")
         st.subheader("Global methods")
         st.write(" ")
-        st.write('Global methods are used to interpret the average behaviour of a Machine Learning model'
+        st.write('Global methods are used to interpret the average behaviour of a Machine Learning model '
                  'and how it makes predictions as a whole. ')
 
+
+        st.write("#### Accumulated Local Effects")
+        st.write(" ")
+        st.write("Accumulated Local Effects describe how features influences the prediction made by the ML "
+                 "model on average.")
+        global_ALE = Global(data)
+        gsamples = st.radio("", ['Use samples in the selected interaction', 'Select only samples in cluster',
+                                 'Select only samples in tissue/basket'],
+                            key="global_samples", horizontal=True)
+        transcripts = global_ALE.transcripts
+        feature = st.selectbox("Select a transcript/feature", transcripts, key="global_feature")
+        if gsamples == 'Use samples in the selected interaction':
+            basket, cluster = basket, cluster
+            option = "interaction"
+            response = st.checkbox("Split by Responsive vs Non-responsive samples")
+            if response:
+                global_ALE.global_ALE_resp(feature)
+            else:
+                global_ALE.global_ALE_single(feature, cluster,basket, option)
+        else:
+            if gsamples == 'Select only samples in cluster':
+                groups = st.multiselect(
+                    'Please select a cluster, up to 2 cluster to compare or all clusters', ["All"]+data.clusters_names, max_selections=2)
+                option = "clusters"
+            elif gsamples == 'Select only samples in tissue/basket':
+                groups = st.multiselect(
+                    'Please select a tissue, up to 2 tissues to compare or all tissues', ["All"]+data.baskets_names, max_selections=2)
+                option = "baskets"
+            if len(groups)<1 and "All" not in groups:
+                st.write("")
+            elif len(groups)<2 and "All" not in groups:
+                global_ALE.global_ALE_single(feature, groups[0],None,option)
+            elif "All" in groups:
+                global_ALE.global_ALE(feature)
+            else:
+                global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
     with tab3:
         st.subheader("Local methods")
-        if "basket" in st.session_state:
-            basket = st.session_state["basket"]
-        if "cluster" in st.session_state:
-            cluster = st.session_state["cluster"]
         local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
         group_samples = st.radio("",['Use samples in interaction', 'Select only samples in cluster', 'Select only samples in tissue/basket'],
                              key="samples", horizontal=True)
-
         if group_samples == 'Use samples in selection':
             basket, cluster = basket, cluster
         elif group_samples == 'Select only samples in cluster':
