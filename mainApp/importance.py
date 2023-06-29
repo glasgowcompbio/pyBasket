@@ -28,14 +28,13 @@ class FI():
         self.y_train = None
         self.y_test = None
 
-
-    def plotImportance(self, RawD):
+    def plotImportance(self, RawD, num_feats):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
         #importance_sort = importance_sort[::-1]
-        importance_vals= importance_sort['importance_score'].values[:25]
+        importance_vals= importance_sort['importance_score'].values[:num_feats]
         importance_vals = importance_vals[::-1]
 
-        importance_feats = importance_sort.index[:25]
+        importance_feats = importance_sort.index[:num_feats]
         importance_feats = importance_feats[::-1]
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         fig = plt.figure(figsize=(12, 6))
@@ -81,7 +80,7 @@ class FI():
         st.caption(
             "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
 
-    def permutationImportance(self):
+    def permutationImportance(self, num_feats):
         rf = FI.prepareData(self, self.drug_response)
 
         # the permutation based importance
@@ -89,7 +88,7 @@ class FI():
 
         #sorted_idx = perm_importance.importances_mean.argsort()
         perm_sorted_idx = perm_importance.importances_mean.argsort()
-        perm_sorted_idx = perm_sorted_idx[:25]
+        perm_sorted_idx = perm_sorted_idx[:num_feats]
         perm_sorted_idx = perm_sorted_idx[::-1]
         #top_positive_indices = sorted_idx[-15:]
 
@@ -178,9 +177,9 @@ class FI():
         #shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
         return fig
 
-    def SHAP_summary(self,explainer,values):
+    def SHAP_summary(self,values,num_feats):
         fig, ax = plt.subplots()
-        shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
+        shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b', max_display = num_feats)
         return fig
 
     def displaySamples(self,cluster,basket):

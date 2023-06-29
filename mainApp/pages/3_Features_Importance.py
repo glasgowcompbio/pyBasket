@@ -2,13 +2,18 @@ import streamlit as st
 from processing import readPickle, Results, defaultPlot_leg, Analysis
 from importance import FI, Global
 from common import add_logo, hideRows, saveTable, savePlot,sideBar
-
-
+from streamlit_option_menu import option_menu
 
 add_logo()
 sideBar()
 hide_rows = hideRows()
 st.header("Features importance")
+
+st.write("---")
+menu = option_menu(None, ["Overview", "Global methods", "Local methods"],
+    icons=["bi bi-bar-chart", "bi bi-globe", "bi bi-pin-map"],
+    menu_icon="cast", default_index=0, orientation="horizontal")
+
 if "data" in st.session_state:
     data = st.session_state["data"]
     if "basket" in st.session_state:
@@ -18,17 +23,21 @@ if "data" in st.session_state:
     analysis_data = Analysis(data)
     feature_inter = FI(data)
     explainer, values = feature_inter.SHAP()
-    tab1, tab2, tab3 = st.tabs(["Overview","Global Methods","Local Methods"])
-    with tab1:
+    if menu == "Overview":
         st.write(" ")
-        st.subheader("Features importance overview")
+        st.subheader("Overview")
         st.write('Further exploration of the most important features (transcripts) for predicting AAC response')
-        global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation FI"], key="model1")
+        col11, col12 = st.columns((3,2))
+        with col11:
+            global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation FI"], key="model1")
+        with col12:
+            num_feat = st.number_input('Select top number of features to display (<30 is encouraged)', value=10)
+
         if global_model == "RF feature importance":
             st.subheader("Most important features (Random Forest)")
-            st.write("Top 25 most important features calculated from Random Forest.")
+            st.write("Top {} most important features calculated from Random Forest.".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-RF")
-            feature_inter.plotImportance(RawD)
+            feature_inter.plotImportance(RawD,num_feat)
         elif global_model == "SHAP":
             st.subheader("SHAP values")
             RawD = st.checkbox("Show raw data", key="rd-SHAP")
@@ -37,7 +46,7 @@ if "data" in st.session_state:
                 saveTable(raw_df, "SHAP")
                 st.dataframe(raw_df, use_container_width=True)
             else:
-                fig = feature_inter.SHAP_summary(explainer, values)
+                fig = feature_inter.SHAP_summary(values, num_feat)
                 savePlot(fig, "Global_SHAP")
                 st.pyplot(fig)
 
@@ -45,8 +54,8 @@ if "data" in st.session_state:
             st.subheader("Permutation feature importance")
             st.write('The importance of a feature is measured by calculating the increase in the model’s prediction'
                      'error when re-shuffling each predictor. How much impact have these features in the model’s prediction for AAC response.')
-            feature_inter.permutationImportance()
-    with tab2:
+            feature_inter.permutationImportance(num_feat)
+    elif menu == "Global methods":
         st.write(" ")
         st.subheader("Global methods")
         st.write(" ")
@@ -89,7 +98,7 @@ if "data" in st.session_state:
                 global_ALE.global_ALE(feature)
             else:
                 global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
-    with tab3:
+    elif menu == "Local methods":
         st.subheader("Local methods")
         local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
         group_samples = st.radio("",['Use samples in interaction', 'Select only samples in cluster', 'Select only samples in tissue/basket'],
