@@ -103,7 +103,7 @@ class Results():
         return genes
 
     def count_plot(self,feature, title, x_lab, response):
-        fig = plt.figure(figsize=(12, 8))
+        fig = plt.figure(figsize=(10,8))
         plt.title(title)
         if response == True:
             hue = self.patient_df["responsive"]
@@ -111,10 +111,13 @@ class Results():
         else:
             hue = None
             palette = sns.color_palette("pastel",25)
-        ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette)
+        ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette,width=0.6)
+        #count = self.patient_df[feature].value_counts()
+        fig.tight_layout()
         ax.set_xticklabels(ax.get_xticklabels())
         plt.xlabel(x_lab)
         plt.ylabel("Number of samples")
+        #st.bar_chart(count)
         return fig
 
     def displayNums(self,feature, feature_title, RD, RawD, title_plot):

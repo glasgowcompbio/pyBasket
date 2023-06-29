@@ -62,7 +62,6 @@ if "data" in st.session_state:
         st.write('Global methods are used to interpret the average behaviour of a Machine Learning model '
                  'and how it makes predictions as a whole. ')
 
-
         st.write("#### Accumulated Local Effects")
         st.write(" ")
         st.write("Accumulated Local Effects describe how features influences the prediction made by the ML "
@@ -100,16 +99,21 @@ if "data" in st.session_state:
                 global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
     elif menu == "Local methods":
         st.subheader("Local methods")
-        local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
-        group_samples = st.radio("",['Use samples in interaction', 'Select only samples in cluster', 'Select only samples in tissue/basket'],
-                             key="samples", horizontal=True)
+        col31, col32 = st.columns((2,2))
+        group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in cluster',
+                                      'Select only samples in tissue/basket'],
+                                 key="samples", horizontal=True)
+        with col31:
+            local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
         if group_samples == 'Use samples in selection':
             basket, cluster = basket, cluster
         elif group_samples == 'Select only samples in cluster':
-            cluster= st.selectbox("Select a cluster", data.setClusters(), key="only_cluster")
+            with col32:
+                cluster= st.selectbox("Select a cluster", data.setClusters(), key="only_cluster")
             basket = "None"
         elif group_samples == 'Select only samples in tissue/basket':
-            basket = st.selectbox("Select a basket/tissue", data.setBaskets(), key="only_basket")
+            with col32:
+                basket = st.selectbox("Select a basket/tissue", data.setBaskets(), key="only_basket")
             cluster = "None"
         transc, size = feature_inter.displaySamples(cluster,basket)
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))

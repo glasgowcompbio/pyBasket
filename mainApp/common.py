@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from processing import *
 
-
-
 def add_logo():
     st.markdown(
         """

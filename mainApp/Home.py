@@ -27,36 +27,54 @@ if menu == "Overview":
     st.write("### Welcome 👋")
     st.write(" ")
     st.write("The pyBasket App is a user-friendly interactive platform that allows the visualisation and exploration"
-             " of results obtained from the pyBasket pipeline.")
+             " of results obtained from the pyBasket pipeline. The main goal of this App is to aid in the investigation of"
+             " the omics profiles of the samples or patients involved in the clinical trials and gain potential biological insights"
+             " into response patterns to a drug or treatment showed by the different subgroups.")
     st.write(" ")
-    st.write("##### General steps ")
+    st.write("##### Basket trials")
+    st.write("Basket trials are a type of early phase clinical trial that tests how well a new drug or treatment works in"
+             " groups of patients that have different types of cancer but share the same molecular or genomic mutation or biomarker."
+             " This innovative approach is more effective and cost-efficient, it requires fewer patients for the study and allows "
+             "intractable or rare cancer patients to be also included in general clinical trials."
+             " As they allow for multiple diseases to be studied, it facilitates faster drug development for specific "
+             "subpopulations of patients and allows for a more personalised treatment approach.")
     st.write(" ")
-    col11, col12 = st.columns((2,2))
-    with col11:
-        st.write("##### :one: Upload the data")
-        st.write("Navigate to the _Data Upload_ tab in this same page. Select a pickle file with results obtained from the pyBasket pipeline.")
+    st.write("##### pyBasket")
+    st.write("pyBasket is a two-stage approach that incorporates omics data into basket trial response prediction from cancer patients."
+             " In the first stage, patients are clustered based on their omics profile using K-means clustering. "
+             " These clusters assignments are used within a Hierarchical Bayesian model along with basket response rates to "
+             " estimate overall response rates and predict interaction terms between baskets and clusters.")
+
+    st.write("---")
+    with st.expander("##### Basic steps to use this APP"):
+        #st.write("##### General steps ")
         st.write(" ")
-        st.write("##### :two: Check file information")
-        st.write(
-            "Navigate to the _File Information_ tab in this same page where you can find information about the file uploaded.")
-        st.write(" ")
-        st.write("##### :three: Check drug information")
-        st.write(
-            "Navigate to the _Drug Information_ tab in this same page where you can find further information about the drug tested in the basket trial being analysed.")
-        st.write(" ")
-    with col12:
-        st.write("##### :four: Explore the data")
-        st.write(
-            "Navigate to the _Data Exploration_ subpage located in the left sidebar. There you can find general information about the samples and features analysed.")
-        st.write(" ")
-        st.write("##### :five: Select and analyse a basket*cluster interaction")
-        st.write("In the left sidebar, select a cluster number and a basket/tissue. Samples that fall in this interaction will be selected. "
-                 "Navigate to the _Interactions_ subpage located in the left sidebar to further explore results from the samples included in the selected basket*cluster interaction")
-        st.write(" ")
-        st.write("##### :six: Use interpretable ML methods ")
-        st.write(
-            "Navigate to the _Feature importance_ subpage located in the left sidebar to use interpretable Machine Learning methods and explore important features.")
-        st.write(" ")
+        col11, col12 = st.columns((2,2))
+        with col11:
+            st.write("##### :one: Upload the data")
+            st.write("Navigate to the _Data Upload_ tab in this same page. Select a pickle file with results obtained from the pyBasket pipeline.")
+            st.write(" ")
+            st.write("##### :two: Check file information")
+            st.write(
+                "Navigate to the _File Information_ tab in this same page where you can find information about the file uploaded.")
+            st.write(" ")
+            st.write("##### :three: Check drug information")
+            st.write(
+                "Navigate to the _Drug Information_ tab in this same page where you can find further information about the drug tested in the basket trial being analysed.")
+            st.write(" ")
+        with col12:
+            st.write("##### :four: Explore the data")
+            st.write(
+                "Navigate to the _Data Exploration_ subpage located in the left sidebar. There you can find general information about the samples and features analysed.")
+            st.write(" ")
+            st.write("##### :five: Select and analyse a basket*cluster interaction")
+            st.write("In the left sidebar, select a cluster number and a basket/tissue. Samples that fall in this interaction will be selected. "
+                     "Navigate to the _Interactions_ subpage located in the left sidebar to further explore results from the samples included in the selected basket*cluster interaction")
+            st.write(" ")
+            st.write("##### :six: Use interpretable ML methods ")
+            st.write(
+                "Navigate to the _Feature importance_ subpage located in the left sidebar to use interpretable Machine Learning methods and explore important features.")
+            st.write(" ")
 
 if menu == "Data Upload":
     st.markdown("#### Please upload your data")
