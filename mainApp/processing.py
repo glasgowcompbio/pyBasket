@@ -11,6 +11,7 @@ import streamlit.components.v1 as components
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from common import savePlot,saveTable
+import altair as alt
 import warnings
 #warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -69,6 +70,9 @@ class Results():
         self.expr_df_selected.columns = selected_genes
         self.importance_df.index = selected_genes
         self.expr_df_filtered.columns = filtered_genes
+    def setPatients(self):
+        reseted_df = self.patient_df.reset_index()
+        return reseted_df
 
     def fileInfo(self):
         num_samples = len(self.expr_df_filtered.axes[0])
@@ -107,18 +111,31 @@ class Results():
         plt.title(title)
         if response == True:
             hue = self.patient_df["responsive"]
+            self.patient_df["responsive"] = self.patient_df["responsive"].replace([0, 1], ['Non-responsive', 'Responsive'])
+            self.patient_df[feature] = pd.Categorical(self.patient_df[feature])
+            df_grouped = self.patient_df.groupby(["responsive", feature]).size().reset_index(name='Count')
             palette = ["#F72585", "#4CC9F0"]
+            base = alt.Chart(df_grouped).mark_bar().encode(
+                alt.X(feature, type = "nominal"),
+                alt.Y('Count', axis=alt.Axis(grid=False)),
+                alt.Color("responsive", scale=alt.Scale(range=palette)),tooltip=["responsive", feature]
+            ).properties(height=650)
         else:
             hue = None
             palette = sns.color_palette("pastel",25)
+            base = alt.Chart(self.patient_df, title=alt.Title("Number of samples")).transform_aggregate(
+                count='count()',
+                groupby=[feature]
+            ).mark_bar().encode(
+                alt.X(feature + ':N', title = x_lab),
+                alt.Y('count:Q',title = "Number of samples"), alt.Color(feature + ':N'),tooltip=['count:Q',feature]
+            ).properties(height=650)
         ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette,width=0.6)
-        #count = self.patient_df[feature].value_counts()
         fig.tight_layout()
         ax.set_xticklabels(ax.get_xticklabels())
         plt.xlabel(x_lab)
         plt.ylabel("Number of samples")
-        #st.bar_chart(count)
-        return fig
+        return fig,base
 
     def displayNums(self,feature, feature_title, RD, RawD, title_plot):
         if RawD is True:
@@ -126,9 +143,9 @@ class Results():
             saveTable(raw_num, "NumOfS")
             st.dataframe(raw_num, use_container_width=True)
         else:
-            num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
-            savePlot(num_plot,"NumOfS")
-            st.pyplot(num_plot)
+            fig,num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
+            savePlot(fig,"NumOfS")
+            st.altair_chart(num_plot,theme = "streamlit",use_container_width=True)
 
     def AAC_plot(self,feature, title, x_lab, response):
         fig = plt.figure(figsize=(12, 6))
@@ -138,14 +155,28 @@ class Results():
         if response == True:
             hue = self.patient_df["responsive"]
             palette = ["#F72585", "#4CC9F0"]
+            df = Results.setPatients(self)
+            df[feature] = pd.Categorical(df[feature])
+
+            base = alt.Chart(df).mark_boxplot(extent='min-max', ticks=True).encode(
+                x=alt.X(feature, title=x_lab,axis=alt.Axis(labels=False, ticks=False), scale=alt.Scale(padding=1)),
+                y=alt.Y("responses", title="AAC response"),
+                color = alt.Color("responsive", scale=alt.Scale(range=palette)
+            )).properties(height=650).configure_facet(spacing=0).configure_view(stroke=None)
         else:
             hue = None
             palette = sns.color_palette("pastel",25)
+            df = Results.setPatients(self)
+            df[feature] = pd.Categorical(df[feature])
+            base = alt.Chart(df).mark_boxplot(extent='min-max',ticks=True).encode(
+                x=alt.X(feature,title = x_lab),
+                y=alt.Y("responses",title = x_lab),color = alt.Color(feature + ':N')
+            ).properties(height=650)
         ax = sns.boxplot(data = self.patient_df,x= x, y = y, hue = hue, palette = palette)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
         plt.xlabel(x_lab)
         plt.ylabel("AAC response")
-        return fig
+        return fig,base
 
     def displayAAC(self,feature, feature_title,RD,RawD, title_plot):
         if RawD is True:
@@ -153,10 +184,10 @@ class Results():
             saveTable(raw_AAC, "AAC")
             st.dataframe(raw_AAC,use_container_width = True)
         else:
-            AAC = Results.AAC_plot(self,feature, title_plot,
+            AAC,fig = Results.AAC_plot(self,feature, title_plot,
                                 feature_title, RD)
             savePlot(AAC,"AAC")
-            st.pyplot(AAC)
+            st.altair_chart(fig, theme="streamlit", use_container_width=True)
 
     def displayAAC_none(feature):
         fig = Results.non_group_plot(feature)
@@ -190,6 +221,7 @@ class Results():
         return raw_count
 
     def non_group_plot(self, feature,RawD):
+        self.patient_df["index"] = range(298)
         if RawD is True:
             saveTable(self.patient_df, "rawAAC")
             df = self.patient_df
@@ -199,9 +231,24 @@ class Results():
             if feature == None:
                 hue = None
                 palette = None
+                df = Results.setPatients(self)
+                base = alt.Chart(df,title= "AAC response per sample").mark_circle(size=100).encode(
+                    x=alt.Y("index", title="Sample index"),
+                    y=alt.Y("responses", title="AAC response"),
+                    tooltip=["samples", "responses"]
+                ).interactive().properties(height=650)
             else:
                 hue = feature
                 palette = sns.color_palette("pastel", 25)
+                df = Results.setPatients(self)
+                df[feature] = pd.Categorical(df[feature])
+                print(df)
+                base = alt.Chart(df, title= "AAC response per sample").mark_circle(size=100).encode(
+                    x=alt.Y("index", title="Sample index"),
+                    y=alt.Y("responses", title="AAC response"),color = feature,
+                    tooltip=["samples", "responses", feature]
+                ).interactive().properties(height=650)
+
             fig = plt.figure(figsize=(15, 6))
             x = np.arange(298)
             ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
@@ -213,8 +260,7 @@ class Results():
             fig.subplots_adjust(right=0.63, top=1)
             plt.ylabel("AAC response")
             savePlot(fig, "AAC")
-            fig_html = mpld3.fig_to_html(fig)
-            components.html(fig_html, height=670, width=1500)
+            st.altair_chart(base,theme = "streamlit",use_container_width=True)
 
 
 class Analysis():
@@ -375,6 +421,13 @@ class dim_PCA(Analysis):
             palette = sns.color_palette("pastel",25)
         pc1_values = df['PC1']
         pc2_values = df['PC2']
+        """
+        df = df.reset_index()
+        base = alt.Chart(df, title="PCA").mark_circle(size=100).encode(
+            x=alt.Y(pc1_values, title="PC1"),
+            y=alt.Y(pc2_values, title="PC2")
+        ).interactive().properties(height=650)
+        """
         fig = plt.figure(figsize=(11, 6))
         fig.subplots_adjust(right=0.63, top=1)
         ax = sns.scatterplot(x=pc1_values, y=pc2_values,hue=df[feature], s=30, palette=palette)
@@ -429,8 +482,8 @@ class dim_PCA(Analysis):
         else:
             fig = dim_PCA.plot_PCA(self,feature,adv=False)
             savePlot(fig, "PCA_"+feature)
-            fig_html = mpld3.fig_to_html(fig)
-            components.html(fig_html, height=650, width=1000)
+            #st.altair_chart(base, theme="streamlit", use_container_width=True)
+
 
     def adv_PCA(self,sub_df, RawD):
         try:

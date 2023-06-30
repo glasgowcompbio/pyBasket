@@ -23,6 +23,7 @@ dependencies:
   - shap
   - lime
   - PyALE
+  - altair
   - pip:
     - pymc
     - arviz
