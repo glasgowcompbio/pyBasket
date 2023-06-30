@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.special import expit as logistic
+from scipy.special import expit
 from scipy.stats import halfnorm
 
 # Define number of patients, tissues, and clusters
@@ -13,7 +13,6 @@ def generate_pyBasket_data(
         n_patients=GENERATE_PYBASKET_N_PATIENTS,
         n_tissues=GENERATE_PYBASKET_N_TISSUES,
         n_clusters=GENERATE_PYBASKET_N_CLUSTERS):
-
     # Generate unique tissue and cluster indices for each patient
     basket_coords = np.arange(n_tissues)  # Tissue indices
     cluster_coords = np.arange(n_clusters)  # Cluster indices
@@ -23,36 +22,33 @@ def generate_pyBasket_data(
     cluster_idx = np.random.choice(cluster_coords, size=n_patients)
 
     # Generate synthetic responsiveness data for each tissue
-    theta_basket = np.random.normal(loc=0, scale=2, size=n_tissues)
+    mu_basket = np.random.normal(loc=0, scale=2, size=n_tissues)
+    sigma_basket = halfnorm.rvs(loc=0, scale=1, size=1)
+    theta_basket = np.random.normal(loc=mu_basket, scale=sigma_basket, size=n_tissues)
 
-    # Generate unique prior mean and std for each cluster in theta_cluster
-    # These means represent the baseline effect for each cluster
-    prior_means = np.random.normal(loc=0, scale=2, size=n_clusters)
-    prior_std_mean = 0  # mean of the half-normal distribution
-    prior_std_std = 1  # standard deviation of the half-normal distribution
+    # Generate synthetic responsiveness data for each cluster
+    mu_cluster = np.random.normal(loc=0, scale=2, size=n_clusters)
+    sigma_cluster = halfnorm.rvs(loc=0, scale=1, size=n_clusters)
+    theta_cluster = np.random.normal(loc=mu_cluster, scale=sigma_cluster, size=n_clusters)
 
-    # Generate a set of standard deviations from a half-normal distribution
-    # These are used to generate normally distributed data for the clusters
-    prior_stds = halfnorm.rvs(loc=prior_std_mean, scale=prior_std_std, size=n_clusters)
+    # Generate interaction effects between 'basket' and 'cluster'
+    interaction_theta = np.random.normal(loc=0, scale=2, size=(n_tissues, n_clusters))
 
-    # Generate normally distributed data for each cluster, each with its own mean
-    # and standard deviation
-    theta_cluster = np.zeros((n_tissues, n_clusters))
-    for i in range(n_clusters):
-        theta_cluster[:, i] = np.random.normal(loc=prior_means[i], scale=prior_stds[i],
-                                               size=n_tissues)
+    # Convert the generated theta values to log-odds
+    logit_basket = theta_basket
+    logit_cluster = theta_cluster
+    logit_interaction = interaction_theta
 
-    # Convert the generated theta values to probabilities using the logistic function
-    true_basket_p = logistic(theta_basket)
-    true_cluster_p = logistic(theta_cluster)
+    # Calculate the log-odds for each patient as the sum of the 'basket', 'cluster', and interaction effects
+    logit_p = []
+    for i in range(n_patients):
+        b = basket_idx[i]
+        c = cluster_idx[i]
+        logit_p.append(logit_basket[b] + logit_cluster[c] + logit_interaction[b, c])
+    logit_p = np.array(logit_p)
 
-    # Reshape the basket probabilities and compute the product of basket and cluster probabilities
-    true_basket_reshaped = true_basket_p.reshape((n_tissues, 1))
-    true_mat = true_basket_reshaped * true_cluster_p
-
-    # Determine the true probability for each patient by indexing into the probability matrix
-    # with the assigned tissue and cluster
-    true_patient_p = true_mat[basket_idx, cluster_idx]
+    # Convert the log-odds to probabilities using the logistic function
+    true_patient_p = expit(logit_p)
 
     # Draw a sample for each patient from a Bernoulli distribution with the patient's
     # true probability
@@ -66,11 +62,19 @@ def generate_pyBasket_data(
         'responsive': is_responsive
     })
 
+    true_basket_p = expit(logit_basket)
+    true_cluster_p = expit(logit_cluster)
+    true_interaction_p = expit(logit_interaction)
+
+    # The true joint probability of baskets and clusters
+    true_joint_p = (true_basket_p[:, None] + true_cluster_p) + true_interaction_p
+
     results = {
         'data_df': data_df,
         'true_basket_p': true_basket_p,
         'true_cluster_p': true_cluster_p,
-        'true_mat': true_mat,
+        'true_interaction_p': true_interaction_p,
+        'true_joint_p': true_joint_p,
         'n_patients': n_patients,
         'n_tissues': n_tissues,
         'n_clusters': n_clusters
