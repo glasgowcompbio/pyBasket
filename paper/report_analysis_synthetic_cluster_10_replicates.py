@@ -65,15 +65,17 @@ def generate_data():
     })
 
     # Print the first few rows of the data dataframe
-    return data_df, true_basket_p, true_cluster_p
+    return data_df, true_basket_p, true_cluster_p, n_patients, n_tissues, n_clusters
 
 
-def run_experiment(data_df, true_basket_p, true_cluster_p, n_burn_in=int(5E3), n_sample=int(5E3),
+def run_experiment(data_df, true_basket_p, true_cluster_p,
+                   n_tissues, n_clusters,
+                   n_burn_in=int(5E3), n_sample=int(5E3),
                    target_accept=0.99):
     df_pivot = get_pivot_count_df(data_df)
 
     # Simple model
-    model_s = get_model_simple(df_pivot)
+    model_s = get_model_simple(df_pivot, n_tissues, n_clusters)
     with model_s:
         trace_s = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                             target_accept=target_accept)
@@ -82,14 +84,14 @@ def run_experiment(data_df, true_basket_p, true_cluster_p, n_burn_in=int(5E3), n
     # BHM (Berry 2013)
     p0 = 0.2
     p1 = 0.4
-    model_bhm = get_model_bhm_nc(df_pivot, p0, p1)
+    model_bhm = get_model_bhm_nc(df_pivot, p0, p1, n_tissues, n_clusters)
     with model_bhm:
         trace_h1 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                              target_accept=target_accept)
     stacked_h1 = az.extract(trace_h1)
 
     # pyBasket
-    model_h2_nc = get_model_pyBasket_nc(data_df)
+    model_h2_nc = get_model_pyBasket_nc(data_df, n_tissues, n_clusters)
     with model_h2_nc:
         trace_h2 = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                              target_accept=target_accept)
@@ -135,8 +137,9 @@ all_rmse_cluster_p = []
 for i in range(repeat):
     print(i)
 
-    data_df, true_basket_p, true_cluster_p = generate_data()
+    data_df, true_basket_p, true_cluster_p, n_patients, n_tissues, n_clusters = generate_data()
     rmse_basket_p, rmse_cluster_p = run_experiment(data_df, true_basket_p, true_cluster_p,
+                                                   n_tissues, n_clusters,
                                                    n_burn_in=n_burn_in, n_sample=n_sample)
 
     all_rmse_basket_p.append(rmse_basket_p)
