@@ -332,6 +332,8 @@ def get_model_pyBasket(data_df, n_basket, n_cluster):
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
         np.arange(n_basket)
+
+    n_cluster = 1 if n_cluster is None else n_cluster
     cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
@@ -433,6 +435,8 @@ def get_model_pyBasket_nc(data_df, n_basket, n_cluster):
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
         np.arange(n_basket)
+
+    n_cluster = 1 if n_cluster is None else n_cluster
     cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
