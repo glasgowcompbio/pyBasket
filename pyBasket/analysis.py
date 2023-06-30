@@ -162,11 +162,16 @@ class IndependentAnalysis(Analysis):
 
 class IndependentBernAnalysis(Analysis):
     def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
-        return get_model_simple_bern(obs_df, n_basket, n_cluster)
+        return get_model_simple_bern(obs_df, n_basket)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)
         return stacked.basket_p.values
+
+
+class IndependentBernWithClusteringAnalysis(IndependentBernAnalysis):
+    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
+        return get_model_simple_bern(obs_df, n_basket, n_cluster=n_cluster)
 
 
 class HierarchicalBernAnalysis(Analysis):

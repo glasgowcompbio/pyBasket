@@ -176,7 +176,7 @@ def get_model_bhm_nc(data_df, p0, p1):
         return model
 
 
-def get_model_simple_bern(data_df, n_basket, n_cluster):
+def get_model_simple_bern(data_df, n_basket, n_cluster=None):
     '''
     Construct a probabilistic model using PyMC3 to assess patient response.
 
@@ -194,7 +194,7 @@ def get_model_simple_bern(data_df, n_basket, n_cluster):
         Data frame where each row corresponds to a patient. It must contain
         the following columns:
             - 'tissues' or 'basket_number': the group identifier for each patient.
-            - 'cluster_number': the cluster identifier for each patient.
+            - 'cluster_number': the cluster identifier for each patient (if clustering is provided)
             - 'responsive': a binary variable indicating whether the patient responded to treatment.
 
     Returns
@@ -206,26 +206,31 @@ def get_model_simple_bern(data_df, n_basket, n_cluster):
     # Unique identifiers for each basket and cluster
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
         np.arange(n_basket)
-    cluster_coords = np.arange(n_cluster)
 
     # Setting the 'basket' and 'cluster' coordinates
-    coords = {'basket': basket_coords, 'cluster': cluster_coords}
+    coords = {'basket': basket_coords}
+    if n_cluster is not None:
+        cluster_coords = np.arange(n_cluster)
+        coords['cluster'] = cluster_coords
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
         # Prior probability of each basket being responsive
         basket_p = pm.Beta('basket_p', alpha=1, beta=1, dims='basket')
 
-        # Prior probability of each cluster being responsive for each basket
-        cluster_p = pm.Beta('cluster_p', alpha=1, beta=1, dims=('basket', 'cluster'))
-
         # The response variable is a product of each combination of
         # basket and cluster probabilities
         basket_idx = data_df['basket_number'].values
-        cluster_idx = data_df['cluster_number'].values
         is_responsive = data_df['responsive'].values
-        y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx],
-                         observed=is_responsive)
+
+        if n_cluster is None:
+            y = pm.Bernoulli('y', p=basket_p[basket_idx], observed=is_responsive)
+        else:
+            # Prior probability of each cluster being responsive for each basket
+            cluster_p = pm.Beta('cluster_p', alpha=1, beta=1, dims=('basket', 'cluster'))
+            cluster_idx = data_df['cluster_number'].values
+            y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx],
+                             observed=is_responsive)
 
         # Return the model
         return model

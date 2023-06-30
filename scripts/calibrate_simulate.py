@@ -17,7 +17,7 @@ import seaborn as sns
 
 from pyBasket.common import DEFAULT_DECISION_THRESHOLD_INTERIM, \
     MODEL_INDEPENDENT, MODEL_INDEPENDENT_BERN, MODEL_BHM, MODEL_PYBASKET, save_obj, load_obj, \
-    create_if_not_exist, MODEL_HIERARCHICAL_BERN
+    create_if_not_exist, MODEL_HIERARCHICAL_BERN, MODEL_INDEPENDENT_BERN_WITH_CLUSTERING
 from pyBasket.env import Trial, TrueResponseWithClusteringSite, TrueResponseSite, TrialResult
 
 
@@ -151,9 +151,8 @@ def main():
     enrollments = [[14, 10] for _ in range(K)]
     evaluate_interim = [True, True]  # evaluate every interim stage
     analysis_names = [
-        MODEL_INDEPENDENT,
         MODEL_INDEPENDENT_BERN,
-        MODEL_HIERARCHICAL_BERN,
+        MODEL_INDEPENDENT_BERN_WITH_CLUSTERING,
         MODEL_BHM,
         MODEL_PYBASKET
     ]
