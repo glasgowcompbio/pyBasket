@@ -306,7 +306,9 @@ class DEA():
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=2)
         base = alt.Chart(df, title = "Volcano plot").mark_circle(size=100).encode(
             x=alt.Y('LFC', title = "log2FC"),
-            y=alt.Y('P-Value', title = '-log10(p-value)'),color=alt.Color('direction').scale(domain=values, range=['blue', 'red', 'black'])
+            y=alt.Y('P-Value', title = '-log10(p-value)'),
+            color=alt.Color('direction:O',
+                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black']))
         ).interactive().properties(height=700, width=400)
 
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')

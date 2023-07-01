@@ -1,3 +1,4 @@
+import os
 import gzip
 import pickle
 import mpld3
@@ -15,7 +16,7 @@ import altair as alt
 import warnings
 #warnings.filterwarnings("ignore", category=FutureWarning)
 
-genes_path = '/Users/marinaflores/Desktop/bioinformatics/MBioinfProject/mainApp/pyBasket/pyBasket/Data/Entrez_to_Ensg99.mapping_table.tsv'
+genes_path = os.path.join('..', 'Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 
 def readPickle(pick_file):
     try:
@@ -123,15 +124,19 @@ class Results():
         category=alt.RangeScheme(palette))
         else:
             hue = None
-            palette = sns.color_palette("Paired",25).as_hex()
-            base = alt.Chart(self.patient_df, title=alt.Title("Number of samples")).transform_aggregate(
+            palette = sns.color_palette("Paired", 25).as_hex()
+            base = alt.Chart(self.patient_df).transform_aggregate(
                 count='count()',
                 groupby=[feature]
             ).mark_bar().encode(
-                alt.X(feature + ':N', title = x_lab),
-                alt.Y('count:Q',title = "Number of samples"), alt.Color(feature + ':N'),tooltip=['count:Q',feature]
-            ).properties(height=650).configure_range(
-        category=alt.RangeScheme(palette))
+                alt.X(feature + ':N', title=x_lab),
+                alt.Y('count:Q', title="Number of samples"), alt.Color(feature + ':N'),
+                tooltip=['count:Q', feature]
+            ).properties(
+                height=650,
+                title="Number of samples"
+            ).configure_range(
+                category=alt.RangeScheme(palette))
         ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette,width=0.6)
         fig.tight_layout()
         ax.set_xticklabels(ax.get_xticklabels())
@@ -223,7 +228,7 @@ class Results():
         return raw_count
 
     def non_group_plot(self, feature,RawD):
-        self.patient_df["index"] = range(298)
+        self.patient_df["index"] = range(self.patient_df.shape[0])
         if RawD is True:
             saveTable(self.patient_df, "rawAAC")
             df = self.patient_df
@@ -253,7 +258,7 @@ class Results():
         category=alt.RangeScheme(palette))
 
             fig = plt.figure(figsize=(15, 6))
-            x = np.arange(298)
+            x = np.arange(self.patient_df.shape[0])
             ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
             plt.title("AAC response per sample")
             fig.subplots_adjust(right=0.63, top=1)
@@ -368,11 +373,7 @@ class heatMap(Analysis):
     def HM_inferredProb(self,results):
         basket_coords, cluster_coords = results.setBaskets(),results.setClusters()
         stacked = self.stacked_posterior
-        predt_basket = np.mean(stacked.basket_p.values, axis=1)
-        inferred_basket = pd.DataFrame({'prob': predt_basket}, index = basket_coords)
-        inferred_basket =  inferred_basket.values
-        inferred_cluster = np.mean(stacked.cluster_p.values, axis=2)
-        inferred_mat = inferred_basket * inferred_cluster
+        inferred_mat = np.mean(stacked.joint_p.values, axis=2)
         inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
         return inferred_df
 
