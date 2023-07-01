@@ -9,9 +9,11 @@ from statsmodels.stats.multitest import multipletests
 
 def get_coords(save_data):
     data_df = save_data['patient_df']
+    class_labels = save_data['class_labels']
+    cluster_labels = save_data['cluster_labels']
     basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        data_df['basket_number'].unique()
-    cluster_coords = data_df['cluster_number'].unique()
+        np.arange(len(set(class_labels)))
+    cluster_coords = np.arange(len(set(cluster_labels)))
     return basket_coords, cluster_coords
 
 
@@ -37,12 +39,9 @@ def plot_basket_probs(df, return_fig=False):
 def get_basket_cluster_prob_df(save_data):
     basket_coords, cluster_coords = get_coords(save_data)
     stacked = save_data['stacked_posterior']
+    joint_p = np.mean(stacked.joint_p.values, axis=2)
 
-    inferred_basket = get_predicted_basket_df(save_data).values
-    inferred_cluster = np.mean(stacked.cluster_p.values, axis=2)
-    inferred_mat = inferred_basket * inferred_cluster
-
-    inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
+    inferred_df = pd.DataFrame(joint_p, index=basket_coords, columns=cluster_coords)
     return inferred_df
 
 

@@ -482,3 +482,99 @@ def get_model_pyBasket_nc(data_df, n_basket, n_cluster):
 
         # Return the model
         return model
+
+
+def get_model_pyBasket_independent(data_df, n_basket, n_cluster):
+    '''
+    Like pyBasket, but not modelling the interactions between baskets and clusters,
+    i.e. it assumes that they're independent.
+    '''
+    # Unique identifiers for each basket and cluster
+    basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
+        np.arange(n_basket)
+
+    n_cluster = 1 if n_cluster is None else n_cluster
+    cluster_coords = np.arange(n_cluster)
+
+    # Setting the 'basket' and 'cluster' coordinates
+    coords = {'basket': basket_coords, 'cluster': cluster_coords}
+
+    # Constructing the model
+    with pm.Model(coords=coords) as model:
+        # Define hyper-priors
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
+        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
+
+        # Define priors using the logistic-normal distribution for each basket and cluster
+        basket_θ = pm.Normal('basket_theta', mu=μ_basket, sigma=σ_basket, dims='basket')
+        cluster_θ = pm.Normal('cluster_theta', mu=μ_cluster, sigma=σ_cluster,
+                              dims=('basket', 'cluster'))
+
+        # Calculate the success probabilities using the logistic function
+        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ), dims='basket')
+        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ),
+                                     dims=('basket', 'cluster'))
+
+        # The response variable is a product of each combination of
+        # basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+
+        p = basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx]
+        y = pm.Bernoulli('y', p=p, observed=is_responsive)
+
+        # Return the model
+        return model
+
+def get_model_pyBasket_independent_nc(data_df, n_basket, n_cluster):
+    '''
+    Like pyBasket, but not modelling the interactions between baskets and clusters,
+    i.e. it assumes that they're independent.
+
+    The non-centered version of it.
+    '''
+    # Unique identifiers for each basket and cluster
+    basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
+        np.arange(n_basket)
+
+    n_cluster = 1 if n_cluster is None else n_cluster
+    cluster_coords = np.arange(n_cluster)
+
+    # Setting the 'basket' and 'cluster' coordinates
+    coords = {'basket': basket_coords, 'cluster': cluster_coords}
+
+    # Constructing the model
+    with pm.Model(coords=coords) as model:
+        # Define standard normal random variables for non-centered parametrization
+        z_basket = pm.Normal('z_basket', mu=0, sigma=1, dims='basket')
+        z_cluster = pm.Normal('z_cluster', mu=0, sigma=1, dims=('basket', 'cluster'))
+
+        # Define hyper-priors
+        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
+        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
+        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
+        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
+
+        # Define priors, using non-centered parametrization
+        basket_θ = μ_basket + (z_basket * σ_basket)
+        cluster_θ = μ_cluster + (z_cluster * σ_cluster)
+
+        # Calculate the success probabilities using the logistic function
+        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ), dims='basket')
+        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ),
+                                     dims=('basket', 'cluster'))
+
+        # The response variable is a product of each combination of
+        # basket and cluster probabilities
+        basket_idx = data_df['basket_number'].values
+        cluster_idx = data_df['cluster_number'].values
+        is_responsive = data_df['responsive'].values
+
+        p = basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx]
+        y = pm.Bernoulli('y', p=p, observed=is_responsive)
+
+        # Return the model
+        return model
