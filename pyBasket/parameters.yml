@@ -1,0 +1,5 @@
+drug: 'Docetaxel'
+clusters: 5
+feature_selection:
+  top_genes: 500
+  n_splits: 5

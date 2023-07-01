@@ -19,6 +19,12 @@ dependencies:
   - pytest-cov
   - statsmodels
   - pip
+  - streamlit
+  - mpld3
+  - shap
+  - lime
+  - PyALE
+  - altair
   - pip:
     - pymc
     - arviz
