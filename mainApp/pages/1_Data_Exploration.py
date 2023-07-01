@@ -153,9 +153,9 @@ if "data" in st.session_state:
                     dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
                 st.subheader("Individual transcripts DEA")
                 transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                fig = dea.boxplot(groups[0],groups[1],feature,transcript)
+                fig,base = dea.boxplot(groups[0],groups[1],feature,transcript)
                 savePlot(fig, "DEA"+transcript)
-                st.pyplot(fig)
+                st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 
 

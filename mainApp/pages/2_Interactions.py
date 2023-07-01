@@ -90,10 +90,9 @@ if "data" in st.session_state:
                     heatmap2 = heatmap.heatmapTranscripts(subgroup)
                     savePlot(heatmap2, "_transcripts")
                     st.pyplot(heatmap2)
+                    #st.altair_chart(base, theme="streamlit", use_container_width=True)
             except:
                 st.warning("Not enough samples. Please try a different combination.")
-
-
         with tab2:
             st.subheader("Advanced PCA")
             st.write("")
@@ -154,9 +153,10 @@ if "data" in st.session_state:
                 try:
                     st.subheader("Individual transcripts DEA")
                     transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                    fig = dea.boxplot_inter(subgroup, transcript)
+                    fig,base = dea.boxplot_inter(subgroup, transcript)
                     savePlot(fig, "DEA" + transcript)
-                    st.pyplot(fig)
+                    st.altair_chart(base, theme="streamlit", use_container_width=True)
+                #st.pyplot(fig)
                 except:
                     st.warning("Not enough samples. Please try a different combination.")
             else:
@@ -169,9 +169,9 @@ if "data" in st.session_state:
                     print(type(results))
                     st.subheader("Individual transcripts DEA")
                     transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                    fig = dea.boxplot_resp(subgroup, transcript)
+                    fig,base = dea.boxplot_resp(subgroup, transcript)
                     savePlot(fig, "DEA" + transcript)
-                    st.pyplot(fig)
+                    st.altair_chart(base, theme="streamlit", use_container_width=True)
                 else:
                     st.warning("Not enough samples. Please try a different combination.")
                 with col42:

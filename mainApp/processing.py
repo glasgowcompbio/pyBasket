@@ -118,18 +118,20 @@ class Results():
             base = alt.Chart(df_grouped).mark_bar().encode(
                 alt.X(feature, type = "nominal"),
                 alt.Y('Count', axis=alt.Axis(grid=False)),
-                alt.Color("responsive", scale=alt.Scale(range=palette)),tooltip=["responsive", feature]
-            ).properties(height=650)
+                alt.Color("responsive"),tooltip=["responsive", feature]
+            ).properties(height=650).configure_range(
+        category=alt.RangeScheme(palette))
         else:
             hue = None
-            palette = sns.color_palette("pastel",25)
+            palette = sns.color_palette("Paired",25).as_hex()
             base = alt.Chart(self.patient_df, title=alt.Title("Number of samples")).transform_aggregate(
                 count='count()',
                 groupby=[feature]
             ).mark_bar().encode(
                 alt.X(feature + ':N', title = x_lab),
                 alt.Y('count:Q',title = "Number of samples"), alt.Color(feature + ':N'),tooltip=['count:Q',feature]
-            ).properties(height=650)
+            ).properties(height=650).configure_range(
+        category=alt.RangeScheme(palette))
         ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette,width=0.6)
         fig.tight_layout()
         ax.set_xticklabels(ax.get_xticklabels())
@@ -157,21 +159,21 @@ class Results():
             palette = ["#F72585", "#4CC9F0"]
             df = Results.setPatients(self)
             df[feature] = pd.Categorical(df[feature])
-
-            base = alt.Chart(df).mark_boxplot(extent='min-max', ticks=True).encode(
-                x=alt.X(feature, title=x_lab,axis=alt.Axis(labels=False, ticks=False), scale=alt.Scale(padding=1)),
+            base = alt.Chart(df, title= "AAC response").mark_boxplot(extent='min-max', ticks=True, size = 60).encode(
+                x=alt.X(feature, title=x_lab, scale=alt.Scale(padding=1)),
                 y=alt.Y("responses", title="AAC response"),
-                color = alt.Color("responsive", scale=alt.Scale(range=palette)
+                color = alt.Color("responsive:N", scale=alt.Scale(range=palette)
             )).properties(height=650).configure_facet(spacing=0).configure_view(stroke=None)
         else:
             hue = None
-            palette = sns.color_palette("pastel",25)
+            palette = sns.color_palette("Paired",25).as_hex()
             df = Results.setPatients(self)
             df[feature] = pd.Categorical(df[feature])
-            base = alt.Chart(df).mark_boxplot(extent='min-max',ticks=True).encode(
+            base = alt.Chart(df,title= "AAC response").mark_boxplot(extent='min-max',ticks=True,size=60).encode(
                 x=alt.X(feature,title = x_lab),
                 y=alt.Y("responses",title = x_lab),color = alt.Color(feature + ':N')
-            ).properties(height=650)
+            ).properties(height=650).configure_range(
+        category=alt.RangeScheme(palette))
         ax = sns.boxplot(data = self.patient_df,x= x, y = y, hue = hue, palette = palette)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
         plt.xlabel(x_lab)
@@ -239,7 +241,7 @@ class Results():
                 ).interactive().properties(height=650)
             else:
                 hue = feature
-                palette = sns.color_palette("pastel", 25)
+                palette = sns.color_palette("paired", 25).as_hex()
                 df = Results.setPatients(self)
                 df[feature] = pd.Categorical(df[feature])
                 print(df)
@@ -247,7 +249,8 @@ class Results():
                     x=alt.Y("index", title="Sample index"),
                     y=alt.Y("responses", title="AAC response"),color = feature,
                     tooltip=["samples", "responses", feature]
-                ).interactive().properties(height=650)
+                ).interactive().properties(height=650).configure_range(
+        category=alt.RangeScheme(palette))
 
             fig = plt.figure(figsize=(15, 6))
             x = np.arange(298)
@@ -339,6 +342,13 @@ class heatMap(Analysis):
         plt.ylabel('Samples')
         plt.yticks(fontsize=9)
         plt.xticks(fontsize=9)
+        """
+        base = alt.Chart(df).mark_rect().encode(
+            x='x:O',
+            y='y:O',
+            color='z:Q'
+        )
+        """
         return fig
 
     def heatmapResponse(self, results):
@@ -354,8 +364,6 @@ class heatMap(Analysis):
             data.append(response)
         df = pd.DataFrame(data, baskets, clusters)
         return df
-
-
 
     def HM_inferredProb(self,results):
         basket_coords, cluster_coords = results.setBaskets(),results.setClusters()
@@ -418,22 +426,22 @@ class dim_PCA(Analysis):
         if feature == "responsive":
             palette = ["#F72585", "#4CC9F0"]
         else:
-            palette = sns.color_palette("pastel",25)
+            palette = sns.color_palette("Paired",25).as_hex()
         pc1_values = df['PC1']
         pc2_values = df['PC2']
-        """
-        df = df.reset_index()
-        base = alt.Chart(df, title="PCA").mark_circle(size=100).encode(
-            x=alt.Y(pc1_values, title="PC1"),
-            y=alt.Y(pc2_values, title="PC2")
-        ).interactive().properties(height=650)
-        """
+        base = alt.Chart(df, title = "Principal Component Analysis").mark_circle(size=60).encode(
+            x='PC1',
+            y='PC2',
+            color=feature+':N'
+        ).interactive().properties(height=650).configure_range(
+        category=alt.RangeScheme(palette))
+
         fig = plt.figure(figsize=(11, 6))
         fig.subplots_adjust(right=0.63, top=1)
         ax = sns.scatterplot(x=pc1_values, y=pc2_values,hue=df[feature], s=30, palette=palette)
         ax.set(title='PCA decomposition')
         defaultPlot_leg(feature, ax)
-        return fig
+        return fig, base
 
     @staticmethod
     def showRawData_PCA(df,var):
@@ -480,9 +488,9 @@ class dim_PCA(Analysis):
                 saveTable(self.pca_df, "PCA")
                 st.dataframe(pcaDF, use_container_width=True)
         else:
-            fig = dim_PCA.plot_PCA(self,feature,adv=False)
+            fig,base = dim_PCA.plot_PCA(self,feature,adv=False)
             savePlot(fig, "PCA_"+feature)
-            #st.altair_chart(base, theme="streamlit", use_container_width=True)
+            st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 
     def adv_PCA(self,sub_df, RawD):
@@ -500,9 +508,8 @@ class dim_PCA(Analysis):
                     saveTable(self.pca_adv, "PCA")
                     st.dataframe(pcaDF, use_container_width=True)
             else:
-                fig = dim_PCA.plot_PCA(self, "responsive",adv= True)
+                fig,base = dim_PCA.plot_PCA(self, "responsive",adv= True)
                 savePlot(fig, "PCA_subgroup")
-                fig_html = mpld3.fig_to_html(fig)
-                components.html(fig_html, height=600, width=3000)
+                st.altair_chart(base, theme="streamlit", use_container_width=True)
         except:
             st.warning("Not enough samples. Please try a different combination.")
