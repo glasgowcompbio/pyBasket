@@ -1,6 +1,8 @@
 import os
 import sys
 
+from preprocessing import get_pivot_count_df
+
 sys.path.append('..')
 sys.path.append('.')
 
@@ -13,7 +15,7 @@ import math
 import seaborn as sns
 import pylab as plt
 
-from pyBasket.model import get_model_pyBasket_nc, get_model_simple_bern
+from pyBasket.model import get_model_pyBasket_nc, get_model_simple_bern, get_model_bhm_nc
 from pyBasket.common import create_if_not_exist
 from pyBasket.synthetic_data import generate_pyBasket_data
 
@@ -22,7 +24,6 @@ def run_experiment(data_df, true_basket_p, true_cluster_p,
                    n_tissues, n_clusters,
                    n_burn_in=int(5E3), n_sample=int(5E3),
                    target_accept=0.99):
-    # df_pivot = get_pivot_count_df(data_df)
 
     # Simple model
     model_s = get_model_simple_bern(data_df, n_tissues)
@@ -30,6 +31,16 @@ def run_experiment(data_df, true_basket_p, true_cluster_p,
         trace_s = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                             target_accept=target_accept)
     stacked_s = az.extract(trace_s)
+
+    # BHM model
+    pivot_df = get_pivot_count_df(data_df)
+    p0 = 0.2
+    p1 = 0.4
+    model_bhm = get_model_bhm_nc(pivot_df, p0, p1)
+    with model_bhm:
+        trace_bhm = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
+                            target_accept=target_accept)
+    stacked_bhm = az.extract(trace_bhm)
 
     # pyBasket
     model_pyBasket_nc = get_model_pyBasket_nc(data_df, n_tissues, n_clusters)
@@ -44,12 +55,15 @@ def run_experiment(data_df, true_basket_p, true_cluster_p,
     predicted_basket_s = np.mean(stacked_s.basket_p.values, axis=1)
     rmse_s = math.sqrt(mean_squared_error(actual, predicted_basket_s))
 
+    predicted_basket_bhm = np.mean(stacked_bhm.basket_p.values, axis=1)
+    rmse_bhm = math.sqrt(mean_squared_error(actual, predicted_basket_bhm))
+
     predicted_basket_pyBasket = np.mean(stacked_pyBasket.basket_p.values, axis=1)
     rmse_pyBasket = math.sqrt(mean_squared_error(actual, predicted_basket_pyBasket))
 
     rmse_basket_p = pd.DataFrame({
-        'method': ['Simple', 'pyBasket'],
-        'RMSE': [rmse_s, rmse_pyBasket]
+        'method': ['Simple', 'BHM', 'pyBasket'],
+        'RMSE': [rmse_s, rmse_bhm, rmse_pyBasket]
     })
 
     # calculate RMSE for cluster probabilities
