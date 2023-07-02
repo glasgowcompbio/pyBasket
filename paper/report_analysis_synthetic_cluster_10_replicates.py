@@ -1,7 +1,6 @@
 import os
 import sys
 
-from preprocessing import get_pivot_count_df
 
 sys.path.append('..')
 sys.path.append('.')
@@ -18,6 +17,7 @@ import pylab as plt
 from pyBasket.model import get_model_pyBasket_nc, get_model_simple_bern, get_model_bhm_nc
 from pyBasket.common import create_if_not_exist
 from pyBasket.synthetic_data import generate_pyBasket_data
+from pyBasket.preprocessing import get_pivot_count_df
 
 
 def run_experiment(data_df, true_basket_p, true_cluster_p,
