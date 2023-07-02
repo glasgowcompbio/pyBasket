@@ -1,8 +1,9 @@
 import streamlit as st
 from processing import readPickle, Results, defaultPlot_leg, Analysis
 from importance import FI, Global
-from common import add_logo, hideRows, saveTable, savePlot,sideBar
+from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard
 from streamlit_option_menu import option_menu
+import webbrowser
 
 add_logo()
 sideBar()
@@ -26,20 +27,29 @@ if "data" in st.session_state:
     if menu == "Overview":
         st.write(" ")
         st.subheader("Overview")
-        st.write('Further exploration of the most important features (transcripts) for predicting AAC response')
+        st.write('Feature Importance is a technique to describe how relevant an input feature is and its effect on the model '
+                 'being used to predict an outcome. Here, the feature importance is calculated using several Model-Agnostic '
+                 'methods to find the transcripts that have the most important impact on predicting the AAC response of a sample. '
+                 )
         col11, col12 = st.columns((3,2))
         with col11:
-            global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation FI"], key="model1")
+            global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation Based"], key="model1")
         with col12:
             num_feat = st.number_input('Select top number of features to display (<30 is encouraged)', value=10)
 
         if global_model == "RF feature importance":
-            st.subheader("Most important features (Random Forest)")
-            st.write("Top {} most important features calculated from Random Forest.".format(num_feat))
+            st.subheader("Random Forest")
+            st.write("Ramdom Forest is a common ML model that combines the output of multiple decision trees to reach a single result. It has been used "
+                     "as part of the pyBasket pipeline to select the 500 most important features. Below is shown the top {} most important features calculated "
+                     "from Random Forest, ordered by descending importance.".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-RF")
             feature_inter.plotImportance(RawD,num_feat)
         elif global_model == "SHAP":
             st.subheader("SHAP values")
+            st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
+                         "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
+                         " as it uses fair allocation results from cooperative game to allocate credit for a model's output among its input features."
+                         "Below, the top {} features that most contribute to predict the AAC response are shown".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-SHAP")
             if RawD:
                 raw_df = feature_inter.SHAP_results(values)
@@ -50,10 +60,11 @@ if "data" in st.session_state:
                 savePlot(fig, "Global_SHAP")
                 st.pyplot(fig)
 
-        elif global_model == "Permutation FI":
-            st.subheader("Permutation feature importance")
-            st.write('The importance of a feature is measured by calculating the increase in the model’s prediction'
-                     'error when re-shuffling each predictor. How much impact have these features in the model’s prediction for AAC response.')
+        elif global_model == "Permutation Based":
+            st.subheader("Permutation based feature importance")
+            st.write('Permutation based feature importance is a MA method that measures'
+                     ' the importance of a feature by calculating the increase in the model’s prediction'
+                     'error when re-shuffling each predictor. Below is shown how much impact have the top {} features have in the model’s prediction for AAC response.'.format(num_feat))
             feature_inter.permutationImportance(num_feat)
     elif menu == "Global methods":
         st.write(" ")
@@ -76,10 +87,13 @@ if "data" in st.session_state:
             basket, cluster = basket, cluster
             option = "interaction"
             response = st.checkbox("Split by Responsive vs Non-responsive samples")
-            if response:
-                global_ALE.global_ALE_resp(feature)
-            else:
-                global_ALE.global_ALE_single(feature, cluster,basket, option)
+            try:
+                if response:
+                    global_ALE.global_ALE_resp(feature)
+                else:
+                    global_ALE.global_ALE_single(feature, cluster,basket, option)
+            except:
+                st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
         else:
             if gsamples == 'Select only samples in cluster':
                 groups = st.multiselect(
@@ -98,42 +112,61 @@ if "data" in st.session_state:
             else:
                 global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
     elif menu == "Local methods":
-        st.subheader("Local methods")
-        col31, col32 = st.columns((2,2))
-        group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in cluster',
-                                      'Select only samples in tissue/basket'],
-                                 key="samples", horizontal=True)
+        st.subheader("Local MA methods")
+        st.write(" ")
+        st.write("Local Model-Agnostic interpretation methods aim to explain individual predictions made by a Machine Learning model.")
+        col31, col32 = st.columns((2, 2))
         with col31:
-            local_model = st.selectbox("Select a method", ["LIME", "SHAP"], key="model2")
+            local_model = st.selectbox("Select a local interpretable method", ["LIME", "SHAP"], key="model2")
+        st.write("---")
+        col33, col34, col35 = st.columns((2,2,2))
+        with col33:
+            group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in cluster',
+                                      'Select only samples in tissue/basket'],
+                                 key="samples")
         if group_samples == 'Use samples in selection':
             basket, cluster = basket, cluster
         elif group_samples == 'Select only samples in cluster':
-            with col32:
+            with col35:
                 cluster= st.selectbox("Select a cluster", data.setClusters(), key="only_cluster")
             basket = "None"
         elif group_samples == 'Select only samples in tissue/basket':
-            with col32:
+            with col35:
                 basket = st.selectbox("Select a basket/tissue", data.setBaskets(), key="only_basket")
             cluster = "None"
         transc, size = feature_inter.displaySamples(cluster,basket)
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
         if size >1:
-            responses = st.radio("",
+            with col34:
+                responses = st.radio("",
                                  ['All', 'Only responsive samples', "Only non-responsive samples"],
-                                 key="responsive", horizontal=True)
-            col23, col24 = st.columns((2,1))
-            with col23:
-                transc = feature_inter.filterSamples(transc, responses)
-                sample = st.selectbox("Select a sample", transc, key="sample")
-            with col24:
+                                 key="responsive")
+            with col35:
                 n_features = st.number_input('Number of features', value=5)
+            transc = feature_inter.filterSamples(transc, responses)
+            sample = st.selectbox("Select a sample", transc, key="sample")
+            st.write("Click button to search for feature {} in GeneCards database.".format(sample))
+            st.button('Open GeneCards', on_click=openGeneCard, args=(sample,))
             if local_model == "LIME":
                 st.subheader("LIME for individual predictions")
+                st.write(" ")
+                st.write("Local interpretable model-agnostic explanations (LIME) is a technique to explain individual predictions "
+                         "made by a ML model. For this, an explanation is obtained by approximating the main model with a more interpretable one."
+                         " The interpretable model is trained on small perturbations of the original observation to provide a good local approximation."
+                         "For a selected sample, LIME results will show the features that have the strongest (positive or negative) impact on the "
+                         "sample prediction."
+                         )
                 RawD = st.checkbox("Show raw data", key="raw-data-LIME")
                 feature_inter.limeInterpretation(sample,n_features,RawD)
             elif local_model == "SHAP":
                 st.write("  ")
-                st.write("##### SHAP explanation for sample: {}".format(sample))
+                st.subheader("SHAP")
+                st.write(" ")
+                st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
+                         "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
+                         " as it uses fair allocation results from cooperative game to allocate credit for a model's output among its input features."
+                         )
+
                 st.write("  ")
                 st.write("##### Forces plot")
                 st.write("  ")

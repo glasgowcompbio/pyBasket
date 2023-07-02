@@ -16,7 +16,7 @@ import altair as alt
 import warnings
 #warnings.filterwarnings("ignore", category=FutureWarning)
 
-genes_path = os.path.join('..', 'Data', 'Entrez_to_Ensg99.mapping_table.tsv')
+genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 
 def readPickle(pick_file):
     try:
@@ -108,8 +108,6 @@ class Results():
         return genes
 
     def count_plot(self,feature, title, x_lab, response):
-        fig = plt.figure(figsize=(10,8))
-        plt.title(title)
         if response == True:
             hue = self.patient_df["responsive"]
             self.patient_df["responsive"] = self.patient_df["responsive"].replace([0, 1], ['Non-responsive', 'Responsive'])
@@ -120,8 +118,7 @@ class Results():
                 alt.X(feature, type = "nominal"),
                 alt.Y('Count', axis=alt.Axis(grid=False)),
                 alt.Color("responsive"),tooltip=["responsive", feature]
-            ).properties(height=650).configure_range(
-        category=alt.RangeScheme(palette))
+            ).properties(height=650).configure_range(category=alt.RangeScheme(palette))
         else:
             hue = None
             palette = sns.color_palette("Paired", 25).as_hex()
@@ -137,12 +134,7 @@ class Results():
                 title="Number of samples"
             ).configure_range(
                 category=alt.RangeScheme(palette))
-        ax = sns.countplot(y=self.patient_df[feature],hue = hue, palette = palette,width=0.6)
-        fig.tight_layout()
-        ax.set_xticklabels(ax.get_xticklabels())
-        plt.xlabel(x_lab)
-        plt.ylabel("Number of samples")
-        return fig,base
+        return base
 
     def displayNums(self,feature, feature_title, RD, RawD, title_plot):
         if RawD is True:
@@ -150,17 +142,12 @@ class Results():
             saveTable(raw_num, "NumOfS")
             st.dataframe(raw_num, use_container_width=True)
         else:
-            fig,num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
-            savePlot(fig,"NumOfS")
+            num_plot = Results.count_plot(self,feature, title_plot, feature_title, RD)
+            savePlot(num_plot,"NumOfS")
             st.altair_chart(num_plot,theme = "streamlit",use_container_width=True)
 
     def AAC_plot(self,feature, title, x_lab, response):
-        fig = plt.figure(figsize=(12, 6))
-        x = feature
-        y = self.patient_df["responses"]
-        plt.title(title)
         if response == True:
-            hue = self.patient_df["responsive"]
             palette = ["#F72585", "#4CC9F0"]
             df = Results.setPatients(self)
             df[feature] = pd.Categorical(df[feature])
@@ -170,20 +157,14 @@ class Results():
                 color = alt.Color("responsive:N", scale=alt.Scale(range=palette)
             )).properties(height=650).configure_facet(spacing=0).configure_view(stroke=None)
         else:
-            hue = None
             palette = sns.color_palette("Paired",25).as_hex()
             df = Results.setPatients(self)
             df[feature] = pd.Categorical(df[feature])
             base = alt.Chart(df,title= "AAC response").mark_boxplot(extent='min-max',ticks=True,size=60).encode(
                 x=alt.X(feature,title = x_lab),
                 y=alt.Y("responses",title = x_lab),color = alt.Color(feature + ':N')
-            ).properties(height=650).configure_range(
-        category=alt.RangeScheme(palette))
-        ax = sns.boxplot(data = self.patient_df,x= x, y = y, hue = hue, palette = palette)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-        plt.xlabel(x_lab)
-        plt.ylabel("AAC response")
-        return fig,base
+            ).properties(height=650).configure_range(category=alt.RangeScheme(palette))
+        return base
 
     def displayAAC(self,feature, feature_title,RD,RawD, title_plot):
         if RawD is True:
@@ -191,9 +172,9 @@ class Results():
             saveTable(raw_AAC, "AAC")
             st.dataframe(raw_AAC,use_container_width = True)
         else:
-            AAC,fig = Results.AAC_plot(self,feature, title_plot,
+            fig= Results.AAC_plot(self,feature, title_plot,
                                 feature_title, RD)
-            savePlot(AAC,"AAC")
+            savePlot(fig,"AAC")
             st.altair_chart(fig, theme="streamlit", use_container_width=True)
 
     def displayAAC_none(feature):
@@ -236,8 +217,6 @@ class Results():
             st.dataframe(df)
         else:
             if feature == None:
-                hue = None
-                palette = None
                 df = Results.setPatients(self)
                 base = alt.Chart(df,title= "AAC response per sample").mark_circle(size=100).encode(
                     x=alt.Y("index", title="Sample index"),
@@ -245,29 +224,15 @@ class Results():
                     tooltip=["samples", "responses"]
                 ).interactive().properties(height=650)
             else:
-                hue = feature
-                palette = sns.color_palette("paired", 25).as_hex()
+                palette = sns.color_palette("Paired", 25).as_hex()
                 df = Results.setPatients(self)
                 df[feature] = pd.Categorical(df[feature])
-                print(df)
                 base = alt.Chart(df, title= "AAC response per sample").mark_circle(size=100).encode(
                     x=alt.Y("index", title="Sample index"),
                     y=alt.Y("responses", title="AAC response"),color = feature,
                     tooltip=["samples", "responses", feature]
-                ).interactive().properties(height=650).configure_range(
-        category=alt.RangeScheme(palette))
-
-            fig = plt.figure(figsize=(15, 6))
-            x = np.arange(self.patient_df.shape[0])
-            ax = sns.scatterplot(data=self.patient_df, x=x, hue = hue, y="responses", palette = palette)
-            plt.title("AAC response per sample")
-            fig.subplots_adjust(right=0.63, top=1)
-            plt.legend(loc='lower left', bbox_to_anchor=(1.1,0))
-            #ax.legend(title=feature, title_fontsize=12, fontsize=12, bbox_to_anchor=(1.2, 1), markerscale=0.5)
-            plt.xlabel("Sample index")
-            fig.subplots_adjust(right=0.63, top=1)
-            plt.ylabel("AAC response")
-            savePlot(fig, "AAC")
+                ).interactive().properties(height=650).configure_range(category=alt.RangeScheme(palette))
+            savePlot(base, "AAC")
             st.altair_chart(base,theme = "streamlit",use_container_width=True)
 
 

@@ -7,6 +7,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 from processing import *
+import webbrowser
+from altair_saver import save
 
 def add_logo():
     st.markdown(
@@ -35,9 +37,13 @@ def hideRows():
                 """
     return hide_table_row_index
 
+def openGeneCard(gene):
+    webpage_link = "https://www.genecards.org/cgi-bin/carddisp.pl?gene=" + gene
+    webbrowser.open(webpage_link)
+
 def savePlot(fig, feature):
     if st.button('Save Plot', key="plot"+feature):  # Update the key to a unique value
-        fig.savefig('plot_' + feature + '.png')
+        fig.save('plot_' + feature + '.png')
         st.info('Plot saved as .png in working directory', icon="ℹ️")
     else:
         st.write("")

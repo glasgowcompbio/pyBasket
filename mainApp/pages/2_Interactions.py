@@ -1,7 +1,7 @@
 import streamlit as st
 from processing import readPickle, Results, defaultPlot_leg, Analysis, dim_PCA, heatMap
 from interpretation import Prototypes, DEA
-from common import add_logo,hideRows,savePlot,sideBar, saveTable
+from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard
 from streamlit_option_menu import option_menu
 
 add_logo()
@@ -136,7 +136,7 @@ if "data" in st.session_state:
                 logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
 
             if option == "Samples in interaction vs rest of samples":
-                st.write("##### Samples in interaction vs all other interactions")
+                st.subheader("Samples in interaction vs all other interactions")
                 st.write("DEA performed with the samples in the selected basket*cluster interaction against any other interaction")
                 if subgroup.size > 0:
                     dea.diffAnalysis_inter(subgroup,pthresh,logthresh)
@@ -152,11 +152,17 @@ if "data" in st.session_state:
                         st.write(" ")
                 try:
                     st.subheader("Individual transcripts DEA")
-                    transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                    col53, col54 = st.columns((2, 4))
+                    with col53:
+                        transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                        dea.infoTranscript(transcript)
+                        st.write(" ")
+                        st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+                        st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
                     fig,base = dea.boxplot_inter(subgroup, transcript)
-                    savePlot(fig, "DEA" + transcript)
-                    st.altair_chart(base, theme="streamlit", use_container_width=True)
-                #st.pyplot(fig)
+                    with col54:
+                        savePlot(fig, "DEA" + transcript)
+                        st.altair_chart(base, theme="streamlit", use_container_width=True)
                 except:
                     st.warning("Not enough samples. Please try a different combination.")
             else:
@@ -166,19 +172,25 @@ if "data" in st.session_state:
                     dea = DEA(data)
                     dea.diffAnalysis_response(subgroup, pthresh, logthresh)
                     results = dea.showResults("interaction")
-                    print(type(results))
                     st.subheader("Individual transcripts DEA")
-                    transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                    col53, col54 = st.columns((2, 4))
+                    with col53:
+                        transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                        dea.infoTranscript(transcript)
+                        st.write(" ")
+                        st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+                        st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
                     fig,base = dea.boxplot_resp(subgroup, transcript)
-                    savePlot(fig, "DEA" + transcript)
-                    st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    with col54:
+                        savePlot(fig, "DEA" + transcript)
+                        st.altair_chart(base, theme="streamlit", use_container_width=True)
                 else:
                     st.warning("Not enough samples. Please try a different combination.")
                 with col42:
                     st.write(" ")
                     st.write(" ")
                     try:
-                        dea.infoTest((cluster,basket), 'All', 'Interaction', pthresh,logthresh)
+                        dea.infoTest('Responsive', 'Non-responsive', (cluster,basket), pthresh,logthresh)
                     except:
                         st.write(" ")
 

@@ -7,10 +7,12 @@ import sklearn
 import shap
 import numpy as np
 import pandas as pd
-from common import savePlot, saveTable
+from common import savePlot, saveTable, openGeneCard
 import seaborn as sns
 from PyALE import ale
 from alibi.explainers import ALE, plot_ale
+import altair as alt
+
 
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -36,20 +38,23 @@ class FI():
 
         importance_feats = importance_sort.index[:num_feats]
         importance_feats = importance_feats[::-1]
+        palette = sns.color_palette("Paired", 25).as_hex()
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
-        fig = plt.figure(figsize=(12, 6))
-
-        plt.barh(range(len(importance_vals)), importance_vals, align='center', color = sns.color_palette("pastel",25))
-        plt.yticks(range(len(importance_vals)), importance_feats)
-        plt.xlabel('Importance')
-        plt.ylabel('Features')
-        plt.title('Feature Importance')
+        raw_D = raw_D.sort_values(by='Importance score', ascending=False)
+        base = alt.Chart(raw_D).mark_bar().encode(
+            alt.X('Importance score', title='Importance score'),
+            alt.Y('Features:O', title="Features").sort('-x'), alt.Color('Features:O')
+        ).properties(
+            height=650,
+            title="Feature Importance by Random Forest"
+        ).configure_range(
+            category=alt.RangeScheme(palette))
         if RawD:
             saveTable(raw_D,"RF-FI")
             st.dataframe(raw_D)
         else:
-            savePlot(fig, "RF-FI")
-            st.pyplot(fig)
+            savePlot(base, "RF-FI")
+            st.altair_chart(base, theme="streamlit", use_container_width=True)
 
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
@@ -71,13 +76,14 @@ class FI():
         fig = exp.as_pyplot_figure()
         raw_data = pd.DataFrame(exp.as_list(), columns=['Feature', 'Contribution'])
         st.write("##### The predicted value for sample {} is {}".format(sample, round(exp.local_pred[0],3)))
+        st.write(" ")
         if RawD:
             saveTable(raw_data, sample + "LIME")
             st.dataframe(raw_data)
         else:
             savePlot(fig,sample+"LIME")
             st.pyplot(fig)
-        st.caption(
+            st.caption(
             "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
 
     def permutationImportance(self, num_feats):
@@ -108,7 +114,8 @@ class FI():
         )
         #plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
         plt.xlabel("Permutation Importance")
-        return st.pyplot(fig)
+        savePlot(fig)
+        st.pyplot(fig)
 
 
         #perm = PermutationImportance(rf, cv=None, refit=False, n_iter=50).fit(X_train, y_train)
@@ -139,7 +146,6 @@ class FI():
             savePlot(fig, sample + "SHAP_bar")
             st.write("  ")
             st.pyplot(fig)
-
 
     def SHAP_results(self,values):
         shap_sum = np.abs(values).mean(axis=0)
