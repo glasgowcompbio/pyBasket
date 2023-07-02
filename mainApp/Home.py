@@ -101,6 +101,7 @@ if menu == "Data Upload":
 def openDrugBank(num):
     webpage_link = "https://go.drugbank.com/drugs/" + num
     webbrowser.open(webpage_link)
+
 def openGoogleScholar(drug):
     webpage_link = "https://scholar.google.com/scholar?hl=es&as_sdt=0%2C5&q={}&btnG=".format(drug)
     webbrowser.open(webpage_link)

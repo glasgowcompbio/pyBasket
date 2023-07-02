@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 from processing import readPickle, Results, Analysis, dim_PCA
-from common import add_logo, hideRows, savePlot,sideBar
+from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
 from interpretation import Prototypes, Kmedoids,DEA
 from streamlit_option_menu import option_menu
 
@@ -151,11 +151,20 @@ if "data" in st.session_state:
                     st.write(" ")
                     st.write(" ")
                     dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
-                st.subheader("Individual transcripts DEA")
-                transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                fig,base = dea.boxplot(groups[0],groups[1],feature,transcript)
-                savePlot(fig, "DEA"+transcript)
-                st.altair_chart(base, theme="streamlit", use_container_width=True)
+                st.subheader("Single Transcript DEA")
+                st.write("")
+                col53, col54 = st.columns((2,4))
+                with col53:
+                    transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                    dea.infoTranscript(transcript)
+                    st.write(" ")
+                    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+                    st.button('Open GeneCards',on_click=openGeneCard, args=(transcript,))
+                base = dea.boxplot(groups[0],groups[1],feature,transcript)
+                with col54:
+                    savePlot(base , "DEA" + transcript)
+                    st.altair_chart(base, theme="streamlit", use_container_width=True)
+
 
 
 

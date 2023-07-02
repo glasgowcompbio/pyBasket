@@ -118,20 +118,10 @@ class Prototypes():
     def plotMedoids(X,sample_medoids, feature):
         num_palette = len(np.unique(feature))
         labels = np.unique(feature)
-        fig, ax = plt.subplots(1, 1, figsize=(12, 7))
         palette = ["#F72585", "#4CC9F0"] if num_palette<3 else sns.color_palette("Paired", num_palette).as_hex()
-        sns.scatterplot(x=X[:, 0], y=X[:, 1], hue=feature, s=30, palette=palette, ax=ax)
-        sns.scatterplot(x=np.array(sample_medoids)[:, 0], y=np.array(sample_medoids)[:, 1], marker='o', s=100, c='black', ax=ax)
-        plt.xlabel('X1')
-        plt.ylabel('X2')
         df = pd.DataFrame({'X': X[:, 0], 'Y': X[:, 1], 'class':feature})
         df3 = pd.merge(df, sample_medoids, left_index=True, right_index=True)
         scale = alt.Scale(domain=labels, range = palette)
-        for i, label in enumerate(labels):
-            ax.annotate(label, (np.array(sample_medoids)[i, 0], np.array(sample_medoids)[i, 1]), textcoords="offset points",
-                        xytext=(0, 10), ha='center', zorder=10)
-        plt.legend(loc='lower left', bbox_to_anchor=(1.1,0))
-        plt.title('K-means Pseudo-Medoids')
         base = alt.Chart(df,title="Prototypes samples").mark_circle(size=100).encode(
             x='X',
             y='Y',color = alt.Color('class:N', scale = scale)
@@ -148,7 +138,7 @@ class Prototypes():
             text='class'
             )
         base = base+plotMedoids+labels
-        return fig,base
+        return base
 
     @staticmethod
     def showMedoids(self,feature):
@@ -166,8 +156,8 @@ class Prototypes():
     def findPrototypes(self, option):
         feature = self.cluster_labels if option == 'Clusters' else self.class_labels
         data,sampleMedoids = Prototypes.pseudoMedoids(self,self.expr_df_selected,feature)
-        plot,base = Prototypes.plotMedoids(data,sampleMedoids,feature)
-        savePlot(plot,option)
+        base = Prototypes.plotMedoids(data,sampleMedoids,feature)
+        savePlot(base,option)
         st.altair_chart(base, theme="streamlit", use_container_width=True)
         table = Prototypes.showMedoids(self,feature)
         st.subheader("Prototype samples")
@@ -178,7 +168,7 @@ class Prototypes():
         self.subgroup = subgroup
         fulldf = pd.merge(self.patient_df, self.subgroup, left_index=True, right_index=True)
         feature = fulldf['responsive'].values
-        fulldf = fulldf.drop(['index','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+        fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
         plot,base = Prototypes.plotMedoids(data, sampleMedoids, feature)
         savePlot(plot, "subgroup")
@@ -226,7 +216,6 @@ class DEA():
         self.df_group2 = DEA.selectGroups(self,option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
         self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
-        st.subheader("Volcano plot")
         fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
         savePlot(fig,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
@@ -270,9 +259,18 @@ class DEA():
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
         fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
-        st.subheader("Volcano plot")
         savePlot(fig, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+
+    def infoTranscript(self, transcript):
+        info = self.ttest_res[self.ttest_res['Feature']==transcript].values.flatten().tolist()
+        df_info = {'Feature': {'information': info[0]},'T-test result': {'information': round(info[1],3)},
+                                'P-value' : {'information': info[2]}, 'LFC': {'information': round(info[3],3)},
+                                'Adjusted P-value': {'information': info[4]}, 'Significant': {'information': info[5]}}
+        df = pd.DataFrame(data=df_info).T
+        df.style.hide(axis='index')
+        df.style.hide(axis='columns')
+        st.dataframe(df, use_container_width=True)
 
     def pPlot(self):
         fig =plt.figure(figsize=(9,5))
@@ -324,9 +322,9 @@ class DEA():
                 'P-value threshold: ': {'information': pthresh},'log2 FC threshold: ': {'information': logthresh},
                 'Num. Significant transcripts: ': {'information': size}}
         df = pd.DataFrame(data=info).T
-        style = df.style.hide_index()
-        style.hide_columns()
-        return st.dataframe(df, use_container_width=True)
+        df.style.hide(axis='index')
+        df.style.hide(axis='columns')
+        st.dataframe(df, use_container_width=True)
 
     def boxplot_inter(self, subgroup, transcript):
         indexes = subgroup.index
@@ -377,18 +375,12 @@ class DEA():
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : option1})
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : option2})
         full_df = pd.concat([df1, df2])
-        fig, axs = plt.subplots(figsize=(8, 7))
-        sns.boxplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        sns.stripplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        plt.legend([], [], frameon=False)
-        plt.ylabel("Expression level")
-        plt.xlabel("Group")
         base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
             x=alt.X("class:N", title="Response"),
             y=alt.Y(transcript, title="Expression level"),
             color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
                             )).properties(height=650, width=300)
-        return fig,base
+        return base
 
 
 
