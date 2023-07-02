@@ -36,13 +36,8 @@ def get_model_simple(data_df):
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
-        # Hyperparameters of the Beta distribution are assumed to
-        # follow a Gamma distribution.
-        α = pm.Gamma('alpha', alpha=1, beta=1)  # Alpha parameter of the Beta distribution
-        β = pm.Gamma('beta', alpha=1, beta=1)  # Beta parameter of the Beta distribution
-
         # Success probabilities for each basket, assumed to follow a Beta distribution
-        θ = pm.Beta('basket_p', alpha=α, beta=β, dims='basket')
+        θ = pm.Beta('basket_p', alpha=1, beta=1, dims='basket')
 
         # The observed successes for each basket are assumed to follow
         # a Binomial distribution with the basket-specific success probabilities.
@@ -52,13 +47,12 @@ def get_model_simple(data_df):
         return model
 
 
-def get_model_bhm(data_df, p0, p1):
+def get_model_bhm(data_df, p0=None, p1=None):
     '''
     Construct a Bayesian Hierarchical Model using PyMC3.
 
     This function implements a hierarchical Bayesian model from Berry (2013)
-    to infer basket response rates. Note unlike Berry, we don't implement the
-    targeted rate adjustment here.
+    to infer basket response rates.
 
     Parameters
     ----------
@@ -85,9 +79,13 @@ def get_model_bhm(data_df, p0, p1):
     coords = {'basket': df.index}
 
     # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
-    # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
-    mu0 = np.log(p0 / (1 - p0))
-    response_adj = np.log(p1 / (1 - p1))
+    # if p0 is 0.2, then mu0 is roughly -1.34, which is the same as Berry (2013).
+    # if p0 is not provided, then we default to mu0=0 and p0=0.5)
+    mu0 = np.log(p0 / (1 - p0)) if p0 is not None else 0
+
+    # Targeted rate (p1) adjustment, following Berry (2013)
+    # If p1 is not provided, then we do no adjustment
+    response_adj = np.log(p1 / (1 - p1)) if p1 is not None else 0
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
@@ -99,9 +97,12 @@ def get_model_bhm(data_df, p0, p1):
         # Prior for the alpha parameters of the logistic function
         α = pm.Normal('alpha', mu=μ_α, sigma=σ_α, dims='basket')
 
-        # Logistic model for the
-        p_adj = α
-        p = pm.Deterministic('p', p_adj + response_adj, dims='basket')
+        # Apply target rate adjustment, following the paper
+        # p = pm.math.invlogit(α)
+        # θ = pm.Deterministic('basket_p', pm.math.logit(p) - response_adj, dims='basket')
+
+        # Same as above
+        p = pm.Deterministic('p', α - response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # The observed successes for each basket are assumed to follow
@@ -112,7 +113,7 @@ def get_model_bhm(data_df, p0, p1):
         return model
 
 
-def get_model_bhm_nc(data_df, p0, p1):
+def get_model_bhm_nc(data_df, p0=None, p1=None):
     '''
     Construct a non-centered Bayesian Hierarchical Model using PyMC3.
 
@@ -146,9 +147,13 @@ def get_model_bhm_nc(data_df, p0, p1):
     coords = {'basket': df.index}
 
     # mu0 = log(p0/(1-p0)) where p0 denotes the baseline or standard of care response rate
-    # if p0 is 0.2, then mu0 is rougly -1.34, which is the same as Berry (2013).
-    mu0 = np.log(p0 / (1 - p0))
-    response_adj = np.log(p1 / (1 - p1))
+    # if p0 is 0.2, then mu0 is roughly -1.34, which is the same as Berry (2013).
+    # if p0 is not provided, then we default to mu0=0 and p0=0.5)
+    mu0 = np.log(p0 / (1 - p0)) if p0 is not None else 0
+
+    # Targeted rate (p1) adjustment, following Berry (2013)
+    # If p1 is not provided, then we do no adjustment
+    response_adj = np.log(p1 / (1 - p1)) if p1 is not None else 0
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
@@ -163,9 +168,12 @@ def get_model_bhm_nc(data_df, p0, p1):
         # Define priors using non-centered parameterization
         α = pm.Deterministic('alpha', μ_α + (z_α * σ_α), dims='basket')
 
-        # Logistic model for the
-        p_adj = α
-        p = pm.Deterministic('p', p_adj + response_adj, dims='basket')
+        # Apply target rate adjustment, following the paper
+        # p = pm.math.invlogit(α)
+        # θ = pm.Deterministic('basket_p', pm.math.logit(p) - response_adj, dims='basket')
+
+        # Same as above
+        p = pm.Deterministic('p', α - response_adj, dims='basket')
         θ = pm.Deterministic('basket_p', pm.math.invlogit(p), dims='basket')
 
         # The observed successes for each basket are assumed to follow
@@ -176,17 +184,9 @@ def get_model_bhm_nc(data_df, p0, p1):
         return model
 
 
-def get_model_simple_bern(data_df, n_basket, n_cluster=None):
+def get_model_simple_bern(data_df, n_basket):
     '''
-    Construct a probabilistic model using PyMC3 to assess patient response.
-
-    This function builds a Bayesian model where each "basket" (e.g., tissue type or
-    other patient subgroup) and "cluster" (e.g., treatment group) has its own success
-    probability. The probabilities are then combined to calculate the response rate
-    for each combination of basket and cluster.
-
-    Note that unlike get_model_simple(), here we use Bernoulli likelihood rather than Binomial
-    for the observations.
+    Simple independent model using Bernoulli likelihood
 
     Parameters
     ----------
@@ -196,6 +196,7 @@ def get_model_simple_bern(data_df, n_basket, n_cluster=None):
             - 'tissues' or 'basket_number': the group identifier for each patient.
             - 'cluster_number': the cluster identifier for each patient (if clustering is provided)
             - 'responsive': a binary variable indicating whether the patient responded to treatment.
+    n_basket: the number of baskets
 
     Returns
     -------
@@ -209,9 +210,6 @@ def get_model_simple_bern(data_df, n_basket, n_cluster=None):
 
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords}
-    if n_cluster is not None:
-        cluster_coords = np.arange(n_cluster)
-        coords['cluster'] = cluster_coords
 
     # Constructing the model
     with pm.Model(coords=coords) as model:
@@ -222,80 +220,7 @@ def get_model_simple_bern(data_df, n_basket, n_cluster=None):
         # basket and cluster probabilities
         basket_idx = data_df['basket_number'].values
         is_responsive = data_df['responsive'].values
-
-        if n_cluster is None:
-            y = pm.Bernoulli('y', p=basket_p[basket_idx], observed=is_responsive)
-        else:
-            # Prior probability of each cluster being responsive for each basket
-            cluster_p = pm.Beta('cluster_p', alpha=1, beta=1, dims=('basket', 'cluster'))
-            cluster_idx = data_df['cluster_number'].values
-            y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx],
-                             observed=is_responsive)
-
-        # Return the model
-        return model
-
-
-def get_model_hierarchical_bern(data_df, n_basket, n_cluster):
-    '''
-    Construct a hierarchical probabilistic model using PyMC3 to assess patient response.
-
-    This function extends get_patient_model_simple() by adding some hierarchies
-    on the "basket" (e.g., tissue type or other patient subgroup) and "cluster" (from omics data)
-    has its own success probability. The probabilities are then combined to calculate
-    the response rate for each combination of basket and cluster.
-
-    The model suffers from divergence problem during sampling, but it's difficult to fix it
-    since there is no conjugate prior to the Beta distributions. See:
-
-    - https://discourse.pymc.io/t/non-centered-parameterization-of-a-beta-distribution/6872/7
-    - https://stats.stackexchange.com/questions/67443/does-the-beta-distribution-have-a-conjugate-prior
-
-    Parameters
-    ----------
-    data_df : pandas.DataFrame
-        Data frame where each row corresponds to a patient. It must contain
-        the following columns:
-            - 'tissues' or 'basket_number': the group identifier for each patient.
-            - 'cluster_number': the treatment identifier for each patient.
-            - 'responsive': a binary variable indicating whether the patient responded to treatment.
-
-    Returns
-    -------
-    model : pm.Model
-        The compiled PyMC3 model ready for fitting.
-
-    '''
-    # Unique identifiers for each basket and cluster
-    basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        np.arange(n_basket)
-    cluster_coords = np.arange(n_cluster)
-
-    # Setting the 'basket' and 'cluster' coordinates
-    coords = {'basket': basket_coords, 'cluster': cluster_coords}
-
-    # Constructing the model
-    with pm.Model(coords=coords) as model:
-        # Hyperpriors for the parameters of the Beta distribution for basket_p and cluster_p
-        basket_alpha = pm.Beta('basket_alpha', alpha=1, beta=1)
-        basket_beta = pm.Beta('basket_beta', alpha=1, beta=1)
-        cluster_alpha = pm.Beta('cluster_alpha', alpha=1, beta=1, dims='cluster')
-        cluster_beta = pm.Beta('cluster_beta', alpha=1, beta=1, dims='cluster')
-
-        # Prior probability of each basket being responsive
-        basket_p = pm.Beta('basket_p', alpha=basket_alpha, beta=basket_beta, dims='basket')
-
-        # Prior probability of each cluster being responsive for each basket
-        cluster_p = pm.Beta('cluster_p', alpha=cluster_alpha, beta=cluster_beta,
-                            dims=('basket', 'cluster'))
-
-        # The response variable is a product of each combination of
-        # basket and cluster probabilities
-        basket_idx = data_df['basket_number'].values
-        cluster_idx = data_df['cluster_number'].values
-        is_responsive = data_df['responsive'].values
-        y = pm.Bernoulli('y', p=basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx],
-                         observed=is_responsive)
+        y = pm.Bernoulli('y', p=basket_p[basket_idx], observed=is_responsive)
 
         # Return the model
         return model
@@ -339,36 +264,6 @@ def get_model_pyBasket(data_df, n_basket, n_cluster):
     # Setting the 'basket' and 'cluster' coordinates
     coords = {'basket': basket_coords, 'cluster': cluster_coords}
 
-    # # Constructing the model
-    # with pm.Model(coords=coords) as model:
-    #     # Define hyper-priors
-    #     μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
-    #     μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-    #     σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
-    #     σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
-    #
-    #     # Define priors using the logistic-normal distribution for each basket and cluster
-    #     basket_θ = pm.Normal('basket_theta', mu=μ_basket, sigma=σ_basket, dims='basket')
-    #     cluster_θ = pm.Normal('cluster_theta', mu=μ_cluster, sigma=σ_cluster,
-    #                           dims=('basket', 'cluster'))
-    #
-    #     # Calculate the success probabilities using the logistic function
-    #     basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ), dims='basket')
-    #     cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ),
-    #                                  dims=('basket', 'cluster'))
-    #
-    #     # The response variable is a product of each combination of
-    #     # basket and cluster probabilities
-    #     basket_idx = data_df['basket_number'].values
-    #     cluster_idx = data_df['cluster_number'].values
-    #     is_responsive = data_df['responsive'].values
-    #
-    #     p = basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx]
-    #     y = pm.Bernoulli('y', p=p, observed=is_responsive)
-    #
-    #     # Return the model
-    #     return model
-
     # Constructing the model
     with pm.Model(coords=coords) as model:
         # Define hyper-priors
@@ -397,7 +292,8 @@ def get_model_pyBasket(data_df, n_basket, n_cluster):
         # The log-odds for each observation is the sum of the basket, cluster, and interaction terms
         basket_idx = data_df['basket_number'].values
         cluster_idx = data_df['cluster_number'].values
-        logit_p = basket_θ[basket_idx] + cluster_θ[cluster_idx] + interaction_θ[basket_idx, cluster_idx]
+        logit_p = basket_θ[basket_idx] + cluster_θ[cluster_idx] + interaction_θ[
+            basket_idx, cluster_idx]
         p = pm.Deterministic('p', pm.math.invlogit(logit_p))
 
         is_responsive = data_df['responsive'].values
@@ -405,7 +301,6 @@ def get_model_pyBasket(data_df, n_basket, n_cluster):
 
         # Return the model
         return model
-
 
 
 def get_model_pyBasket_nc(data_df, n_basket, n_cluster):
@@ -474,106 +369,11 @@ def get_model_pyBasket_nc(data_df, n_basket, n_cluster):
         # The log-odds for each observation is the sum of the basket, cluster, and interaction terms
         basket_idx = data_df['basket_number'].values
         cluster_idx = data_df['cluster_number'].values
-        logit_p = basket_θ[basket_idx] + cluster_θ[cluster_idx] + interaction_θ[basket_idx, cluster_idx]
+        logit_p = basket_θ[basket_idx] + cluster_θ[cluster_idx] + interaction_θ[
+            basket_idx, cluster_idx]
         p = pm.Deterministic('p', pm.math.invlogit(logit_p))
 
         is_responsive = data_df['responsive'].values
-        y = pm.Bernoulli('y', p=p, observed=is_responsive)
-
-        # Return the model
-        return model
-
-
-def get_model_pyBasket_independent(data_df, n_basket, n_cluster):
-    '''
-    Like pyBasket, but not modelling the interactions between baskets and clusters,
-    i.e. it assumes that they're independent.
-    '''
-    # Unique identifiers for each basket and cluster
-    basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        np.arange(n_basket)
-
-    n_cluster = 1 if n_cluster is None else n_cluster
-    cluster_coords = np.arange(n_cluster)
-
-    # Setting the 'basket' and 'cluster' coordinates
-    coords = {'basket': basket_coords, 'cluster': cluster_coords}
-
-    # Constructing the model
-    with pm.Model(coords=coords) as model:
-        # Define hyper-priors
-        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
-        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
-        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
-
-        # Define priors using the logistic-normal distribution for each basket and cluster
-        basket_θ = pm.Normal('basket_theta', mu=μ_basket, sigma=σ_basket, dims='basket')
-        cluster_θ = pm.Normal('cluster_theta', mu=μ_cluster, sigma=σ_cluster,
-                              dims=('basket', 'cluster'))
-
-        # Calculate the success probabilities using the logistic function
-        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ), dims='basket')
-        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ),
-                                     dims=('basket', 'cluster'))
-
-        # The response variable is a product of each combination of
-        # basket and cluster probabilities
-        basket_idx = data_df['basket_number'].values
-        cluster_idx = data_df['cluster_number'].values
-        is_responsive = data_df['responsive'].values
-
-        p = basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx]
-        y = pm.Bernoulli('y', p=p, observed=is_responsive)
-
-        # Return the model
-        return model
-
-def get_model_pyBasket_independent_nc(data_df, n_basket, n_cluster):
-    '''
-    Like pyBasket, but not modelling the interactions between baskets and clusters,
-    i.e. it assumes that they're independent.
-
-    The non-centered version of it.
-    '''
-    # Unique identifiers for each basket and cluster
-    basket_coords = data_df['tissues'].unique() if 'tissues' in data_df.columns.values else \
-        np.arange(n_basket)
-
-    n_cluster = 1 if n_cluster is None else n_cluster
-    cluster_coords = np.arange(n_cluster)
-
-    # Setting the 'basket' and 'cluster' coordinates
-    coords = {'basket': basket_coords, 'cluster': cluster_coords}
-
-    # Constructing the model
-    with pm.Model(coords=coords) as model:
-        # Define standard normal random variables for non-centered parametrization
-        z_basket = pm.Normal('z_basket', mu=0, sigma=1, dims='basket')
-        z_cluster = pm.Normal('z_cluster', mu=0, sigma=1, dims=('basket', 'cluster'))
-
-        # Define hyper-priors
-        μ_basket = pm.Normal('basket_mu', mu=0, sigma=2, dims='basket')
-        μ_cluster = pm.Normal('cluster_mu', mu=0, sigma=2, dims='cluster')
-        σ_basket = pm.HalfNormal('basket_sigma', sigma=1)
-        σ_cluster = pm.HalfNormal('cluster_sigma', sigma=1, dims='cluster')
-
-        # Define priors, using non-centered parametrization
-        basket_θ = μ_basket + (z_basket * σ_basket)
-        cluster_θ = μ_cluster + (z_cluster * σ_cluster)
-
-        # Calculate the success probabilities using the logistic function
-        basket_p = pm.Deterministic('basket_p', pm.math.invlogit(basket_θ), dims='basket')
-        cluster_p = pm.Deterministic('cluster_p', pm.math.invlogit(cluster_θ),
-                                     dims=('basket', 'cluster'))
-
-        # The response variable is a product of each combination of
-        # basket and cluster probabilities
-        basket_idx = data_df['basket_number'].values
-        cluster_idx = data_df['cluster_number'].values
-        is_responsive = data_df['responsive'].values
-
-        p = basket_p[basket_idx] * cluster_p[basket_idx, cluster_idx]
         y = pm.Bernoulli('y', p=p, observed=is_responsive)
 
         # Return the model

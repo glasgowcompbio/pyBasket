@@ -34,9 +34,7 @@ def run_experiment(data_df, true_basket_p, true_cluster_p,
 
     # BHM model
     pivot_df = get_pivot_count_df(data_df)
-    p0 = 0.2
-    p1 = 0.4
-    model_bhm = get_model_bhm_nc(pivot_df, p0, p1)
+    model_bhm = get_model_bhm_nc(pivot_df)
     with model_bhm:
         trace_bhm = pm.sample(n_sample, tune=n_burn_in, idata_kwargs={'log_likelihood': True},
                             target_accept=target_accept)

@@ -9,7 +9,7 @@ from pyBasket.common import GROUP_STATUS_EARLY_STOP_FUTILE, GROUP_STATUS_COMPLET
     GROUP_STATUS_COMPLETED_INEFFECTIVE, GROUP_STATUS_OPEN
 from pyBasket.common import Group
 from pyBasket.model import get_model_simple, get_model_bhm_nc, get_model_pyBasket_nc, \
-    get_model_simple_bern, get_model_hierarchical_bern
+    get_model_simple_bern
 
 
 class Analysis(ABC):
@@ -163,20 +163,6 @@ class IndependentAnalysis(Analysis):
 class IndependentBernAnalysis(Analysis):
     def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
         return get_model_simple_bern(obs_df, n_basket)
-
-    def get_posterior_response(self):
-        stacked = az.extract(self.idata)
-        return stacked.basket_p.values
-
-
-class IndependentBernWithClusteringAnalysis(IndependentBernAnalysis):
-    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
-        return get_model_simple_bern(obs_df, n_basket, n_cluster=n_cluster)
-
-
-class HierarchicalBernAnalysis(Analysis):
-    def model_definition(self, count_df, obs_df, p0, p1, n_basket, n_cluster):
-        return get_model_hierarchical_bern(obs_df, n_basket, n_cluster)
 
     def get_posterior_response(self):
         stacked = az.extract(self.idata)

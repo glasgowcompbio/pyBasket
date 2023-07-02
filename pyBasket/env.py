@@ -11,11 +11,10 @@ from scipy.special import expit as logistic
 from scipy.stats import halfnorm
 
 from pyBasket.analysis import IndependentAnalysis, BHMAnalysis, PyBasketAnalysis, \
-    IndependentBernAnalysis, HierarchicalBernAnalysis, IndependentBernWithClusteringAnalysis
+    IndependentBernAnalysis
 from pyBasket.common import DEFAULT_DECISION_THRESHOLD, DEFAULT_DECISION_THRESHOLD_INTERIM, \
     DEFAULT_NUM_CHAINS, GROUP_STATUS_OPEN, DEFAULT_EARLY_FUTILITY_STOP, \
-    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT, MODEL_INDEPENDENT_BERN, \
-    MODEL_HIERARCHICAL_BERN, MODEL_INDEPENDENT_BERN_WITH_CLUSTERING
+    MODEL_INDEPENDENT, MODEL_BHM, MODEL_PYBASKET, DEFAULT_TARGET_ACCEPT, MODEL_INDEPENDENT_BERN
 
 
 class PatientData():
@@ -289,16 +288,6 @@ class Trial():
                                        self.target_accept, pbar, self.site.n_clusters)
         elif analysis_name == MODEL_INDEPENDENT_BERN:
             return IndependentBernAnalysis(K, total_steps, p0, p_mid, p1,
-                                           decision_threshold, decision_threshold_interim,
-                                           early_futility_stop, self.num_chains,
-                                           self.target_accept, pbar, self.site.n_clusters)
-        elif analysis_name == MODEL_INDEPENDENT_BERN_WITH_CLUSTERING:
-            return IndependentBernWithClusteringAnalysis(K, total_steps, p0, p_mid, p1,
-                                           decision_threshold, decision_threshold_interim,
-                                           early_futility_stop, self.num_chains,
-                                           self.target_accept, pbar, self.site.n_clusters)
-        elif analysis_name == MODEL_HIERARCHICAL_BERN:
-            return HierarchicalBernAnalysis(K, total_steps, p0, p_mid, p1,
                                            decision_threshold, decision_threshold_interim,
                                            early_futility_stop, self.num_chains,
                                            self.target_accept, pbar, self.site.n_clusters)
