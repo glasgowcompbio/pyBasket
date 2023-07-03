@@ -169,22 +169,25 @@ if "data" in st.session_state:
             else:
                 st.write("##### Responsive vs non-responsive samples within basket*cluster interaction")
                 st.write("DEA has been performed within samples in the selected interaction and comparing Responsive vs Non-responsive samples.")
+                dea = DEA(data)
+                dea.diffAnalysis_response(subgroup, pthresh, logthresh)
                 if subgroup.size > 0:
-                    dea = DEA(data)
-                    dea.diffAnalysis_response(subgroup, pthresh, logthresh)
-                    results = dea.showResults("interaction")
-                    st.subheader("Individual transcripts DEA")
-                    col53, col54 = st.columns((2, 4))
-                    with col53:
-                        transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                        dea.infoTranscript(transcript)
-                        st.write(" ")
-                        st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                        st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
-                    base = dea.boxplot_resp(subgroup, transcript)
-                    with col54:
-                        savePlot(base, "DEA" + transcript)
-                        st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    try:
+                        results = dea.showResults("interaction")
+                        st.subheader("Individual transcripts DEA")
+                        col53, col54 = st.columns((2, 4))
+                        with col53:
+                            transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                            dea.infoTranscript(transcript)
+                            st.write(" ")
+                            st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+                            st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
+                        base = dea.boxplot_resp(subgroup, transcript)
+                        with col54:
+                            savePlot(base, "DEA" + transcript)
+                            st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    except:
+                        st.warning("Not enough samples. Please try a different combination.")
                 else:
                     st.warning("Not enough samples. Please try a different combination.")
                 with col42:

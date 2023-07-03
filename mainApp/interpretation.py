@@ -223,16 +223,19 @@ class DEA():
 
     def diffAnalysis_response(self,subgroup,pthresh, logthresh):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"]==0]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
-        self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
-        self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
-                                             axis=1)
-        self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
-        base = DEA.volcanoPlot(self, pthresh, logthresh)
-        st.subheader("Volcano plot")
-        savePlot(base, "DEA:resp")
-        st.altair_chart(base, theme="streamlit", use_container_width=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"]=="Non-responsive"]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
+        if len(self.df_group1) >1 and len(self.df_group2)>1:
+            self.df_group1 = self.df_group1.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+            self.df_group2 = self.df_group2.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
+                                                 axis=1)
+            self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
+            base = DEA.volcanoPlot(self, pthresh, logthresh)
+            st.subheader("Volcano plot")
+            savePlot(base, "DEA:resp")
+            st.altair_chart(base, theme="streamlit", use_container_width=True)
+        else:
+            st.warning("There are not enough samples to do DEA. Please choose another combination")
 
     def showResults(self,feature):
         st.subheader("Results")
@@ -260,6 +263,7 @@ class DEA():
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
+        print(self.ttest_res)
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
@@ -330,8 +334,8 @@ class DEA():
 
     def boxplot_resp(self, subgroup, transcript):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"] == 0]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
+        self.df_group1 = subgroup_df[subgroup_df["responsive"] == "Non-responsive"]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
         self.df_group1["Response"] = "Non-responsive"
         self.df_group2["Response"] = "Responsive"
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["Response"]})
