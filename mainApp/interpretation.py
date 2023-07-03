@@ -168,10 +168,10 @@ class Prototypes():
         self.subgroup = subgroup
         fulldf = pd.merge(self.patient_df, self.subgroup, left_index=True, right_index=True)
         feature = fulldf['responsive'].values
-        fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+        fulldf = fulldf.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
-        plot,base = Prototypes.plotMedoids(data, sampleMedoids, feature)
-        savePlot(plot, "subgroup")
+        base = Prototypes.plotMedoids(data, sampleMedoids, feature)
+        savePlot(base, "subgroup")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
         st.subheader("Prototype samples")
         table = Prototypes.showMedoids(self, feature)

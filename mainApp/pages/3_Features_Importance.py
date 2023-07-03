@@ -145,8 +145,6 @@ if "data" in st.session_state:
                 n_features = st.number_input('Number of features', value=5)
             transc = feature_inter.filterSamples(transc, responses)
             sample = st.selectbox("Select a sample", transc, key="sample")
-            st.write("Click button to search for feature {} in GeneCards database.".format(sample))
-            st.button('Open GeneCards', on_click=openGeneCard, args=(sample,))
             if local_model == "LIME":
                 st.subheader("LIME for individual predictions")
                 st.write(" ")
