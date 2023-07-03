@@ -42,8 +42,15 @@ def openGeneCard(gene):
     webbrowser.open(webpage_link)
 
 def savePlot(fig, feature):
-    if st.button('Save Plot', key="plot"+feature):  # Update the key to a unique value
+    if st.button('Save Plot', key="plot"+feature):
         fig.save('plot_' + feature + '.png')
+        st.info('Plot saved as .png in working directory', icon="ℹ️")
+    else:
+        st.write("")
+
+def savePlot_plt(fig,feature):
+    if st.button('Save Plot', key="plot"+feature):
+        fig.savefig(feature)
         st.info('Plot saved as .png in working directory', icon="ℹ️")
     else:
         st.write("")

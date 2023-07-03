@@ -216,8 +216,9 @@ class DEA():
         self.df_group2 = DEA.selectGroups(self,option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
         self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
-        fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
-        savePlot(fig,"DEA")
+        base = DEA.volcanoPlot(self,pthresh,logthresh)
+        st.subheader("Volcano plot")
+        savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
     def diffAnalysis_response(self,subgroup,pthresh, logthresh):
@@ -228,9 +229,9 @@ class DEA():
         self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
                                              axis=1)
         self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
-        fig,base = DEA.volcanoPlot(self, pthresh, logthresh)
+        base = DEA.volcanoPlot(self, pthresh, logthresh)
         st.subheader("Volcano plot")
-        savePlot(fig, "DEA:resp")
+        savePlot(base, "DEA:resp")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
     def showResults(self,feature):
@@ -241,15 +242,16 @@ class DEA():
         num_sig = len(self.ttest_res[self.ttest_res["Significant"] == True])
         if only_sig and num_sig >0:
             numShow = st.slider('Select transcripts to show', 0,)
-            show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
+            df_show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
         elif only_sig:
             st.warning("No significant transcripts found.")
-            show = None
+            df_show = None
         else:
             numShow = st.slider('Select transcripts to show', 0,len(self.ttest_res))
-            show = self.ttest_res[:numShow]
-        saveTable(show, feature)
-        st.dataframe(show, use_container_width=True)
+            df_show = self.ttest_res[:numShow]
+        df_show = df_show.drop('direction', axis = 1)
+        saveTable(df_show, feature)
+        st.dataframe(df_show, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
         return self.ttest_res
 
@@ -258,8 +260,8 @@ class DEA():
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
-        fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
-        savePlot(fig, "DEA")
+        base = DEA.volcanoPlot(self,pthresh,logthresh)
+        savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
     def infoTranscript(self, transcript):
@@ -283,37 +285,22 @@ class DEA():
 
     def volcanoPlot(self, thresh, logthresh):
         df = self.ttest_res
-        fig = plt.figure(figsize=(10, 5))
-        plt.scatter(x=df['LFC'], y=df['P-Value'].apply(lambda x: -np.log10(x)), s=5,color="black")
         direction = [((df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)),((df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)),
                      ((df['LFC'] > -logthresh)&(df['LFC'] < logthresh))]
         values = ['down-regulated', 'up-regulated', 'non-significant']
         df['direction'] = np.select(direction, values)
-        down = df[(df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)]
-        up = df[(df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)]
         df['P-Value'] = df['P-Value'].apply(lambda x: -np.log10(x))
-        plt.scatter(x=down['LFC'], y=down['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Down-regulated",
-                   color="blue")
-        plt.scatter(x=up['LFC'], y=up['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Up-regulated",
-                   color="red")
-        plt.xlabel("log2FC")
-        plt.ylabel('-log10(p-value)')
-        plt.axvline(x=-logthresh,color="grey",linestyle="--")
-        plt.axvline(x=logthresh, color="grey", linestyle="--")
-        plt.axhline(y=-np.log10(thresh), color="grey", linestyle="--")
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=2)
         base = alt.Chart(df, title = "Volcano plot").mark_circle(size=100).encode(
             x=alt.Y('LFC', title = "log2FC"),
             y=alt.Y('P-Value', title = '-log10(p-value)'),
             color=alt.Color('direction:O',
-                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black']))
+                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC', 'P-Value','Feature']
         ).interactive().properties(height=700, width=400)
-
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold2 = alt.Chart(pd.DataFrame({'x': [logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold3 = alt.Chart(pd.DataFrame({'y': [-np.log10(thresh)]})).mark_rule(strokeDash=[10, 10]).encode(y='y')
         base = base +threshold1 + threshold2 + threshold3
-        return fig,base
+        return base
 
     def infoTest(self,group1,group2,feature,pthresh,logthresh):
         size = len(self.ttest_res[self.ttest_res['Significant']==True])
@@ -334,18 +321,12 @@ class DEA():
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
         full_df = pd.concat([df1, df2])
-        fig,axs= plt.subplots(figsize=(8,7))
-        sns.boxplot(x="class", y=transcript, data=full_df, hue = "class",palette=["#F72585", "#4CC9F0"], ax = axs)
-        sns.stripplot(x="class", y=transcript, data=full_df, hue = "class",palette=["#F72585", "#4CC9F0"],ax = axs)
-        plt.legend([],[], frameon=False)
-        plt.ylabel("Expression level")
-        plt.xlabel("Group")
         base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True,size=100).encode(
             x=alt.X("class", title="Group"),
             y=alt.Y(transcript, title="Expression level"),
             color=alt.Color("class", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
                             )).properties(height=650, width = 300)
-        return fig,base
+        return base
 
     def boxplot_resp(self, subgroup, transcript):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
@@ -356,18 +337,12 @@ class DEA():
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["Response"]})
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["Response"]})
         full_df = pd.concat([df1, df2])
-        fig, axs = plt.subplots(figsize=(8, 7))
-        sns.boxplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        sns.stripplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        plt.legend([], [], frameon=False)
-        plt.ylabel("Expression level")
-        plt.xlabel("Response to treatment")
         base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
             x=alt.X("class:N", title="Group"),
             y=alt.Y(transcript, title="Expression level"),
             color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
                             )).properties(height=650, width=300)
-        return fig,base
+        return base
 
     def boxplot(self, option1, option2,feature,transcript):
         self.df_group1 = DEA.selectGroups(self, option1, feature)

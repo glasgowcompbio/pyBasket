@@ -109,20 +109,18 @@ class Results():
 
     def count_plot(self,feature, title, x_lab, response):
         if response == True:
-            hue = self.patient_df["responsive"]
             self.patient_df["responsive"] = self.patient_df["responsive"].replace([0, 1], ['Non-responsive', 'Responsive'])
             self.patient_df[feature] = pd.Categorical(self.patient_df[feature])
             df_grouped = self.patient_df.groupby(["responsive", feature]).size().reset_index(name='Count')
             palette = ["#F72585", "#4CC9F0"]
-            base = alt.Chart(df_grouped).mark_bar().encode(
+            base = alt.Chart(df_grouped, title = title).mark_bar().encode(
                 alt.X(feature, type = "nominal"),
                 alt.Y('Count', axis=alt.Axis(grid=False)),
                 alt.Color("responsive"),tooltip=["responsive", feature]
             ).properties(height=650).configure_range(category=alt.RangeScheme(palette))
         else:
-            hue = None
             palette = sns.color_palette("Paired", 25).as_hex()
-            base = alt.Chart(self.patient_df).transform_aggregate(
+            base = alt.Chart(self.patient_df,title = title).transform_aggregate(
                 count='count()',
                 groupby=[feature]
             ).mark_bar().encode(
@@ -363,6 +361,26 @@ class heatMap(Analysis):
 
         plt.show()
         return fig
+
+    def barInferredProb(self, results):
+        #inf_df = self.HM_inferredProb(results)
+        stacked = self.stacked_posterior
+        inferred_basket = np.mean(stacked.basket_p.values, axis=1)
+        basket_df = pd.DataFrame({'prob': inferred_basket, 'tissue': results.baskets_names})
+        palette = sns.color_palette("Paired", 25).as_hex()
+        base = alt.Chart(basket_df).mark_bar().encode(
+            alt.X('tissue:N', title='Tissue/Basket'),
+            alt.Y('prob:Q', title="Inferred response probability"), alt.Color('tissue:N')
+        ).properties(
+            height=650,
+            title="Number of samples"
+        ).configure_range(
+            category=alt.RangeScheme(palette))
+        st.write("## Inferred basket response")
+        st.write(" ")
+        savePlot(base, "Infrespprob")
+        st.altair_chart(base, theme="streamlit", use_container_width=True)
+
 
 class dim_PCA(Analysis):
     def __init__(self, Results):

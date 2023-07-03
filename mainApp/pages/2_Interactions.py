@@ -1,7 +1,7 @@
 import streamlit as st
 from processing import readPickle, Results, defaultPlot_leg, Analysis, dim_PCA, heatMap
 from interpretation import Prototypes, DEA
-from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard
+from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt
 from streamlit_option_menu import option_menu
 
 add_logo()
@@ -41,7 +41,7 @@ if "data" in st.session_state:
             num_samples = heatmap.heatmapNum(data)
             HM_samples = heatmap.heatmap_interaction(data, num_samples, "Number of samples per interaction"
                                                      , min_num, int(cluster), basket)
-            savePlot(HM_samples, str(cluster) + "_" + basket)
+            savePlot_plt(HM_samples, str(cluster) + "_" + basket)
             st.pyplot(HM_samples)
         elif variable == 'Number of responsive samples':
             st.write("#### Number of samples per basket*cluster interaction that respond to the drug")
@@ -50,7 +50,7 @@ if "data" in st.session_state:
             response_df = heatmap.heatmapResponse(data)
             HM_response = heatmap.heatmap_interaction(data, response_df, "Responsive samples per interaction", min_num,
                                                       int(cluster), basket)
-            savePlot(HM_response, str(cluster) + "_" + basket)
+            savePlot_plt(HM_response, str(cluster) + "_" + basket)
             st.pyplot(HM_response)
         else:
             st.write("#### Inferred response probability per basket*cluster interaction.")
@@ -59,8 +59,9 @@ if "data" in st.session_state:
             inferred_df = heatmap.HM_inferredProb(data)
             HM_inferred = heatmap.heatmap_interaction(data, inferred_df, "Inferred basket*cluster interaction", min_num,
                                                       int(cluster), basket)
-            savePlot(HM_inferred, str(cluster) + "_" + basket)
+            savePlot_plt(HM_inferred, "inferred_heatmap")
             st.pyplot(HM_inferred)
+        heatmap.barInferredProb(data)
 
     elif menu == "Selected interaction":
         st.text("")
@@ -88,7 +89,7 @@ if "data" in st.session_state:
                     st.dataframe(subgroup, use_container_width=True)
                 else:
                     heatmap2 = heatmap.heatmapTranscripts(subgroup)
-                    savePlot(heatmap2, "_transcripts")
+                    savePlot_plt(heatmap2, "_transcripts")
                     st.pyplot(heatmap2)
                     #st.altair_chart(base, theme="streamlit", use_container_width=True)
             except:
@@ -159,9 +160,9 @@ if "data" in st.session_state:
                         st.write(" ")
                         st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
                         st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
-                    fig,base = dea.boxplot_inter(subgroup, transcript)
+                    base = dea.boxplot_inter(subgroup, transcript)
                     with col54:
-                        savePlot(fig, "DEA" + transcript)
+                        savePlot(base, "DEA" + transcript)
                         st.altair_chart(base, theme="streamlit", use_container_width=True)
                 except:
                     st.warning("Not enough samples. Please try a different combination.")
@@ -180,9 +181,9 @@ if "data" in st.session_state:
                         st.write(" ")
                         st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
                         st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
-                    fig,base = dea.boxplot_resp(subgroup, transcript)
+                    base = dea.boxplot_resp(subgroup, transcript)
                     with col54:
-                        savePlot(fig, "DEA" + transcript)
+                        savePlot(base, "DEA" + transcript)
                         st.altair_chart(base, theme="streamlit", use_container_width=True)
                 else:
                     st.warning("Not enough samples. Please try a different combination.")
