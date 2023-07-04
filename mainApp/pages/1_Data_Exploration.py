@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import streamlit as st
-from processing import readPickle, Results, Analysis, dim_PCA
+from processing import readPickle, Results, Analysis, dim_PCA, heatMap
 from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
 from interpretation import Prototypes, Kmedoids,DEA
 from streamlit_option_menu import option_menu
@@ -10,70 +10,70 @@ add_logo()
 sideBar()
 st.header("Data exploration")
 st.write("---")
-menu = option_menu(None, ["Samples information", "Statistics"],
+menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"],
     icons=["bi bi-clipboard-data", "bi bi-graph-up"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-
+    heatmap = heatMap(data)
     if menu == "Samples information":
-        tab11, tab12 = st.tabs(["Number of samples", "AAC response"])
-        with tab11:
-            st.subheader("Number of samples")
-            st.write(
-                "The number of samples is shown by cluster or basket/tissue. The number of responsive and non-responsive"
-                " samples within groups can also be explored.")
+        st.subheader("Number of samples")
+        st.write(
+            "The number of samples is shown by cluster or basket/tissue. The number of responsive and non-responsive"
+            " samples within groups can also be explored.")
+        st.write(" ")
+        col11, col12 = st.columns((1, 1))
+        with col11:
+            option_tab1 = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'),
+                                       key="option-tab1")
+        with col12:
             st.write(" ")
-            col11, col12 = st.columns((1, 1))
-            with col11:
-                option_tab1 = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'),
-                                           key="option-tab1")
-            with col12:
-                st.write(" ")
-                RD = st.checkbox("Group by responsiveness", key="responsive")
-                RawD = st.checkbox("Show raw data", key="raw-data")
-            if option_tab1 == "Clusters":
-                data.displayNums("cluster_number", "Cluster number", RD, RawD, "Samples per cluster")
-            elif option_tab1 == 'Baskets/Tissues':
-                data.displayNums("tissues", "Tissue", RD, RawD, "Samples per tissue")
-        with tab12:
-            st.subheader("AAC response")
-            st.write(
-                "The Area Above the Curve (AAC) is a measure used to analyse drug response and quantify the effect of"
-                " a drug over a period of time. In the context of he GDSC dataset, the AAC is the measure of the cell"
-                " or cell line overall survival in response to the drug: the larger the AAC, the more resistance to the"
-                " drug is shown."
-                " "
-                "The AAC values per cluster o basket/tissue is shown, as well as within these for Responsive and Non-"
-                "responsive samples.")
+            RD = st.checkbox("Group by responsiveness", key="responsive")
+            RawD = st.checkbox("Show raw data", key="raw-data")
+        if option_tab1 == "Clusters":
+            data.displayNums("cluster_number", "Cluster number", RD, RawD, "Samples per cluster")
+        elif option_tab1 == 'Baskets/Tissues':
+            data.displayNums("tissues", "Tissue", RD, RawD, "Samples per tissue")
+        st.write("---")
+        st.subheader("AAC response")
+        st.write(
+            "The Area Above the Curve (AAC) is a measure used to analyse drug response and quantify the effect of"
+            " a drug over a period of time. In the context of he GDSC dataset, the AAC is the measure of the cell"
+            " or cell line overall survival in response to the drug: the larger the AAC, the more resistance to the"
+            " drug is shown."
+            " "
+            "The AAC values per cluster o basket/tissue is shown, as well as within these for Responsive and Non-"
+            "responsive samples.")
+        st.write(" ")
+        col21, col22 = st.columns((1, 1))
+        with col21:
+            option_tab2 = st.selectbox("Select how to group samples", ('None', 'Clusters', 'Baskets/Tissues'),
+                                       key="option-tab2")
+        with col22:
             st.write(" ")
-            col21, col22 = st.columns((1, 1))
+            st.write(" ")
+            RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
+        if option_tab2 == 'None':
             with col21:
-                option_tab2 = st.selectbox("Select how to group samples", ('None', 'Clusters', 'Baskets/Tissues'),
-                                           key="option-tab2")
+                option_tab3 = st.selectbox("Show subgroups", ('None', 'Clusters', 'Baskets/Tissues'),
+                                           key="option-tab3")
+            if option_tab3 == "None":
+                data.non_group_plot(None, RawD_AAC)
+            elif option_tab3 == "Clusters":
+                data.non_group_plot("cluster_number", RawD_AAC)
+            elif option_tab3 == 'Baskets/Tissues':
+                data.non_group_plot("tissues", RawD_AAC)
+        else:
             with col22:
-                st.write(" ")
-                st.write(" ")
-                RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
-            if option_tab2 == 'None':
-                with col21:
-                    option_tab3 = st.selectbox("Show subgroups", ('None', 'Clusters', 'Baskets/Tissues'),
-                                               key="option-tab3")
-                if option_tab3 == "None":
-                    data.non_group_plot(None, RawD_AAC)
-                elif option_tab3 == "Clusters":
-                    data.non_group_plot("cluster_number", RawD_AAC)
-                elif option_tab3 == 'Baskets/Tissues':
-                    data.non_group_plot("tissues", RawD_AAC)
-            else:
-                with col22:
-                    RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
-                if option_tab2 == "Clusters":
-                    data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC, "AAC response per cluster")
-                elif option_tab2 == 'Baskets/Tissues':
-                    data.displayAAC("tissues", "Tissue", RD_AAC, RawD_AAC, "AAC response per tissue")
-    if menu == "Statistics":
+                RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
+            if option_tab2 == "Clusters":
+                data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC, "AAC response per cluster")
+            elif option_tab2 == 'Baskets/Tissues':
+                data.displayAAC("tissues", "Tissue", RD_AAC, RawD_AAC, "AAC response per tissue")
+    elif menu == "pyBasket results":
+        heatmap.barInferredProb(data)
+    elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
             analysis_data = Analysis(data)

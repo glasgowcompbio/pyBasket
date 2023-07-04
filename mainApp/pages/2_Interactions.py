@@ -61,7 +61,6 @@ if "data" in st.session_state:
                                                       int(cluster), basket)
             savePlot_plt(HM_inferred, "inferred_heatmap")
             st.pyplot(HM_inferred)
-        heatmap.barInferredProb(data)
 
     elif menu == "Selected interaction":
         st.text("")

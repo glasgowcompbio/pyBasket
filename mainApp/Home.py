@@ -8,6 +8,7 @@ from interpretation import *
 from streamlit_option_menu import option_menu
 import streamlit.components.v1 as components
 
+
 st.set_page_config(
     page_title="pyBasket",
     page_icon="bi bi-basket",
