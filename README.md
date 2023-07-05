@@ -1,6 +1,5 @@
 # pyBasket
 
-<<<<<<< HEAD
 This project provides codes to accompany the draft manuscript 'Omics Design For Basket Trial in Precision Medicine'.
 
 **Abstract:**
