@@ -13,6 +13,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from common import savePlot,saveTable
 import altair as alt
+import arviz as az
 import warnings
 #warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -232,6 +233,52 @@ class Results():
                 ).interactive().properties(height=650).configure_range(category=alt.RangeScheme(palette))
             savePlot(base, "AAC")
             st.altair_chart(base,theme = "streamlit",use_container_width=True)
+    def barInferredProb(self, feature):
+        stacked = self.stacked_posterior
+        if feature == 'baskets':
+            len_colors = len(self.baskets_names)
+            inferred_basket = np.mean(stacked.basket_p.values, axis=1)
+            df = pd.DataFrame({'prob': inferred_basket, 'tissue': self.baskets_names})
+            title = 'Tissue/Basket'
+            feature = 'tissue:N'
+            subheader = "Inferred basket response"
+            #fig,ax = plt.subplots(figsize=(12,10))
+            #az.plot_ecdf(inferred_basket, confidence_bands = True,ax = ax)
+            #st.pyplot(fig)
+        elif feature == "clusters":
+            len_colors = len(self.clusters_names)
+            inferred_cluster = np.mean(stacked.cluster_p.values, axis=1)
+            df = pd.DataFrame({'prob': inferred_cluster, 'cluster': self.clusters_names})
+            title = 'Clusters'
+            feature = 'cluster:N'
+            subheader = "Inferred cluster response"
+            """
+        elif feature == "interaction":
+            inferred_mat = np.mean(stacked.joint_p.values, axis=2)
+            inferred_df = pd.DataFrame(inferred_mat, index=self.baskets_names, columns=self.clusters_names)
+            base = alt.Chart(inferred_df.reset_index(), title="Inferred response prob interactions").mark_rect().encode(
+                alt.X('index:N').title("Basket").axis(format="%e", labelAngle=0),
+                alt.Y('columns').title("Cluster")
+            ).configure_view(
+                step=13,
+                strokeWidth=0
+            ).configure_axis(
+                domain=False
+            )
+            st.altair_chart(base, theme="streamlit", use_container_width=True)
+"""
+        palette = sns.color_palette("Paired", len_colors).as_hex()
+        base = alt.Chart(df).mark_bar().encode(
+            alt.X(feature, title=title),
+            alt.Y('prob:Q', title="Inferred response probability"), alt.Color(feature)
+        ).properties(
+            height=650,
+            title=subheader
+        ).configure_range(
+            category=alt.RangeScheme(palette))
+        st.write(" ")
+        savePlot(base, "Infrespprob")
+        st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 
 class Analysis():
@@ -361,25 +408,6 @@ class heatMap(Analysis):
 
         plt.show()
         return fig
-
-    def barInferredProb(self, results):
-        #inf_df = self.HM_inferredProb(results)
-        stacked = self.stacked_posterior
-        inferred_basket = np.mean(stacked.basket_p.values, axis=1)
-        basket_df = pd.DataFrame({'prob': inferred_basket, 'tissue': results.baskets_names})
-        palette = sns.color_palette("Paired", 25).as_hex()
-        base = alt.Chart(basket_df).mark_bar().encode(
-            alt.X('tissue:N', title='Tissue/Basket'),
-            alt.Y('prob:Q', title="Inferred response probability"), alt.Color('tissue:N')
-        ).properties(
-            height=650,
-            title="Number of samples"
-        ).configure_range(
-            category=alt.RangeScheme(palette))
-        st.write("## Inferred basket response")
-        st.write(" ")
-        savePlot(base, "Infrespprob")
-        st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 
 class dim_PCA(Analysis):

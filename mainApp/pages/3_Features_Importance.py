@@ -11,7 +11,7 @@ hide_rows = hideRows()
 st.header("Features importance")
 
 st.write("---")
-menu = option_menu(None, ["Overview", "Global methods", "Local methods"],
+menu = option_menu(None, ["Overview", "Global methods", "Local methods", "Features interaction"],
     icons=["bi bi-bar-chart", "bi bi-globe", "bi bi-pin-map"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
@@ -61,11 +61,13 @@ if "data" in st.session_state:
                 st.pyplot(fig)
 
         elif global_model == "Permutation Based":
+
             st.subheader("Permutation based feature importance")
             st.write('Permutation based feature importance is a MA method that measures'
                      ' the importance of a feature by calculating the increase in the model’s prediction'
                      'error when re-shuffling each predictor. Below is shown how much impact have the top {} features have in the model’s prediction for AAC response.'.format(num_feat))
-            feature_inter.permutationImportance(num_feat)
+            RawD = st.checkbox("Show raw data", key="rd-PBI")
+            feature_inter.permutationImportance(num_feat,RawD)
     elif menu == "Global methods":
         st.write(" ")
         st.subheader("Global methods")
@@ -175,3 +177,8 @@ if "data" in st.session_state:
                 st.write("  ")
                 RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
                 feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
+    elif menu == "Features interaction":
+        st.subheader("Features interaction")
+
+        st.write("Sometimes is useful to investigate whether features interact between them.")
+        feature_inter.SHAP_interact(explainer)

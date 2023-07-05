@@ -7,7 +7,7 @@ import sklearn
 import shap
 import numpy as np
 import pandas as pd
-from common import savePlot, saveTable, openGeneCard
+from common import savePlot, saveTable, openGeneCard,alt_hor_barplot
 import seaborn as sns
 from PyALE import ale
 from alibi.explainers import ALE, plot_ale
@@ -32,29 +32,18 @@ class FI():
 
     def plotImportance(self, RawD, num_feats):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
-        #importance_sort = importance_sort[::-1]
         importance_vals= importance_sort['importance_score'].values[:num_feats]
         importance_vals = importance_vals[::-1]
-
         importance_feats = importance_sort.index[:num_feats]
         importance_feats = importance_feats[::-1]
-        palette = sns.color_palette("Paired", 25).as_hex()
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         raw_D = raw_D.sort_values(by='Importance score', ascending=False)
-        base = alt.Chart(raw_D).mark_bar().encode(
-            alt.X('Importance score', title='Importance score'),
-            alt.Y('Features:O', title="Features").sort('-x'), alt.Color('Features:O')
-        ).properties(
-            height=650,
-            title="Feature Importance by Random Forest"
-        ).configure_range(
-            category=alt.RangeScheme(palette))
         if RawD:
             saveTable(raw_D,"RF-FI")
             st.dataframe(raw_D)
         else:
-            savePlot(base, "RF-FI")
-            st.altair_chart(base, theme="streamlit", use_container_width=True)
+            alt_hor_barplot(raw_D, 'Importance score', 'Features', num_feats, 'Importance score', "Features",
+                            'Features', "Feature Importance by Random Forest", "RF-FI")
 
     def prepareData(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
@@ -86,40 +75,18 @@ class FI():
             st.caption(
             "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
 
-    def permutationImportance(self, num_feats):
+    def permutationImportance(self, num_feats, RawD):
         rf = FI.prepareData(self, self.drug_response)
-
-        # the permutation based importance
-        perm_importance = permutation_importance(rf, self.X_test, self.y_test,n_repeats=10, random_state=42)
-
-        #sorted_idx = perm_importance.importances_mean.argsort()
+        perm_importance = permutation_importance(rf, self.X_test.values, self.y_test.values,n_repeats=10, random_state=42)
         perm_sorted_idx = perm_importance.importances_mean.argsort()
-        perm_sorted_idx = perm_sorted_idx[:num_feats]
         perm_sorted_idx = perm_sorted_idx[::-1]
-        #top_positive_indices = sorted_idx[-15:]
-
-        # Get the indices of the top 50 negative values
-        #top_negative_indices = sorted_idx[:15]
-
-        # Combining the indices of top positive and negative values
-        #top_indices = np.concatenate((top_negative_indices, top_positive_indices))
-
-        # The top 50 values (both negative and positive) can be accessed using:
-        #top_values = perm_importance.importances_mean[top_indices]
-        fig = plt.figure(figsize = (10,8))
-        plt.boxplot(
-            perm_importance.importances[perm_sorted_idx].T,
-            vert=False,
-            labels=self.X_test.columns[perm_sorted_idx],
-        )
-        #plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
-        plt.xlabel("Permutation Importance")
-        savePlot(fig)
-        st.pyplot(fig)
-
-
-        #perm = PermutationImportance(rf, cv=None, refit=False, n_iter=50).fit(X_train, y_train)
-        #perm_imp_eli5 = imp_df(X_train.columns, perm.feature_importances_)
+        perm_sorted_idx = perm_sorted_idx[:num_feats]
+        raw_D = pd.DataFrame({'Features': self.X_test.columns[perm_sorted_idx], 'Importance': perm_importance.importances_mean[perm_sorted_idx]})
+        if RawD:
+            saveTable(raw_D, "PBI")
+            st.dataframe(raw_D)
+        else:
+            alt_hor_barplot(raw_D, 'Importance', 'Features', num_feats, 'Mean Importance score', "Features", 'Features', "Feature Importance by Permutation based", "PIB")
 
     def SHAP(self):
         rf = FI.prepareData(self, self.drug_response)
@@ -215,6 +182,15 @@ class FI():
         else:
             df = df
         return df
+    def SHAP_interact(self,explainer):
+        shap_interaction = explainer.shap_interaction_values(self.expr_df_selected)
+        fig, ax = plt.subplots()
+        shap.dependence_plot(
+            ("EAPP", "EIF3D"),
+            shap_interaction, self.expr_df_selected,
+            display_features=self.expr_df_selected)
+        st.pyplot(fig)
+
 
 class Global(FI):
     def __init__(self, Results):
@@ -302,7 +278,6 @@ class Global(FI):
         samples_g2 = Global.splitResponse(self,1).values
         lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
-        print(df1)
         df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
         lr_exp2 = lr_ale.explain(df2)
@@ -321,4 +296,6 @@ class Global(FI):
         ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit / 5))
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
         return st.pyplot(fig)
+
+
 

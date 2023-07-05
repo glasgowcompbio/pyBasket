@@ -11,7 +11,7 @@ sideBar()
 st.header("Data exploration")
 st.write("---")
 menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"],
-    icons=["bi bi-clipboard-data", "bi bi-graph-up"],
+    icons=["bi bi-clipboard-data", "bi bi-basket","bi bi-graph-up"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
 if "data" in st.session_state:
@@ -72,7 +72,19 @@ if "data" in st.session_state:
             elif option_tab2 == 'Baskets/Tissues':
                 data.displayAAC("tissues", "Tissue", RD_AAC, RawD_AAC, "AAC response per tissue")
     elif menu == "pyBasket results":
-        heatmap.barInferredProb(data)
+        st.subheader("Inferred response probability")
+        st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
+                 " overall probability of baskets or cluster to response to the treatment.")
+        option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
+                                   key="option-page2")
+        if option_page2 == 'Baskets/Tissues':
+            st.write("Plot of the inferred response probability per basket (tissue).")
+            data.barInferredProb("baskets")
+        elif option_page2 == "Clusters":
+            st.write("Plot of the inferred response probability per cluster.")
+            data.barInferredProb("clusters")
+        #elif option_page2 == "interaction":
+         #   data.barInferredProb("interaction")
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:

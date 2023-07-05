@@ -9,6 +9,7 @@ import streamlit as st
 from processing import *
 import webbrowser
 from altair_saver import save
+import altair as alt
 
 def add_logo():
     st.markdown(
@@ -79,3 +80,17 @@ def sideBar():
     else:
         with st.sidebar:
             st.warning("Results not found. Please upload in a results file in Home.")
+
+def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
+    palette = sns.color_palette("Paired", num_cols).as_hex()
+    base = alt.Chart(df).mark_bar().encode(
+        alt.X(x, title=title_x),
+        alt.Y(y+':O', title=title_y).sort('-x'), alt.Color(colors +':O')
+    ).properties(
+        height=650,
+        title= main_title
+    ).configure_range(
+        category=alt.RangeScheme(palette))
+    savePlot(base,save)
+    st.altair_chart(base, theme="streamlit", use_container_width=True)
+
