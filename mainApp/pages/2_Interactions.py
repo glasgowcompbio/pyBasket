@@ -1,5 +1,5 @@
 import streamlit as st
-from processing import readPickle, Results, defaultPlot_leg, Analysis, dim_PCA, heatMap
+from processing import Analysis, heatMap
 from interpretation import Prototypes, DEA
 from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt
 from streamlit_option_menu import option_menu
@@ -15,7 +15,7 @@ menu = option_menu(None, ["All interactions", "Selected interaction"],
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-    analysis_data = st.session_state["analysis"]
+    analysis_data = st.session_state["Analysis"]
     heatmap = heatMap(data)
     if "basket" in st.session_state:
         basket = st.session_state["basket"]
@@ -75,11 +75,9 @@ if "data" in st.session_state:
                 st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(str(cluster), basket, size))
                 col21, col22 = st.columns((2, 2))
                 with col21:
-                    count = analysis_data.samplesCount(subgroup)
-                    st.pyplot(count, use_container_width=False)
+                    analysis_data.samplesCount(subgroup)
                 with col22:
-                    df = analysis_data.responseSamples(subgroup)
-                    st.dataframe(df)
+                    analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
                 st.write("#### Transcriptional expression")
                 RawD = st.checkbox("Show raw data", key="raw-data-HM1")
@@ -102,8 +100,7 @@ if "data" in st.session_state:
             st.write(" ")
             #st.write("##### PCA of samples in **cluster {}** & **basket {}**".format(cluster, basket))
             RawD = st.checkbox("Show raw data", key="raw-data")
-            pca = dim_PCA(data)
-            pca.adv_PCA(subgroup,RawD)
+            analysis_data.adv_PCA(subgroup,RawD)
         with tab3:
             st.subheader("Prototypes of subgroup")
             st.write("")
@@ -159,17 +156,15 @@ if "data" in st.session_state:
                         st.write(" ")
                         st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
                         st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
-                    base = dea.boxplot_inter(subgroup, transcript)
                     with col54:
-                        savePlot(base, "DEA" + transcript)
-                        st.altair_chart(base, theme="streamlit", use_container_width=True)
+                        dea.boxplot_inter(subgroup, transcript)
                 except:
                     st.warning("Not enough samples. Please try a different combination.")
             else:
                 st.write("##### Responsive vs non-responsive samples within basket*cluster interaction")
                 st.write("DEA has been performed within samples in the selected interaction and comparing Responsive vs Non-responsive samples.")
                 dea = DEA(data)
-                dea.diffAnalysis_response(subgroup, pthresh, logthresh)
+                dea.diffAnalysis_response(data,subgroup, pthresh, logthresh)
                 if subgroup.size > 0:
                     try:
                         results = dea.showResults("interaction")

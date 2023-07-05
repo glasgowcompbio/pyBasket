@@ -182,6 +182,8 @@ class FI():
         else:
             df = df
         return df
+
+
     def SHAP_interact(self,explainer):
         shap_interaction = explainer.shap_interaction_values(self.expr_df_selected)
         fig, ax = plt.subplots()
@@ -190,6 +192,7 @@ class FI():
             shap_interaction, self.expr_df_selected,
             display_features=self.expr_df_selected)
         st.pyplot(fig)
+
 
 
 class Global(FI):

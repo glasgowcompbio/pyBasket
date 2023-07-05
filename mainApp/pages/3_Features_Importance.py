@@ -1,5 +1,5 @@
 import streamlit as st
-from processing import readPickle, Results, defaultPlot_leg, Analysis
+from processing import Results, defaultPlot_leg, Analysis
 from importance import FI, Global
 from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard
 from streamlit_option_menu import option_menu
@@ -130,11 +130,11 @@ if "data" in st.session_state:
             basket, cluster = basket, cluster
         elif group_samples == 'Select only samples in cluster':
             with col35:
-                cluster= st.selectbox("Select a cluster", data.setClusters(), key="only_cluster")
+                cluster= st.selectbox("Select a cluster", data.clusters_names, key="only_cluster")
             basket = "None"
         elif group_samples == 'Select only samples in tissue/basket':
             with col35:
-                basket = st.selectbox("Select a basket/tissue", data.setBaskets(), key="only_basket")
+                basket = st.selectbox("Select a basket/tissue", data.baskets_names, key="only_basket")
             cluster = "None"
         transc, size = feature_inter.displaySamples(cluster,basket)
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
@@ -179,6 +179,5 @@ if "data" in st.session_state:
                 feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
     elif menu == "Features interaction":
         st.subheader("Features interaction")
-
         st.write("Sometimes is useful to investigate whether features interact between them.")
-        feature_inter.SHAP_interact(explainer)
+        #feature_inter.SHAP_interact(explainer)

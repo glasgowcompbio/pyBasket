@@ -6,6 +6,8 @@ import base64
 import webbrowser
 from interpretation import *
 from streamlit_option_menu import option_menu
+from explorer import Data, readPickle
+from processing import Analysis
 import streamlit.components.v1 as components
 
 
@@ -88,12 +90,12 @@ if menu == "Data Upload":
             file_name = tmp_file.name
             st.success('The file was successfully uploaded!', icon="✅")
             save_data = readPickle(tmp_file.name)
-            dict = Results(save_data,input_file.name)
-            analysis_data = Analysis(dict)
-            dict.setFeatures()
-            st.session_state["data"] = dict
-            st.session_state["analysis"] = analysis_data
+            data = Data(save_data,input_file.name)
+            analysis = Analysis(save_data,input_file.name)
+            data.setData()
+            st.session_state["data"] = data
             st.session_state["File Name"] = input_file.name
+            st.session_state["Analysis"] = analysis
     else:
         st.write(file_name)
     if "File Name" in st.session_state:
@@ -119,8 +121,7 @@ if menu == "File information":
     st.subheader("File information")
 
     if "File Name" in st.session_state:
-        #st.write("**Current file is:** {}".format(st.session_state["File Name"]))
-        st.session_state["data"].fileInfo()
+        st.session_state["Results"].fileInfo()
 
 
 if menu == 'Drug information':
@@ -145,9 +146,6 @@ if menu == 'Drug information':
              " and supports current biomedical and healthcare research and practice. Other research and journal literature related to "
              "{} can be found in the link to _PubMed_ below.".format(drug))
     st.button('Open PubMed',on_click=openPubMed, args=(drug,))
-
-    #st.write("#### _Google Scholar_")
-    #st.button('Open Google Scholar',on_click=openGoogleScholar, args=(drug,))
 
     st.write("#### _Wikipedia_")
     st.write("_Wikipedia_ is a free online accessible encyclopedia where more general non-technical information about {} can be found".format(drug))

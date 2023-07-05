@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import streamlit as st
-from processing import readPickle, Results, Analysis, dim_PCA, heatMap
+from processing import Analysis,heatMap
 from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
 from interpretation import Prototypes, Kmedoids,DEA
 from streamlit_option_menu import option_menu
+from explorer import Data
 
 hide_rows = hideRows()
 add_logo()
@@ -17,6 +18,7 @@ menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"
 if "data" in st.session_state:
     data = st.session_state["data"]
     heatmap = heatMap(data)
+    analysis = st.session_state["Analysis"]
     if menu == "Samples information":
         st.subheader("Number of samples")
         st.write(
@@ -32,9 +34,15 @@ if "data" in st.session_state:
             RD = st.checkbox("Group by responsiveness", key="responsive")
             RawD = st.checkbox("Show raw data", key="raw-data")
         if option_tab1 == "Clusters":
-            data.displayNums("cluster_number", "Cluster number", RD, RawD, "Samples per cluster")
+            if RawD:
+                data.showRawData("cluster_number","Cluster number", RD)
+            else:
+                data.countPlot(RD,"Number of samples","cluster_number","Cluster number")
         elif option_tab1 == 'Baskets/Tissues':
-            data.displayNums("tissues", "Tissue", RD, RawD, "Samples per tissue")
+            if RawD:
+                data.showRawData("tissues", "Tissue/Basket", RD)
+            else:
+                data.countPlot(RD, "Number of samples per tissue", "tissues", "Tissues")
         st.write("---")
         st.subheader("AAC response")
         st.write(
@@ -55,22 +63,14 @@ if "data" in st.session_state:
             st.write(" ")
             RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
         if option_tab2 == 'None':
-            with col21:
-                option_tab3 = st.selectbox("Show subgroups", ('None', 'Clusters', 'Baskets/Tissues'),
-                                           key="option-tab3")
-            if option_tab3 == "None":
-                data.non_group_plot(None, RawD_AAC)
-            elif option_tab3 == "Clusters":
-                data.non_group_plot("cluster_number", RawD_AAC)
-            elif option_tab3 == 'Baskets/Tissues':
-                data.non_group_plot("tissues", RawD_AAC)
+            data.AAC_scatterplot(RawD_AAC)
         else:
             with col22:
                 RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
             if option_tab2 == "Clusters":
-                data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC, "AAC response per cluster")
+                data.AAC_response("cluster_number", RD_AAC, "Cluster number", RawD_AAC)
             elif option_tab2 == 'Baskets/Tissues':
-                data.displayAAC("tissues", "Tissue", RD_AAC, RawD_AAC, "AAC response per tissue")
+                data.AAC_response("tissues", RD_AAC, "Tissue/Basket", RawD_AAC)
     elif menu == "pyBasket results":
         st.subheader("Inferred response probability")
         st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
@@ -83,13 +83,9 @@ if "data" in st.session_state:
         elif option_page2 == "Clusters":
             st.write("Plot of the inferred response probability per cluster.")
             data.barInferredProb("clusters")
-        #elif option_page2 == "interaction":
-         #   data.barInferredProb("interaction")
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
-            analysis_data = Analysis(data)
-            pca = dim_PCA(data)
             st.subheader("Dimensionality reduction")
             st.write("The goal of dimensionality reduction techniques is to project high-dimensionality data to a lower "
                      "dimensional subspace while preserving the essence of the data and the maximum amount of information.")
@@ -97,24 +93,14 @@ if "data" in st.session_state:
                      " of high-dimensional data. The results for PCA on the data can be explored for the data grouped by "
                      "clusters, baskets/tissues or responsiveness.")
             st.write(" ")
-            col31, col32 = st.columns((2,2))
-            with col31:
-                technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
-                option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
-                RawD = st.checkbox("Show raw data", key="raw-data-PCA")
-            with col32:
-                st.write(" ")
-                st.write(" ")
-                pca.infoPCA(option)
+            option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
+            RawD = st.checkbox("Show raw data", key="raw-data-PCA")
             if option == "Clusters":
-                choices = analysis_data.patient_df["cluster_number"].unique()
-                pca.PCA_analysis("cluster_number", RawD)
+                analysis.PCA_analysis("cluster_number", RawD)
             elif option == "Responsive":
-                pca.PCA_analysis("responsive", RawD)
-                choices = analysis_data.patient_df["responsive"].unique()
+                analysis.PCA_analysis("responsive", RawD)
             elif option == 'Baskets/Tissues':
-                pca.PCA_analysis("tissues", RawD)
-                choices = analysis_data.patient_df["tissues"].unique()
+                analysis.PCA_analysis("tissues", RawD)
         with tab22:
             st.subheader("Prototypes")
             st.write("The prototypical sample of each cluster, basket/tissue or pattern of response has been calculated using"
@@ -124,7 +110,6 @@ if "data" in st.session_state:
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="Prototypes")
             prototype = Prototypes(data)
             prototype.findPrototypes(option)
-            #Kmedoids()
 
         with tab23:
             st.subheader("Differential expression")
@@ -139,10 +124,10 @@ if "data" in st.session_state:
             with col51:
                 option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
                 if option == 'Clusters':
-                    subgroups = data.setClusters()
+                    subgroups = data.clusters_names
                     feature = "cluster_number"
                 elif option == 'Baskets/Tissues':
-                    subgroups = data.setBaskets()
+                    subgroups = data.baskets_names
                     feature = "tissues"
                 else:
                     subgroups = ['0','1']

@@ -66,13 +66,13 @@ def saveTable(df, feature):
 def sideBar():
     if "data" in st.session_state:
         data = st.session_state["data"]
-        analysis_data = st.session_state["analysis"]
+        analysis_data = st.session_state["Analysis"]
         st.sidebar.title("Select basket*cluster interaction")
         with st.sidebar:
-            cluster = st.selectbox("Select a cluster", data.setClusters(), key="cluster")
+            cluster = st.selectbox("Select a cluster", data.clusters_names, key="cluster")
             if "cluster" not in st.session_state:
                 st.session_state["cluster"] = cluster
-            basket = st.selectbox("Select a basket", data.setBaskets(), key="basket")
+            basket = st.selectbox("Select a basket", data.baskets_names, key="basket")
             if "basket" not in st.session_state:
                 st.session_state["basket"] = basket
             subgroup, size = analysis_data.findInteraction(cluster, basket)
@@ -94,3 +94,42 @@ def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save
     savePlot(base,save)
     st.altair_chart(base, theme="streamlit", use_container_width=True)
 
+def alt_ver_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save, tooltip):
+    if num_cols>2:
+        palette = sns.color_palette("Paired", num_cols).as_hex()
+    else:
+        palette = ["#F72585", "#4CC9F0"]
+    base = alt.Chart(df).mark_bar().encode(
+        alt.X(x +':N', title=title_x),
+        alt.Y(y+':Q', title=title_y,axis=alt.Axis(grid=False)), alt.Color(colors+':N'), tooltip = tooltip
+    ).properties(
+        height=650,
+        title=main_title
+    ).configure_range(
+        category=alt.RangeScheme(palette))
+    savePlot(base, save)
+    st.altair_chart(base, theme="streamlit", use_container_width=True)
+
+def alt_scatterplot(df, x, y, title_x, title_y,main_title,save,tooltip ):
+    base = alt.Chart(df).mark_circle(size=100).encode(
+        x=alt.Y(x, title=title_x),
+        y=alt.Y(y+':Q', title=title_y),
+        tooltip=tooltip
+    ).properties(
+        height=650,
+        title=main_title
+    ).interactive().properties(height=650)
+    savePlot(base, save)
+    st.altair_chart(base, theme="streamlit", use_container_width=True)
+
+def alt_boxplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
+    if num_cols>2:
+        palette = sns.color_palette("Paired", num_cols).as_hex()
+    else:
+        palette = ["#F72585", "#4CC9F0"]
+    base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=60).encode(
+        x=alt.X(x, title=title_x),
+        y=alt.Y(y, title=title_y), color=alt.Color(colors + ':N')
+    ).properties(height=650, title = main_title).configure_range(category=alt.RangeScheme(palette))
+    savePlot(base, save)
+    st.altair_chart(base, theme="streamlit", use_container_width=True)

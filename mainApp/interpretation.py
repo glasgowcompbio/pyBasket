@@ -17,7 +17,8 @@ import streamlit.components.v1 as components
 from sklearn_extra.cluster import KMedoids
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
-from common import savePlot, saveTable
+from common import savePlot, saveTable,alt_boxplot
+from explorer import Data
 import altair as alt
 
 np.set_printoptions(suppress=True, precision=3)
@@ -113,7 +114,6 @@ class Prototypes():
         self.pseudo_medoids = pseudo_medoids
         return X, sample_medoids
 
-
     @staticmethod
     def plotMedoids(X,sample_medoids, feature):
         num_palette = len(np.unique(feature))
@@ -168,7 +168,7 @@ class Prototypes():
         self.subgroup = subgroup
         fulldf = pd.merge(self.patient_df, self.subgroup, left_index=True, right_index=True)
         feature = fulldf['responsive'].values
-        fulldf = fulldf.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+        fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
         base = Prototypes.plotMedoids(data, sampleMedoids, feature)
         savePlot(base, "subgroup")
@@ -200,10 +200,11 @@ class DEA():
     def ttest_results(self,df1,df2,pthresh,logthresh):
         ttest_results = []
         for column in df1.columns:
-            t, p = ttest_ind(df1[column], df2[column])
+            t, p = ttest_ind(df1[column], df2[column], nan_policy='omit')
             l2fc = np.mean(df1[column].values) - np.mean(df2[column].values)
             ttest_results.append((column, t, p, l2fc))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value', 'LFC'])
+        dea_results = dea_results.dropna()
         dea_results['Adjusted P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
         #_, dea_results['Adjusted P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
                                                                      #method='fdr_bh')
@@ -221,13 +222,13 @@ class DEA():
         savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
-    def diffAnalysis_response(self,subgroup,pthresh, logthresh):
+    def diffAnalysis_response(self,results,subgroup,pthresh, logthresh):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
         self.df_group1 = subgroup_df[subgroup_df["responsive"]=="Non-responsive"]
         self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
-        if len(self.df_group1) >1 and len(self.df_group2)>1:
-            self.df_group1 = self.df_group1.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
-            self.df_group2 = self.df_group2.drop(['index','Number of samples','tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
+        if len(self.df_group1) >1 and len(self.df_group2) >1:
+            self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+            self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
                                                  axis=1)
             self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
             base = DEA.volcanoPlot(self, pthresh, logthresh)
@@ -263,7 +264,6 @@ class DEA():
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
-        print(self.ttest_res)
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
@@ -277,15 +277,6 @@ class DEA():
         df.style.hide(axis='index')
         df.style.hide(axis='columns')
         st.dataframe(df, use_container_width=True)
-
-    def pPlot(self):
-        fig =plt.figure(figsize=(9,5))
-        self.ttest_res.reset_index()
-        ax = sns.scatterplot(self.ttest_res,x= self.ttest_res.index,y = -np.log10(self.ttest_res['P-Value']), s = 15,hue='Significant', palette=['darkgrey',"#F72585"])
-        plt.xlabel('Features')
-        plt.ylabel('-log10(p-value)')
-        ax.legend(title="Significance", title_fontsize=12, fontsize=12, bbox_to_anchor=(1.1,1),  markerscale=0.5)
-        return fig
 
     def volcanoPlot(self, thresh, logthresh):
         df = self.ttest_res
@@ -325,12 +316,7 @@ class DEA():
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
         full_df = pd.concat([df1, df2])
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True,size=100).encode(
-            x=alt.X("class", title="Group"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width = 300)
-        return base
+        alt_boxplot(full_df, "class", transcript, 2, "Group","Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA")
 
     def boxplot_resp(self, subgroup, transcript):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
