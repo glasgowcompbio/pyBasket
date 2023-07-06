@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import streamlit as st
-from processing import Analysis,heatMap
+from analysis import Analysis,heatMap
 from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
 from interpretation import Prototypes, Kmedoids,DEA
 from streamlit_option_menu import option_menu

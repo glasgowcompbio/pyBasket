@@ -1,13 +1,13 @@
 import streamlit as st
 import tempfile
-from processing import *
+from analysis import *
 from common import add_logo,sideBar
 import base64
 import webbrowser
 from interpretation import *
 from streamlit_option_menu import option_menu
 from explorer import Data, readPickle
-from processing import Analysis
+from analysis import Analysis
 import streamlit.components.v1 as components
 
 
@@ -94,6 +94,7 @@ if menu == "Data Upload":
             analysis = Analysis(save_data,input_file.name)
             data.setData()
             st.session_state["data"] = data
+            st.session_state["saved data"] = save_data
             st.session_state["File Name"] = input_file.name
             st.session_state["Analysis"] = analysis
     else:

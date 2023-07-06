@@ -1,145 +1,18 @@
 import os
-import gzip
-import pickle
-import mpld3
 import numpy as np
-from loguru import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from common import savePlot,saveTable,alt_ver_barplot
 import altair as alt
 from explorer import Data
-import arviz as az
-import warnings
-#warnings.filterwarnings("ignore", category=FutureWarning)
+from scipy.cluster import hierarchy
+
 
 genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
-
-class DE():
-
-    def __init__(self, Results):
-        self.expr_df_filtered = Results.expr_df_filtered
-        self.expr_df_selected = Results.expr_df_selected
-        self.drug_response = Results.drug_response
-        self.class_labels = Results.class_labels
-        self.cluster_labels = Results.cluster_labels
-        self.patient_df = Results.patient_df
-        self.stacked_posterior = Results.stacked_posterior
-
-    def findSubgroup(self,feature,subgroup):
-        transcriptomics = self.expr_df_selected
-        sub_patients = self.patient_df[self.patient_df[feature]==subgroup]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcriptomics.loc[indexes]
-        return sub_transcript
-
-    def findInteraction(self,cluster,basket):
-        transcriptomics = self.expr_df_selected
-        sub_patients = self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcriptomics.loc[indexes]
-        num = len(sub_transcript)
-        return sub_transcript, num
-
-    def samplesCount(self,subgroup):
-        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        feature = fulldf['responsive'].values
-        fig = plt.figure(figsize=(2, 2))  # Set the size of the figure
-        ax = sns.countplot(data=subgroup, x=feature, palette= ["#F72585", "#4CC9F0"])  # Use a specific color palette
-        ax.bar_label(ax.containers[0], fontsize=4)
-        plt.xlabel('Responsive', fontsize=5)  # Add x-axis label
-        plt.ylabel('Count',fontsize=5)
-        plt.xticks(fontsize=5)  # Set the font size of x-axis tick labels
-        plt.yticks(fontsize=5)
-        plt.title('Count of Responsive vs Non-responsive samples',fontsize=5)
-        return fig
-
-    def responseSamples(self,subgroup):
-        fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
-        fulldf = fulldf.sort_values(by='responses')
-        fulldf.index.name = 'Sample'
-        fulldf['responsive'] = fulldf['responsive'] == 1
-        return fulldf
-
-
-class heatMap(DE):
-    def __init__(self, Results):
-        super().__init__(Results)
-        self.num_samples = None
-
-    def heatmapNum(self,results):
-        clusters = results.clusters_names
-        baskets = results.baskets_names
-        data = []
-        for basket in baskets:
-            clus = []
-            for cluster in clusters:
-                subgroup, num = self.findInteraction(cluster,basket)
-                clus.append(num)
-            data.append(clus)
-        df = pd.DataFrame(data, baskets,clusters)
-        self.num_samples = df
-        return df
-
-    def heatmapTranscripts(self,df):
-        fig = plt.figure(figsize=(10, 10))
-        sns.heatmap(data=df, cmap="RdBu_r", yticklabels=True)
-        plt.title('Transcriptional expression per sample')
-        plt.xlabel('Transcripts')
-        plt.ylabel('Samples')
-        plt.yticks(fontsize=9)
-        plt.xticks(fontsize=9)
-        return fig
-
-    def heatmapResponse(self, results):
-        clusters = results.clusters_names
-        baskets = results.baskets_names
-        data = []
-        for basket in baskets:
-            response = []
-            for cluster in clusters:
-                sub = len(self.patient_df[(self.patient_df['cluster_number'] == cluster) & (
-                            self.patient_df['tissues'] == basket) & (self.patient_df['responsive'] == 1)])
-                response.append(sub)
-            data.append(response)
-        df = pd.DataFrame(data, baskets, clusters)
-        return df
-
-    def HM_inferredProb(self,results):
-        basket_coords, cluster_coords = results.baskets_names,results.clusters_names
-        stacked = self.stacked_posterior
-        inferred_mat = np.mean(stacked.joint_p.values, axis=2)
-        inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
-        return inferred_df
-
-    def heatmap_interaction(self, results, df, title, num_Sum, x_highlight=None, y_highlight=None):
-        heatMap.heatmapNum(self, results)
-        x_highlight = results.clusters_names.index(x_highlight)
-        y_highlight = results.baskets_names.index(y_highlight)
-        fig = plt.figure(figsize=(10, 10))
-        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
-        plt.title(title)
-        plt.xlabel('Clusters')
-        plt.ylabel('Baskets')
-        plt.yticks(fontsize=8)
-
-        for i, c in enumerate(self.num_samples.columns):
-            for j, v in enumerate(self.num_samples[c]):
-                if v >= num_Sum:
-                    ax.text(i + 0.5, j + 0.5, '★', color='gold', size=20, ha='center', va='center')
-        if x_highlight is not None and y_highlight is not None:
-            plt.gca().add_patch(
-                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
-
-        plt.show()
-        return fig
-
 
 class Analysis(Data):
     def __init__(self, file,name):
@@ -274,3 +147,81 @@ class Analysis(Data):
                 Analysis.plot_PCA(self, "responsive",adv= True)
         except:
             st.warning("Not enough samples. Please try a different combination.")
+
+class heatMap(Analysis):
+    def __init__(self, file,name):
+        super().__init__(file,name)
+        self.num_samples = None
+
+    def heatmapNum(self):
+        clusters = self.clusters_names
+        baskets = self.baskets_names
+        data = []
+        for basket in baskets:
+            clus = []
+            for cluster in clusters:
+                subgroup, num = self.findInteraction(cluster,basket)
+                clus.append(num)
+            data.append(clus)
+        df = pd.DataFrame(data, baskets,clusters)
+        self.num_samples = df
+        return df
+
+    def heatmapTranscripts(self,df):
+        scaler = StandardScaler()
+        df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+        distance_matrix = hierarchy.distance.pdist(df_scaled.values, metric='euclidean')
+        Z = hierarchy.linkage(distance_matrix, method='ward')
+        labels = df.index.values
+        fig = plt.figure(figsize=(10, 10))
+        dendrogram = hierarchy.dendrogram(Z, labels=labels, orientation='right', color_threshold=0)
+        reordered_df = df_scaled.iloc[dendrogram['leaves']]
+        reordered_df.index = df.index
+        sns.heatmap(reordered_df, cmap="RdBu_r", cbar_kws={'label': 'Expression Level'},yticklabels=True)
+        plt.title('Transcriptional expression per sample')
+        plt.xlabel('Transcripts')
+        plt.ylabel('Samples')
+        plt.xticks(fontsize=9)
+        return fig
+
+    def heatmapResponse(self):
+        clusters = self.clusters_names
+        baskets = self.baskets_names
+        data = []
+        for basket in baskets:
+            response = []
+            for cluster in clusters:
+                sub = len(self.patient_df[(self.patient_df['cluster_number'] == cluster) & (
+                            self.patient_df['tissues'] == basket) & (self.patient_df['responsive'] == "Responsive")])
+                response.append(sub)
+            data.append(response)
+        df = pd.DataFrame(data, baskets, clusters)
+        return df
+
+    def HM_inferredProb(self):
+        basket_coords, cluster_coords = self.baskets_names,self.clusters_names
+        stacked = self.stacked_posterior
+        inferred_mat = np.mean(stacked.joint_p.values, axis=2)
+        inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
+        return inferred_df
+
+    def heatmap_interaction(self, df,title, num_Sum, x_highlight=None, y_highlight=None):
+        x_highlight = self.clusters_names.index(x_highlight)
+        y_highlight = self.baskets_names.index(y_highlight)
+        fig = plt.figure(figsize=(10, 10))
+        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
+        plt.title(title)
+        plt.xlabel('Clusters')
+        plt.ylabel('Baskets')
+        plt.yticks(fontsize=8)
+
+        for i, c in enumerate(df):
+            for j, v in enumerate(df[c]):
+                if v >= num_Sum:
+                    ax.text(i + 0.5, j + 0.5, '★', color='gold', size=20, ha='center', va='center')
+        if x_highlight is not None and y_highlight is not None:
+            plt.gca().add_patch(
+                plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
+
+        plt.show()
+        return fig

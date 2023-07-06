@@ -1,5 +1,6 @@
 import streamlit as st
-from processing import Results, defaultPlot_leg, Analysis
+from analysis import Analysis
+from explorer import Data
 from importance import FI, Global
 from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard
 from streamlit_option_menu import option_menu
@@ -21,7 +22,7 @@ if "data" in st.session_state:
         basket = st.session_state["basket"]
     if "cluster" in st.session_state:
         cluster = st.session_state["cluster"]
-    analysis_data = Analysis(data)
+    analysis_data = st.session_state["Analysis"]
     feature_inter = FI(data)
     explainer, values = feature_inter.SHAP()
     if menu == "Overview":
@@ -36,7 +37,7 @@ if "data" in st.session_state:
             global_model = st.selectbox("Select a method", ["RF feature importance", "SHAP", "Permutation Based"], key="model1")
         with col12:
             num_feat = st.number_input('Select top number of features to display (<30 is encouraged)', value=10)
-
+        st.write("---")
         if global_model == "RF feature importance":
             st.subheader("Random Forest")
             st.write("Ramdom Forest is a common ML model that combines the output of multiple decision trees to reach a single result. It has been used "
@@ -49,7 +50,7 @@ if "data" in st.session_state:
             st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
                          "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
                          " as it uses fair allocation results from cooperative game to allocate credit for a model's output among its input features."
-                         "Below, the top {} features that most contribute to predict the AAC response are shown".format(num_feat))
+                         "Below, the top {} features that most influence the prediction of the AAC response are shown".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-SHAP")
             if RawD:
                 raw_df = feature_inter.SHAP_results(values)
@@ -59,6 +60,9 @@ if "data" in st.session_state:
                 fig = feature_inter.SHAP_summary(values, num_feat)
                 savePlot(fig, "Global_SHAP")
                 st.pyplot(fig)
+                st.caption("Each point is a Shapley value of an instance per feature/transcript."
+                           "Features are ordered by their importance."
+                           )
 
         elif global_model == "Permutation Based":
 
@@ -77,7 +81,7 @@ if "data" in st.session_state:
 
         st.write("#### Accumulated Local Effects")
         st.write(" ")
-        st.write("Accumulated Local Effects describe how features influences the prediction made by the ML "
+        st.write("Accumulated Local Effects describe how a feature/transcript influences the prediction made by the ML "
                  "model on average.")
         global_ALE = Global(data)
         gsamples = st.radio("", ['Use samples in the selected interaction', 'Select only samples in cluster',
@@ -166,17 +170,51 @@ if "data" in st.session_state:
                          "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
                          " as it uses fair allocation results from cooperative game to allocate credit for a model's output among its input features."
                          )
-
                 st.write("  ")
+                st.write("##### Model's prediction")
+                pred, true_value = feature_inter.SHAP_pred(sample)
+                st.write("**Model's predicted AAC response is:** {} ".format(pred))
+                st.write("**True AAC response is:** {} ".format(true_value))
+                st.write(" ")
+                st.write("##### Bar plot for {}".format(sample))
+                st.write("  ")
+                st.write("The SHAP bar plot displays the mean absolute Shapley values for each feature (transcript). Below, the "
+                         "top {} most influential features in the model's prediction of AAC response for the chosen sample {} are shown.".format(n_features, sample))
+                col36, col37 = st.columns((2,4))
+                with col37:
+                    RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
+                    transcripts = feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
+                with col36:
+                    transcript = st.selectbox("Select feature/transcript", transcripts, key="transcript")
+                    st.write(" ")
+                    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+                    st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
+
+                st.write("##### Decision plot")
+                st.write("The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
+                         "chosen sample {}. They are a linear representation of SHAP values.".format(n_features,sample))
+                st.write("")
+                RawD = st.checkbox("Show raw data", key="raw-data-SHAP-dec")
+                feature_inter.SHAP_decision(sample, explainer, values, n_features, RawD)
+                st.caption("The grey vertical line represents the base value. Coloured line is the prediction and how each feature impacts it."
+                           " Bracket values are the real features values for the chosen sample.")
+                st.write(" ")
                 st.write("##### Forces plot")
                 st.write("  ")
+                st.write("The SHAP forces plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
+                         "chosen sample {}. Features that had more impact on the score are located closer to the dividing boundary between red and blue."
+                         " The size of the impact in the model's prediction is represented by the size of the bar.".format(n_features,sample))
+
                 RawD = st.checkbox("Show raw data", key="raw-data-SHAP")
-                feature_inter.SHAP_forces(sample,explainer,values,n_features, RawD)
-                st.write("  ")
-                st.write("##### Bar plot")
-                st.write("  ")
-                RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
-                feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
+                feature_inter.SHAP_forces(sample, explainer, values, n_features, RawD)
+                st.caption("The bold number represents the model's average or expected predicted AAC response across the dataset."
+                           " Base values represent the value that would be predicted if no features were known. "
+                           "Values on plot arrows represent the value of the feature for the chosen sample."
+                           " Red values represent features that pushed the model's prediction higher."
+                           " Blue values present the features that pushed the score lower.")
+
+
+
     elif menu == "Features interaction":
         st.subheader("Features interaction")
         st.write("Sometimes is useful to investigate whether features interact between them.")

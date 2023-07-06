@@ -29,6 +29,7 @@ class FI():
         self.X_test = None
         self.y_train = None
         self.y_test = None
+        self.model = None
 
     def plotImportance(self, RawD, num_feats):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
@@ -92,19 +93,31 @@ class FI():
         rf = FI.prepareData(self, self.drug_response)
         explainer = shap.TreeExplainer(rf)
         shap_values = explainer.shap_values(self.expr_df_selected)
+        self.model = rf
         return explainer, shap_values
+
+    def SHAP_pred(self, sample):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index[0]
+        X_array = np.array([self.expr_df_selected.iloc[index, :]])
+        pred = self.model.predict(X_array)
+        pred = round(pred[0], 4)
+        true_label = self.drug_response.iloc[index]
+        true_label = round(true_label[0],4)
+        return pred, true_label
 
     def SHAP_bar_indiv(self,sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
         shap_values = explainer(self.expr_df_selected)
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(6, 6))
         shap.plots.bar(shap_values[index], show=True, max_display=n_features)
         #shap.waterfall_plot(shap_values[index].base_values[0], values[0], self.expr_df_selected.iloc[0])
         mean_values = np.abs(values[index]).mean(0)
         raw_df = pd.DataFrame({'Feature': self.expr_df_selected.columns, 'mean |SHAP value|': mean_values})
         raw_df = raw_df.sort_values(by=['mean |SHAP value|'], ascending=False)
         raw_df = raw_df.iloc[:n_features]
+        transcripts = raw_df['Feature']
         if RawD:
             saveTable(raw_df, sample + "SHAP_bar")
             st.write("  ")
@@ -113,6 +126,7 @@ class FI():
             savePlot(fig, sample + "SHAP_bar")
             st.write("  ")
             st.pyplot(fig)
+        return transcripts
 
     def SHAP_results(self,values):
         shap_sum = np.abs(values).mean(axis=0)
@@ -124,18 +138,13 @@ class FI():
     def SHAP_forces(self, sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"]==sample].index
-        #top_feature_indices = np.argsort(np.abs(values[index]))[::-1]
-        #top_feature_indices = top_feature_indices[0][:n_features+1]
-
         selected_shap_values = values[index, :n_features]
         selected_features = round(self.expr_df_selected.iloc[index, :n_features],2)
-        #raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
-        #fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
         raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
         fig = shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",matplotlib=True, show=False)
         st.write("  ")
         if RawD:
-            saveTable(raw_data, sample + "SHAP")
+            saveTable(raw_data, sample + "SHAP_force")
             st.write("  ")
             st.dataframe(raw_data)
         else:
@@ -143,16 +152,28 @@ class FI():
             st.write("  ")
             st.pyplot(fig)
 
-    def SHAP_bar(self,explainer,sample):
-        shap_values = explainer(self.expr_df_selected)
-        fig, ax = plt.subplots()
-        shap.plots.bar(shap_values, max_display=15)
-        #shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
-        return fig
+    def SHAP_decision(self, sample, explainer,values,n_features,RawD):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index
+        selected_shap_values = values[index, :n_features]
+        selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
+
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
+        fig, ax = plt.subplots(figsize=(5, 3))
+        shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
+        st.write("  ")
+        if RawD:
+            saveTable(raw_data, sample + "SHAP_dec")
+            st.write("  ")
+            st.dataframe(raw_data)
+        else:
+            savePlot(fig, sample + "_SHAP_dec")
+            st.write("  ")
+            st.pyplot(fig)
 
     def SHAP_summary(self,values,num_feats):
         fig, ax = plt.subplots()
-        shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b', max_display = num_feats)
+        shap.summary_plot(values, self.X_train,show=False, plot_size=(8, 6), color='b', max_display = num_feats)
         return fig
 
     def displaySamples(self,cluster,basket):
@@ -183,7 +204,6 @@ class FI():
             df = df
         return df
 
-
     def SHAP_interact(self,explainer):
         shap_interaction = explainer.shap_interaction_values(self.expr_df_selected)
         fig, ax = plt.subplots()
@@ -192,8 +212,6 @@ class FI():
             shap_interaction, self.expr_df_selected,
             display_features=self.expr_df_selected)
         st.pyplot(fig)
-
-
 
 class Global(FI):
     def __init__(self, Results):
@@ -233,7 +251,7 @@ class Global(FI):
         max_limit = max1 if max1 > max2 else max2
         ax.set_ylim(min_limit+(min_limit*2), max_limit+(max_limit/5))
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, g1, g2))
-        return st.pyplot(fig)
+        st.pyplot(fig)
 
     def global_ALE(self,feature):
         rf = super(Global, self).prepareData(self.drug_response)
@@ -246,7 +264,7 @@ class Global(FI):
         plot_ale(lr_exp, features=[feature], ax=ax)
         ax.set_ylim(min(values) - 0.01, max(values) + 0.01)
         plt.title("ALE for transcript {}".format(feature))
-        return st.pyplot(fig)
+        st.pyplot(fig)
 
     def global_ALE_single(self,feature,g1,g2,option):
         rf = super(Global, self).prepareData(self.drug_response)
@@ -266,7 +284,7 @@ class Global(FI):
         plot_ale(lr_exp1, features=[feature], ax=ax)
         ax.set_ylim(min(values) +min(values)*2, max(values) +max(values)/5)
         plt.title("ALE for transcript {} in group {}".format(feature,option))
-        return st.pyplot(fig)
+        st.pyplot(fig)
 
     def splitResponse(self, resp):
         self.patient_df = self.patient_df.reset_index()
@@ -298,7 +316,7 @@ class Global(FI):
         max_limit = max1 if max1 > max2 else max2
         ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit / 5))
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
-        return st.pyplot(fig)
+        st.pyplot(fig)
 
 
 

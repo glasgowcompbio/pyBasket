@@ -190,6 +190,11 @@ class DEA():
         self.ttest_res = None
         self.transcripts = None
 
+    def splitResponses(self,subgroup):
+        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"] == "Non-responsive"]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
+
     def selectGroups(self,option,feature):
         transcripts= self.expr_df_selected
         sub_patients = self.patient_df[self.patient_df[feature] == option]
@@ -209,7 +214,7 @@ class DEA():
         #_, dea_results['Adjusted P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
                                                                      #method='fdr_bh')
         dea_results = dea_results.sort_values(by=['Adjusted P-value'])
-        dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
+        dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) #& (abs(dea_results['LFC']) > logthresh)
         return dea_results
 
     def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
@@ -223,9 +228,7 @@ class DEA():
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
     def diffAnalysis_response(self,results,subgroup,pthresh, logthresh):
-        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"]=="Non-responsive"]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
+        DEA.splitResponses(self, subgroup)
         if len(self.df_group1) >1 and len(self.df_group2) >1:
             self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
             self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
@@ -316,39 +319,14 @@ class DEA():
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
         full_df = pd.concat([df1, df2])
-        alt_boxplot(full_df, "class", transcript, 2, "Group","Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA")
+        alt_boxplot(full_df, "class", transcript, 2, "Group","Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA_"+transcript)
 
     def boxplot_resp(self, subgroup, transcript):
-        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"] == "Non-responsive"]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
-        self.df_group1["Response"] = "Non-responsive"
-        self.df_group2["Response"] = "Responsive"
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["Response"]})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["Response"]})
+        DEA.splitResponses(self, subgroup)
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["responsive"]})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["responsive"]})
         full_df = pd.concat([df1, df2])
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
-            x=alt.X("class:N", title="Group"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width=300)
-        return base
-
-    def boxplot(self, option1, option2,feature,transcript):
-        self.df_group1 = DEA.selectGroups(self, option1, feature)
-        self.df_group2 = DEA.selectGroups(self, option2, feature)
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : option1})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : option2})
-        full_df = pd.concat([df1, df2])
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
-            x=alt.X("class:N", title="Response"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width=300)
-        return base
-
-
-
+        alt_boxplot(full_df, "class", transcript, 2, "Group", "Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA"+transcript)
 
 
 

@@ -6,7 +6,7 @@ from loguru import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
-from processing import *
+from analysis import *
 import webbrowser
 from altair_saver import save
 import altair as alt
@@ -127,7 +127,7 @@ def alt_boxplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
         palette = sns.color_palette("Paired", num_cols).as_hex()
     else:
         palette = ["#F72585", "#4CC9F0"]
-    base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=60).encode(
+    base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=100).encode(
         x=alt.X(x, title=title_x),
         y=alt.Y(y, title=title_y), color=alt.Color(colors + ':N')
     ).properties(height=650, title = main_title).configure_range(category=alt.RangeScheme(palette))
