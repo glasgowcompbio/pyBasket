@@ -218,4 +218,5 @@ if "data" in st.session_state:
     elif menu == "Features interaction":
         st.subheader("Features interaction")
         st.write("Sometimes is useful to investigate whether features interact between them.")
-        #feature_inter.SHAP_interact(explainer)
+        st.write("#### SHAP dependence plot")
+        feature_inter.SHAP_dependence(values, "EAPP")

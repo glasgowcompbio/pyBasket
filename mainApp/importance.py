@@ -157,7 +157,6 @@ class FI():
         index = df[df["index"] == sample].index
         selected_shap_values = values[index, :n_features]
         selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
-
         raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
         fig, ax = plt.subplots(figsize=(5, 3))
         shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
@@ -204,13 +203,9 @@ class FI():
             df = df
         return df
 
-    def SHAP_interact(self,explainer):
-        shap_interaction = explainer.shap_interaction_values(self.expr_df_selected)
-        fig, ax = plt.subplots()
-        shap.dependence_plot(
-            ("EAPP", "EIF3D"),
-            shap_interaction, self.expr_df_selected,
-            display_features=self.expr_df_selected)
+    def SHAP_dependence(self,values, feature):
+        st.set_option('deprecation.showPyplotGlobalUse', False)
+        fig = shap.dependence_plot(feature, values, self.expr_df_selected)
         st.pyplot(fig)
 
 class Global(FI):
