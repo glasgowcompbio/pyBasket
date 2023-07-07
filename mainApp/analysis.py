@@ -40,10 +40,10 @@ class Analysis(Data):
 
     def samplesCount(self,subgroup):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        feature = fulldf['responsive'].values
         df_grouped = fulldf.groupby(['responsive']).size().reset_index(name='Count')
         alt_ver_barplot(df_grouped, "responsive", 'Count', 2, "Response", "Number of samples", "responsive", "Samples responsive vs non-responsive",
                         "NS_Inter", ["responsive", 'Count'])
+        st.caption("Number of responsive and non-responsive samples in the interaction.")
 
     def responseSamples(self,subgroup):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
@@ -51,6 +51,7 @@ class Analysis(Data):
         fulldf = fulldf.sort_values(by='responses')
         fulldf.index.name = 'Sample'
         fulldf['responsive'] = fulldf['responsive'] == "Responsive"
+        saveTable(fulldf, "Interaction")
         st.dataframe(fulldf, use_container_width=True)
 
     @staticmethod
@@ -179,11 +180,12 @@ class heatMap(Analysis):
         dendrogram = hierarchy.dendrogram(Z, labels=labels, orientation='right', color_threshold=0)
         reordered_df = df_scaled.iloc[dendrogram['leaves']]
         reordered_df.index = df.index
-        sns.heatmap(reordered_df, cmap="RdBu_r", cbar_kws={'label': 'Expression Level'},yticklabels=True)
+        sns.heatmap(reordered_df, cmap="RdBu_r", cbar_kws={'label': 'Expression Level'}, xticklabels=False)
         plt.title('Transcriptional expression per sample')
         plt.xlabel('Transcripts')
         plt.ylabel('Samples')
         plt.xticks(fontsize=9)
+
         return fig
 
     def heatmapResponse(self):

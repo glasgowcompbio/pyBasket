@@ -123,11 +123,13 @@ class Prototypes():
         feature = fulldf['responsive'].values
         fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
-        base = Prototypes.plotMedoids(data, sampleMedoids, feature)
+        base = Prototypes.plotMedoids(self,data, sampleMedoids, feature)
         savePlot(base, "subgroup")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The prototypical sample of each level is marked in black.")
         st.subheader("Prototype samples")
         table = Prototypes.showMedoids(self, feature)
+        st.write("The full transcriptional expression profile of the prototypical samples is shown below. ")
         saveTable(table, "subgroup")
         st.dataframe(table, use_container_width=True)
 
@@ -179,10 +181,13 @@ class DEA():
         st.subheader("Volcano plot")
         st.write(
             "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
-            " statistical significance thresholds (adjusted p-value and LFC threshold). ")
-
+            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+            " of change (LFC) between the two conditions. Below, results are shown for {} vs {}.".format(option1, option2))
         savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                   "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def diffAnalysis_response(self,results,subgroup,pthresh, logthresh):
         DEA.splitResponses(self, subgroup)
@@ -193,10 +198,17 @@ class DEA():
             self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
             base = DEA.volcanoPlot(self, pthresh, logthresh)
             st.subheader("Volcano plot")
-            st.write("The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
-                     " statistical significance thresholds (adjusted p-value and LFC threshold). ")
+            st.write(
+                "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+                " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+                " of change (LFC) between the two conditions. Below, results are shown for responsive vs non-responsive samples within the selected basket*cluster"
+                " interaction.")
             savePlot(base, "DEA:resp")
             st.altair_chart(base, theme="streamlit", use_container_width=True)
+            st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                       "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                       "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
+
         else:
             st.warning("There are not enough samples to do DEA. Please choose another combination")
 
@@ -228,9 +240,19 @@ class DEA():
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
+
+        st.write("#### Volcano plot")
+        st.write(
+            "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+            " of change (LFC) between the two conditions. Below, results are shown for samples in the selected basket*cluster interaction"
+            " vs any other sample.")
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                   "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def infoTranscript(self, transcript):
         info = self.ttest_res[self.ttest_res['Feature']==transcript].values.flatten().tolist()

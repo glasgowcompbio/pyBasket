@@ -24,13 +24,14 @@ if "data" in st.session_state:
     subgroup, size = analysis_data.findInteraction(cluster, basket)
 
     if menu == "All interactions":
-        st.write("")
+        st.write("This page shows results and information about the interactions between clusters and baskets/tissues. Below what information to "
+                 "display can be selected, such as the number of samples, the number of responsive samples or the inferred response in each basket*cluster interaction.")
         variable = st.radio("Select information to display",
                             ['Number of samples', 'Number of responsive samples', "Inferred response"],
                             key="HM_info", horizontal=True)
         st.write("")
 
-        min_num = st.slider('Mark interactions with minimum number of samples', 0, 70)
+        min_num = st.slider('Mark interactions with a minimum number of samples', 0, 70)
         st.info("\:star: : basket+cluster interactions with at least {} samples.\n"
 
                 "\:large_red_square: : selected basket+cluster interaction.\n".format(min_num))
@@ -48,8 +49,10 @@ if "data" in st.session_state:
                                                          , min_num, int(cluster), basket)
                 savePlot_plt(fig, str(cluster) + "_" + basket)
                 st.pyplot(fig)
+                st.caption("The x-axis shows the levels of clusters. The y-axis shows the levels of baskets/tissues. The colour scale represents "
+                           "the number of samples.")
         elif variable == 'Number of responsive samples':
-            st.write("#### Number of samples per basket*cluster interaction that respond to the drug")
+            st.write("#### Number of samples per basket*cluster interaction responsive to the drug")
             st.write(
                 "Explore the number of samples in each basket and cluster combination that are responsive to the drug.")
             RawD = st.checkbox("Show raw data", key="raw-data-R")
@@ -62,6 +65,9 @@ if "data" in st.session_state:
                                                           int(cluster), basket)
                 savePlot_plt(HM_response, str(cluster) + "_" + basket)
                 st.pyplot(HM_response)
+                st.caption(
+                    "The x-axis shows the levels of clusters. The y-axis shows the levels of baskets/tissues. The colour scale represents "
+                    "the number of samples that are responsive to the drug.")
         else:
             st.write("#### Inferred response probability per basket*cluster interaction.")
             st.write(
@@ -76,10 +82,13 @@ if "data" in st.session_state:
                                                           int(cluster), basket)
                 savePlot_plt(HM_inferred, "inferred_heatmap")
                 st.pyplot(HM_inferred)
+                st.caption(
+                    "The x-axis shows the levels of clusters. The y-axis shows the levels of baskets/tissues. The colour scale represents "
+                    "the inferred probability of response to the treatment by the basket*cluster interaction.")
 
     elif menu == "Selected interaction":
         st.text("")
-        st.write("Explore results from the pyBasket pipeline for basket*cluster interactions.")
+        st.write("In this page, results specific to the selected basket*cluster interaction can be explored.")
         st.text("")
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
         st.text("")
@@ -103,7 +112,10 @@ if "data" in st.session_state:
                     heatmap2 = heatmap.heatmapTranscripts(subgroup)
                     savePlot_plt(heatmap2, "_transcripts")
                     st.pyplot(heatmap2)
-                    #st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    st.caption(
+                        "The x-axis represents all transcripts. The y-axis represents some of the samples in the selected basket*cluster interaction."
+                        " The colour bar represents the expression level of the transcript for each sample.")
+
             except:
                 st.warning("Not enough samples. Please try a different combination.")
         with tab2:
@@ -122,11 +134,11 @@ if "data" in st.session_state:
             st.write("The prototype sample of the selected basket*cluster interaction for the Responsive and the"
                     " Non-responsive groups has been calculated using KMedoids. KMedoids finds the sample that is"
                      "the closest to the rest of samples in the group. ")
-            try:
-                sub_prototypes = Prototypes(data)
-                sub_prototypes.findPrototypes_sub(subgroup)
-            except:
-                st.warning("Not enough samples. Please try a different combination.")
+            ##try:
+            sub_prototypes = Prototypes(data)
+            sub_prototypes.findPrototypes_sub(subgroup)
+            #except:
+              #  st.warning("Not enough samples. Please try a different combination.")
         with tab4:
             st.subheader("Differential expression analysis (DEA)")
             st.write("")
@@ -148,8 +160,9 @@ if "data" in st.session_state:
                 logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
 
             if option == "Samples in interaction vs rest of samples":
+                st.write(" ")
                 st.subheader("Samples in interaction vs all other interactions")
-                st.write("DEA performed with the samples in the selected basket*cluster interaction against any other interaction")
+                st.write("DEA performed with the samples in the selected basket*cluster interaction vs all other samples.")
                 if subgroup.size > 0:
                     dea.diffAnalysis_inter(subgroup,pthresh,logthresh)
                     results = dea.showResults("interaction")
@@ -164,6 +177,10 @@ if "data" in st.session_state:
                         st.write(" ")
                 try:
                     st.subheader("Individual transcripts DEA")
+                    st.write(
+                        "The difference in the expression level of a transcript/feature and the individual results from "
+                        "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
+
                     col53, col54 = st.columns((2, 4))
                     with col53:
                         transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
@@ -176,7 +193,8 @@ if "data" in st.session_state:
                 except:
                     st.warning("Not enough samples. Please try a different combination.")
             else:
-                st.write("##### Responsive vs non-responsive samples within basket*cluster interaction")
+                st.write(" ")
+                st.subheader("Responsive vs non-responsive samples within basket*cluster interaction")
                 st.write("DEA has been performed within samples in the selected interaction and comparing Responsive vs Non-responsive samples.")
                 dea = DEA(data)
                 dea.diffAnalysis_response(data,subgroup, pthresh, logthresh)
@@ -184,6 +202,10 @@ if "data" in st.session_state:
                     try:
                         results = dea.showResults("interaction")
                         st.subheader("Individual transcripts DEA")
+                        st.write(
+                            "The difference in the expression level of a transcript/feature and the individual results from "
+                            "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
+
                         col53, col54 = st.columns((2, 4))
                         with col53:
                             transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
