@@ -85,7 +85,7 @@ def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save
     palette = sns.color_palette("Paired", num_cols).as_hex()
     base = alt.Chart(df).mark_bar().encode(
         alt.X(x, title=title_x),
-        alt.Y(y+':O', title=title_y).sort('-x'), alt.Color(colors +':O')
+        alt.Y(y+':N', title=title_y).sort('-x'), alt.Color(colors +':N')
     ).properties(
         height=650,
         title= main_title
@@ -127,9 +127,15 @@ def alt_boxplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
         palette = sns.color_palette("Paired", num_cols).as_hex()
     else:
         palette = ["#F72585", "#4CC9F0"]
-    base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=100).encode(
+    base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=60).encode(
         x=alt.X(x, title=title_x),
         y=alt.Y(y, title=title_y), color=alt.Color(colors + ':N')
     ).properties(height=650, title = main_title).configure_range(category=alt.RangeScheme(palette))
     savePlot(base, save)
     st.altair_chart(base, theme="streamlit", use_container_width=True)
+
+def searchTranscripts(transcripts):
+    transcript = st.selectbox("Select feature/transcript", transcripts, key="transcript")
+    st.write(" ")
+    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
+    st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))

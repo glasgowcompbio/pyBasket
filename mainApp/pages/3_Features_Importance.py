@@ -2,7 +2,7 @@ import streamlit as st
 from analysis import Analysis
 from explorer import Data
 from importance import FI, Global
-from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard
+from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard,searchTranscripts
 from streamlit_option_menu import option_menu
 import webbrowser
 
@@ -12,7 +12,7 @@ hide_rows = hideRows()
 st.header("Features importance")
 
 st.write("---")
-menu = option_menu(None, ["Overview", "Global methods", "Local methods", "Features interaction"],
+menu = option_menu(None, ["Overview", "Global methods", "Local methods"],
     icons=["bi bi-bar-chart", "bi bi-globe", "bi bi-pin-map"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
@@ -63,9 +63,7 @@ if "data" in st.session_state:
                 st.caption("Each point is a Shapley value of an instance per feature/transcript."
                            "Features are ordered by their importance."
                            )
-
         elif global_model == "Permutation Based":
-
             st.subheader("Permutation based feature importance")
             st.write('Permutation based feature importance is a MA method that measures'
                      ' the importance of a feature by calculating the increase in the model’s prediction'
@@ -78,45 +76,58 @@ if "data" in st.session_state:
         st.write(" ")
         st.write('Global methods are used to interpret the average behaviour of a Machine Learning model '
                  'and how it makes predictions as a whole. ')
-
-        st.write("#### Accumulated Local Effects")
-        st.write(" ")
-        st.write("Accumulated Local Effects describe how a feature/transcript influences the prediction made by the ML "
-                 "model on average.")
-        global_ALE = Global(data)
-        gsamples = st.radio("", ['Use samples in the selected interaction', 'Select only samples in cluster',
-                                 'Select only samples in tissue/basket'],
-                            key="global_samples", horizontal=True)
-        transcripts = global_ALE.transcripts
-        feature = st.selectbox("Select a transcript/feature", transcripts, key="global_feature")
-        if gsamples == 'Use samples in the selected interaction':
-            basket, cluster = basket, cluster
-            option = "interaction"
-            response = st.checkbox("Split by Responsive vs Non-responsive samples")
-            try:
-                if response:
-                    global_ALE.global_ALE_resp(feature)
-                else:
-                    global_ALE.global_ALE_single(feature, cluster,basket, option)
-            except:
-                st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
-        else:
-            if gsamples == 'Select only samples in cluster':
-                groups = st.multiselect(
-                    'Please select a cluster, up to 2 cluster to compare or all clusters', ["All"]+data.clusters_names, max_selections=2)
-                option = "clusters"
-            elif gsamples == 'Select only samples in tissue/basket':
-                groups = st.multiselect(
-                    'Please select a tissue, up to 2 tissues to compare or all tissues', ["All"]+data.baskets_names, max_selections=2)
-                option = "baskets"
-            if len(groups)<1 and "All" not in groups:
-                st.write("")
-            elif len(groups)<2 and "All" not in groups:
-                global_ALE.global_ALE_single(feature, groups[0],None,option)
-            elif "All" in groups:
-                global_ALE.global_ALE(feature)
+        method = st.selectbox("Select a global method", ['ALE', 'PDP (SHAP)'], key ='global')
+        st.write("---")
+        if method == 'ALE':
+            st.write("#### Accumulated Local Effects")
+            st.write(" ")
+            st.write("Accumulated Local Effects describe how a feature/transcript influences the prediction made by the ML "
+                     "model on average.")
+            global_ALE = Global(data)
+            gsamples = st.radio("", ['Use samples in the selected interaction', 'Select only samples in cluster',
+                                     'Select only samples in tissue/basket'],
+                                key="global_samples", horizontal=True)
+            transcripts = global_ALE.transcripts
+            feature = st.selectbox("Select a transcript/feature", transcripts, key="global_feature")
+            if gsamples == 'Select only samples in the selected interaction':
+                basket, cluster = basket, cluster
+                option = "interaction"
+                response = st.checkbox("Split by Responsive vs Non-responsive samples")
+                try:
+                    if response:
+                        global_ALE.global_ALE_resp(feature)
+                    else:
+                        global_ALE.global_ALE_single(feature, cluster,basket, option)
+                except:
+                    st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
             else:
-                global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
+                if gsamples == 'Select only samples in cluster':
+                    groups = st.multiselect(
+                        'Please select a cluster, up to 2 cluster to compare or all clusters', ["All"]+data.clusters_names, max_selections=2)
+                    option = "clusters"
+                elif gsamples == 'Select only samples in tissue/basket':
+                    groups = st.multiselect(
+                        'Please select a tissue, up to 2 tissues to compare or all tissues', ["All"]+data.baskets_names, max_selections=2)
+                    option = "baskets"
+                if len(groups)<1 and "All" not in groups:
+                    st.write("")
+                elif len(groups)<2 and "All" not in groups:
+                    global_ALE.global_ALE_single(feature, groups[0],None,option)
+                elif "All" in groups:
+                    global_ALE.global_ALE(feature)
+                else:
+                    global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
+        elif method == 'PDP (SHAP)':
+            st.write("#### Partial Dependence Plot (PDP) by SHAP")
+            st.write("The partial dependence plot (PDP) calculated by SHAP shows "
+                     "the marginal effect that one or two features, that might interact with each other,"
+                     " have on the predictions (AAC response) of the ML model.  "
+                     )
+            features = feature_inter.SHAP_results(values)
+            transcript2 = st.selectbox("Select feature/transcript", features['Transcript'], key="transcript2")
+            st.caption("Values ordered by decreasing importance by SHAP")
+            st.write("#### SHAP dependence plot")
+            feature_inter.SHAP_dependence(values, transcript2)
     elif menu == "Local methods":
         st.subheader("Local MA methods")
         st.write(" ")
@@ -124,7 +135,6 @@ if "data" in st.session_state:
         col31, col32 = st.columns((2, 2))
         with col31:
             local_model = st.selectbox("Select a local interpretable method", ["LIME", "SHAP"], key="model2")
-        st.write("---")
         col33, col34, col35 = st.columns((2,2,2))
         with col33:
             group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in cluster',
@@ -151,6 +161,7 @@ if "data" in st.session_state:
                 n_features = st.number_input('Number of features', value=5)
             transc = feature_inter.filterSamples(transc, responses)
             sample = st.selectbox("Select a sample", transc, key="sample")
+            st.write("---")
             if local_model == "LIME":
                 st.subheader("LIME for individual predictions")
                 st.write(" ")
@@ -161,7 +172,13 @@ if "data" in st.session_state:
                          "sample prediction."
                          )
                 RawD = st.checkbox("Show raw data", key="raw-data-LIME")
-                feature_inter.limeInterpretation(sample,n_features,RawD)
+                col41, col42 = st.columns((4,2))
+                with col41:
+                    limedf = feature_inter.limeInterpretation(sample,n_features,RawD)
+                with col42:
+                    st.write(" ")
+                    st.write(" ")
+                    searchTranscripts(limedf['Feature'].tolist())
             elif local_model == "SHAP":
                 st.write("  ")
                 st.subheader("SHAP")
@@ -185,11 +202,7 @@ if "data" in st.session_state:
                     RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
                     transcripts = feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
                 with col36:
-                    transcript = st.selectbox("Select feature/transcript", transcripts, key="transcript")
-                    st.write(" ")
-                    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                    st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
-
+                    searchTranscripts(transcripts)
                 st.write("##### Decision plot")
                 st.write("The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
                          "chosen sample {}. They are a linear representation of SHAP values.".format(n_features,sample))
@@ -212,11 +225,3 @@ if "data" in st.session_state:
                            "Values on plot arrows represent the value of the feature for the chosen sample."
                            " Red values represent features that pushed the model's prediction higher."
                            " Blue values present the features that pushed the score lower.")
-
-
-
-    elif menu == "Features interaction":
-        st.subheader("Features interaction")
-        st.write("Sometimes is useful to investigate whether features interact between them.")
-        st.write("#### SHAP dependence plot")
-        feature_inter.SHAP_dependence(values, "EAPP")

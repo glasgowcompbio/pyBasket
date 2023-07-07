@@ -42,7 +42,6 @@ class Analysis(Data):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
         feature = fulldf['responsive'].values
         df_grouped = fulldf.groupby(['responsive']).size().reset_index(name='Count')
-        print(df_grouped)
         alt_ver_barplot(df_grouped, "responsive", 'Count', 2, "Response", "Number of samples", "responsive", "Samples responsive vs non-responsive",
                         "NS_Inter", ["responsive", 'Count'])
 
@@ -86,6 +85,7 @@ class Analysis(Data):
 
     def plot_PCA(self,feature,adv):
         df = self.pca_adv if adv == True else self.pca_df
+        df = df.reset_index()
         if feature == "responsive":
             palette = ["#F72585", "#4CC9F0"]
         else:
@@ -93,11 +93,13 @@ class Analysis(Data):
         base = alt.Chart(df, title = "Principal Component Analysis").mark_circle(size=60).encode(
             x='PC1',
             y='PC2',
-            color=feature+':N'
+            color=feature+':N', tooltip = ['index', feature]
         ).interactive().properties(height=650).configure_range(
         category=alt.RangeScheme(palette))
         savePlot(base, "PCA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("Axis show the first and second principal components (PC1, PC2) that capture the most variation in the expression level of transcripts."
+                   "Position of each data point is the scores on PC1 and PC2.")
 
     def PCA_analysis(self, feature, RawD):
         Analysis.main_PCA(self, feature)

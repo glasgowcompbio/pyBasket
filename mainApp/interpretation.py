@@ -1,24 +1,15 @@
-import gzip
-import pickle
-import statistics
-
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import seaborn as sns
-import matplotlib
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 from scipy.stats import ttest_ind
-import mpld3
-import streamlit.components.v1 as components
 from sklearn_extra.cluster import KMedoids
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
 from common import savePlot, saveTable,alt_boxplot
-from explorer import Data
 import altair as alt
 
 np.set_printoptions(suppress=True, precision=3)
@@ -26,48 +17,6 @@ np.set_printoptions(suppress=True, precision=3)
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-
-def Kmedoids():
-        rawX = data.expr_df_selected
-        #x_scaled = StandardScaler().fit_transform(rawX)
-        y = data.patient_df["responsive"]
-        pca_2 = PCA(n_components=5)
-        X = pca_2.fit_transform(rawX)
-        cobj = KMedoids(n_clusters=5).fit(X)
-        labels = cobj.labels_
-        unique_labels = set(labels)
-        colors = [
-            plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))
-        ]
-        fig = plt.figure(figsize=(10, 6))
-        for k, col in zip(unique_labels, colors):
-            class_member_mask = labels == k
-
-            xy = X[class_member_mask]
-            plt.plot(
-                xy[:, 0],
-                xy[:, 1],
-                "o",
-                markerfacecolor=tuple(col),
-                markeredgecolor="k",
-                markersize=6,label=k
-            )
-        plt.plot(
-            cobj.cluster_centers_[:, 0],
-            cobj.cluster_centers_[:, 1],
-            "o",
-            markerfacecolor="cyan",
-            markeredgecolor="k",
-            markersize=6,
-        )
-        for i, label in enumerate(unique_labels):
-            plt.annotate(label, (cobj.cluster_centers_[i, 0],  cobj.cluster_centers_[i, 1]), textcoords="offset points",
-                        xytext=(0, 10), ha='center', zorder=10)
-        plt.legend()
-        plt.title("Real KMedoids clustering. Medoids are represented in cyan.")
-        st.pyplot(fig)
-
-
 class Prototypes():
     def __init__(self, Results):
         self.expr_df_selected = Results.expr_df_selected
@@ -115,16 +64,18 @@ class Prototypes():
         return X, sample_medoids
 
     @staticmethod
-    def plotMedoids(X,sample_medoids, feature):
+    def plotMedoids(self,X,sample_medoids, feature):
         num_palette = len(np.unique(feature))
         labels = np.unique(feature)
         palette = ["#F72585", "#4CC9F0"] if num_palette<3 else sns.color_palette("Paired", num_palette).as_hex()
         df = pd.DataFrame({'X': X[:, 0], 'Y': X[:, 1], 'class':feature})
+        df2 = self.patient_df.reset_index()
+        df = pd.merge(df, df2, left_index=True, right_index=True)
         df3 = pd.merge(df, sample_medoids, left_index=True, right_index=True)
         scale = alt.Scale(domain=labels, range = palette)
         base = alt.Chart(df,title="Prototypes samples").mark_circle(size=100).encode(
-            x='X',
-            y='Y',color = alt.Color('class:N', scale = scale)
+            x=alt.X('X', title='PC1'),
+            y=alt.X('Y', title = 'PC2'),color = alt.Color('class:N', scale = scale), tooltip = ['samples', 'class']
         ).interactive().properties(height=700, width = 550)
         plotMedoids =alt.Chart(df3).mark_point(filled=True, size=150).encode(
             x='PC1',
@@ -156,11 +107,13 @@ class Prototypes():
     def findPrototypes(self, option):
         feature = self.cluster_labels if option == 'Clusters' else self.class_labels
         data,sampleMedoids = Prototypes.pseudoMedoids(self,self.expr_df_selected,feature)
-        base = Prototypes.plotMedoids(data,sampleMedoids,feature)
+        base = Prototypes.plotMedoids(self,data,sampleMedoids,feature)
         savePlot(base,option)
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The prototypical sample of each level is marked in black.")
         table = Prototypes.showMedoids(self,feature)
         st.subheader("Prototype samples")
+        st.write("The full transcriptional expression profile of the prototypical samples is shown below. ")
         saveTable(table, option)
         st.dataframe(table)
 
@@ -328,7 +281,14 @@ class DEA():
         full_df = pd.concat([df1, df2])
         alt_boxplot(full_df, "class", transcript, 2, "Group", "Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA"+transcript)
 
-
+    def boxplot(self, option1, option2, feature, transcript):
+        self.df_group1 = DEA.selectGroups(self, option1, feature)
+        self.df_group2 = DEA.selectGroups(self, option2, feature)
+        df1 = pd.DataFrame({transcript: self.df_group1[transcript], "class": option1})
+        df2 = pd.DataFrame({transcript: self.df_group2[transcript], "class": option2})
+        full_df = pd.concat([df1, df2])
+        alt_boxplot(full_df, "class", transcript, 2, "Response", "Expression level", "class",
+                    "Expression level of transcript {}".format(transcript), "DEA_" + transcript)
 
 
 

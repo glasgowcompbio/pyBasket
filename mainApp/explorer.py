@@ -92,10 +92,14 @@ class Data():
             df_grouped = self.patient_df.groupby(["responsive", feature]).size().reset_index(name='Count')
             alt_ver_barplot(df_grouped, feature, 'Count', 2, x_lab, "Number of samples", "responsive", title, "NumSamples",
                             ["responsive", feature])
+            st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the number of samples."
+                       " Within levels, the number of samples that are responsive (blue) or non-responsive (red) to treatment are shown.")
         else:
             df_grouped = self.patient_df.groupby([feature]).size().reset_index(name='Count')
             alt_ver_barplot(df_grouped, feature, 'Count', size, x_lab, "Number of samples", feature, title, "NumSamples",
                             [feature,'Count'])
+            st.caption(
+                "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the number of samples.")
 
     def showRawData(self, feature, x_variable, RD):
         if RD:
@@ -120,6 +124,7 @@ class Data():
             reseted_df = self.patient_df.reset_index()
             reseted_df["index"] = range(reseted_df.shape[0])
             alt_scatterplot(reseted_df, 'index', 'responses', "Sample index", "AAC response", "AAC response", "AAC", ["samples", "responses"])
+            st.caption("The x-axis shows the sample index. The y-axis shows the real AAC response of the sample to the drug.")
 
     def raw_data_AAC(self,feature,x_variable):
         raw_count = self.patient_df[[feature, "responses"]].groupby(feature).mean()
@@ -142,8 +147,13 @@ class Data():
             if RD:
                 alt_boxplot(self.patient_df, feature, "responses", 2, x_lab, "AAC response", "responsive", "AAC response",
                             "AAC")
+                st.caption(
+                    "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the real AAC response to the drug."
+                    " Within levels, the AAC response by the responsive (blue) or non-responsive (red) samples to treatment are shown.")
+
             else:
                 alt_boxplot(self.patient_df, feature, "responses", size, x_lab, "AAC response", feature, "AAC response", "AAC")
+                st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the real AAC response to the drug.")
 
     def barInferredProb(self, feature):
         stacked = self.stacked_posterior
@@ -162,4 +172,5 @@ class Data():
             feature = 'cluster'
             subheader = "Inferred cluster response"
         alt_ver_barplot(df, feature, 'prob', len_colors, title, "Inferred response probability", feature, subheader, "Inferred", [feature, 'prob'])
-
+        st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
+                    )

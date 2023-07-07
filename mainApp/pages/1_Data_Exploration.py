@@ -2,9 +2,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from analysis import Analysis,heatMap
 from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
-from interpretation import Prototypes, Kmedoids,DEA
+from interpretation import Prototypes, DEA
 from streamlit_option_menu import option_menu
-from explorer import Data
 
 hide_rows = hideRows()
 add_logo()
@@ -17,7 +16,7 @@ menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-    heatmap = heatMap(data)
+    heatmap = heatMap(st.session_state["saved data"],st.session_state["File Name"])
     analysis = st.session_state["Analysis"]
     if menu == "Samples information":
         st.subheader("Number of samples")
@@ -74,7 +73,7 @@ if "data" in st.session_state:
     elif menu == "pyBasket results":
         st.subheader("Inferred response probability")
         st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
-                 " overall probability of baskets or cluster to response to the treatment.")
+                 " overall probability of each basket or cluster to be responsive to the treatment.")
         option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
                                    key="option-page2")
         if option_page2 == 'Baskets/Tissues':
@@ -105,7 +104,8 @@ if "data" in st.session_state:
             st.subheader("Prototypes")
             st.write("The prototypical sample of each cluster, basket/tissue or pattern of response has been calculated using"
                      " KMedoids. KMedoids is a partitioning technique that finds the sample (medoid or prototype)"
-                    " that is the closest to the rest of samples in the same group.")
+                    " that is the closest to the rest of samples in the same group. The dimension of the expression level of transcripts"
+                     " has been reduced and plotted using Principal Component Analysis (PCA). ")
             st.write(" ")
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="Prototypes")
             prototype = Prototypes(data)
@@ -157,10 +157,8 @@ if "data" in st.session_state:
                     st.write(" ")
                     st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
                     st.button('Open GeneCards',on_click=openGeneCard, args=(transcript,))
-                base = dea.boxplot(groups[0],groups[1],feature,transcript)
                 with col54:
-                    savePlot(base , "DEA" + transcript)
-                    st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    dea.boxplot(groups[0], groups[1], feature, transcript)
 
 
 

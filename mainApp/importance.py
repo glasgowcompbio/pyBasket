@@ -60,7 +60,7 @@ class FI():
         index = df[df["index"] == sample].index
         df = df.drop("index",axis = 1)
         rf = FI.prepareData(self,self.drug_response)
-        explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=["drug response"],
+        explainer = lime_tabular.LimeTabularExplainer(self.expr_df_selected.values, feature_names=self.expr_df_selected.columns, class_names=["drug response"],
                                                       verbose=True, mode='regression')
         exp = explainer.explain_instance(df.iloc[index[0]], rf.predict, num_features=n_features,)
         fig = exp.as_pyplot_figure()
@@ -74,7 +74,8 @@ class FI():
             savePlot(fig,sample+"LIME")
             st.pyplot(fig)
             st.caption(
-            "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
+            "Green values: positive effect on prediction. Red values: negative effect on prediction. ")
+        return raw_data
 
     def permutationImportance(self, num_feats, RawD):
         rf = FI.prepareData(self, self.drug_response)
@@ -172,7 +173,7 @@ class FI():
 
     def SHAP_summary(self,values,num_feats):
         fig, ax = plt.subplots()
-        shap.summary_plot(values, self.X_train,show=False, plot_size=(8, 6), color='b', max_display = num_feats)
+        shap.summary_plot(values, self.expr_df_selected,show=False, plot_size=(8, 6), color='b', max_display = num_feats)
         return fig
 
     def displaySamples(self,cluster,basket):
@@ -205,8 +206,14 @@ class FI():
 
     def SHAP_dependence(self,values, feature):
         st.set_option('deprecation.showPyplotGlobalUse', False)
-        fig = shap.dependence_plot(feature, values, self.expr_df_selected)
+        fig, ax = plt.subplots()
+        shap.dependence_plot(feature, values, self.expr_df_selected, feature_names=self.expr_df_selected.columns, ax= ax)
+        savePlot(fig, "PDP")
         st.pyplot(fig)
+        st.caption("The x-axis is the actual feature value. "
+                   "The y-axis represents the SHAP value for the feature: how much knowing that feature value changes the "
+                   "output of the model for that prediction."
+                   "The color is a second feature that interacts with the chosen feature.")
 
 class Global(FI):
     def __init__(self, Results):
