@@ -149,16 +149,20 @@ if "data" in st.session_state:
                     st.write(" ")
                     dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
                 st.subheader("Single Transcript DEA")
+                st.write("The difference in the expression level of a transcript/feature and the individual results from "
+                         "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
                 st.write("")
                 col53, col54 = st.columns((2,4))
                 with col53:
                     transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                    st.caption("Transcripts ordered by decreasing significance.")
                     dea.infoTranscript(transcript)
                     st.write(" ")
                     st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
                     st.button('Open GeneCards',on_click=openGeneCard, args=(transcript,))
                 with col54:
                     dea.boxplot(groups[0], groups[1], feature, transcript)
+
 
 
 

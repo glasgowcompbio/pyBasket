@@ -177,6 +177,10 @@ class DEA():
         self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         st.subheader("Volcano plot")
+        st.write(
+            "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+            " statistical significance thresholds (adjusted p-value and LFC threshold). ")
+
         savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
 
@@ -189,6 +193,8 @@ class DEA():
             self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
             base = DEA.volcanoPlot(self, pthresh, logthresh)
             st.subheader("Volcano plot")
+            st.write("The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+                     " statistical significance thresholds (adjusted p-value and LFC threshold). ")
             savePlot(base, "DEA:resp")
             st.altair_chart(base, theme="streamlit", use_container_width=True)
         else:
@@ -196,18 +202,20 @@ class DEA():
 
     def showResults(self,feature):
         st.subheader("Results")
+        st.write("Results from Fold Change (FC) and T-test analyses for each transcript/feature are shown below. Significant features are those features whose adjusted "
+                 "p-value is beyond the selected adjusted p-value threshold, either up or down regulated.")
         self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
         self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
-        only_sig = st.checkbox('Show only significant transcripts')
+        only_sig = st.checkbox('Show only significant transcripts.')
         num_sig = len(self.ttest_res[self.ttest_res["Significant"] == True])
         if only_sig and num_sig >0:
-            numShow = st.slider('Select transcripts to show', 0,)
+            numShow = st.slider('Select number of transcripts to show', 0,)
             df_show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
         elif only_sig:
             st.warning("No significant transcripts found.")
             df_show = None
         else:
-            numShow = st.slider('Select transcripts to show', 0,len(self.ttest_res))
+            numShow = st.slider('Select number of transcripts to show', 0,len(self.ttest_res))
             df_show = self.ttest_res[:numShow]
         df_show = df_show.drop('direction', axis = 1)
         saveTable(df_show, feature)
@@ -247,6 +255,7 @@ class DEA():
             color=alt.Color('direction:O',
                             scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC', 'P-Value','Feature']
         ).interactive().properties(height=700, width=400)
+
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold2 = alt.Chart(pd.DataFrame({'x': [logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold3 = alt.Chart(pd.DataFrame({'y': [-np.log10(thresh)]})).mark_rule(strokeDash=[10, 10]).encode(y='y')
@@ -273,6 +282,8 @@ class DEA():
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
         full_df = pd.concat([df1, df2])
         alt_boxplot(full_df, "class", transcript, 2, "Group","Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA_"+transcript)
+        st.caption(
+            "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
     def boxplot_resp(self, subgroup, transcript):
         DEA.splitResponses(self, subgroup)
@@ -280,6 +291,8 @@ class DEA():
         df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["responsive"]})
         full_df = pd.concat([df1, df2])
         alt_boxplot(full_df, "class", transcript, 2, "Group", "Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA"+transcript)
+        st.caption(
+        "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
     def boxplot(self, option1, option2, feature, transcript):
         self.df_group1 = DEA.selectGroups(self, option1, feature)
@@ -287,8 +300,9 @@ class DEA():
         df1 = pd.DataFrame({transcript: self.df_group1[transcript], "class": option1})
         df2 = pd.DataFrame({transcript: self.df_group2[transcript], "class": option2})
         full_df = pd.concat([df1, df2])
-        alt_boxplot(full_df, "class", transcript, 2, "Response", "Expression level", "class",
+        alt_boxplot(full_df, "class:N", transcript+':Q', 2, "Response", "Expression level", "class",
                     "Expression level of transcript {}".format(transcript), "DEA_" + transcript)
+        st.caption("The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
 
 
