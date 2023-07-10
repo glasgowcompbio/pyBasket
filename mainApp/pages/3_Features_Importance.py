@@ -30,7 +30,7 @@ if "data" in st.session_state:
         st.subheader("Overview")
         st.write('Feature Importance is a technique to describe how relevant an input feature is and its effect on the model '
                  'being used to predict an outcome. Here, the feature importance is calculated using several Model-Agnostic '
-                 'methods to find the transcripts that have the most important impact on predicting the AAC response of a sample. '
+                 'methods to find the transcripts that are mostly driving the prediction of the AAC response for each sample or samples. '
                  )
         col11, col12 = st.columns((3,2))
         with col11:
@@ -41,10 +41,12 @@ if "data" in st.session_state:
         if global_model == "RF feature importance":
             st.subheader("Random Forest")
             st.write("Ramdom Forest is a common ML model that combines the output of multiple decision trees to reach a single result. It has been used "
-                     "as part of the pyBasket pipeline to select the 500 most important features. Below is shown the top {} most important features calculated "
-                     "from Random Forest, ordered by descending importance.".format(num_feat))
+                     "as part of the pyBasket pipeline to select the 500 most important features. Features' importance has been ranked based on the decrease in the impurity measure. "
+                     "Below is shown the top {} features that are most important, i.e. their inclusion in a Random Forest will lead to a significant decrease in impurity. "
+                     "Features are ranked based on their importance, higher values indicate greater importance. ".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-RF")
             feature_inter.plotImportance(RawD,num_feat)
+            st.caption("The x-axis represents the feature's importance (decrease in impurity measure).  The y-axis represents the features with the highest importance. ")
         elif global_model == "SHAP":
             st.subheader("SHAP values")
             st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
@@ -60,8 +62,11 @@ if "data" in st.session_state:
                 fig = feature_inter.SHAP_summary(values, num_feat)
                 savePlot(fig, "Global_SHAP")
                 st.pyplot(fig)
-                st.caption("Each point is a Shapley value of an instance per feature/transcript."
-                           "Features are ordered by their importance."
+                st.caption("The x-axis represents the magnitude of the feature's impact on the model's output."
+                           " The y-axis shows the features with the highest impact ordered in decreasing order."
+                           "Each point is a Shapley value of an instance per feature/transcript and the colour represents the direction of the feature's effect."
+                           " Red colour represents positive impact (higher values of the feature contributes to higher model predictions."
+                           " Blue values represents negative impact (lower values contribute to higher model predictions)."
                            )
         elif global_model == "Permutation Based":
             st.subheader("Permutation based feature importance")
@@ -70,58 +75,67 @@ if "data" in st.session_state:
                      'error when re-shuffling each predictor. Below is shown how much impact have the top {} features have in the model’s prediction for AAC response.'.format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-PBI")
             feature_inter.permutationImportance(num_feat,RawD)
+            st.caption("The x-axis represents the feature's importance for the model's prediction. The y-axis represents the features ordered in decreasing order"
+                       " of importance.")
     elif menu == "Global methods":
         st.write(" ")
-        st.subheader("Global methods")
+        st.subheader("Global MA methods")
         st.write(" ")
-        st.write('Global methods are used to interpret the average behaviour of a Machine Learning model '
-                 'and how it makes predictions as a whole. ')
+        st.write('Global Model-Agnostic methods are used to describe the average behaviour of a Machine Learning model. ')
         method = st.selectbox("Select a global method", ['ALE', 'PDP (SHAP)'], key ='global')
         st.write("---")
         if method == 'ALE':
             st.write("#### Accumulated Local Effects")
             st.write(" ")
-            st.write("Accumulated Local Effects describe how a feature/transcript influences the prediction made by the ML "
-                     "model on average.")
+            st.write("Accumulated Local Effects (ALE) describe how a feature/transcript influences the prediction made by the ML "
+                     "model on average. Here, this method has been implemented so that the behaviour of a feature can be explored for all samples or "
+                     "for a group of samples with specified conditions, such as only samples that fall into a selected basket*cluster interaction, a specific cluster or basket/trial."
+                     "In addition, the impact of a feature in two different groups of samples, i.e. two clusters, can also be compared. ")
+            st.write(
+                "The resulting ALE plot shows how the model's predictions change as the feature's values move across different bins.")
+
             global_ALE = Global(data)
-            gsamples = st.radio("", ['Use samples in the selected interaction', 'Select only samples in cluster',
+            gsamples = st.radio("", ['All samples','Use samples in the selected interaction', 'Select only samples in cluster',
                                      'Select only samples in tissue/basket'],
                                 key="global_samples", horizontal=True)
             transcripts = global_ALE.transcripts
             feature = st.selectbox("Select a transcript/feature", transcripts, key="global_feature")
-            if gsamples == 'Select only samples in the selected interaction':
+            if gsamples == 'All samples':
+                global_ALE.global_ALE(feature)
+            elif gsamples == 'Use samples in the selected interaction':
                 basket, cluster = basket, cluster
                 option = "interaction"
                 response = st.checkbox("Split by Responsive vs Non-responsive samples")
-                try:
-                    if response:
-                        global_ALE.global_ALE_resp(feature)
-                    else:
-                        global_ALE.global_ALE_single(feature, cluster,basket, option)
-                except:
-                    st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
+                #try:
+                if response:
+                    global_ALE.global_ALE_resp(feature)
+                else:
+                    global_ALE.global_ALE_single(feature, cluster,basket, option)
+               # except:
+                   # st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
             else:
                 if gsamples == 'Select only samples in cluster':
                     groups = st.multiselect(
-                        'Please select a cluster, up to 2 cluster to compare or all clusters', ["All"]+data.clusters_names, max_selections=2)
+                        'Please select a cluster or up to 2 cluster to compare.', data.clusters_names, max_selections=2)
                     option = "clusters"
                 elif gsamples == 'Select only samples in tissue/basket':
                     groups = st.multiselect(
-                        'Please select a tissue, up to 2 tissues to compare or all tissues', ["All"]+data.baskets_names, max_selections=2)
+                        'Please select a tissue or up to 2 tissues to compare.',data.baskets_names, max_selections=2)
                     option = "baskets"
-                if len(groups)<1 and "All" not in groups:
-                    st.write("")
-                elif len(groups)<2 and "All" not in groups:
-                    global_ALE.global_ALE_single(feature, groups[0],None,option)
-                elif "All" in groups:
-                    global_ALE.global_ALE(feature)
-                else:
-                    global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
+                try:
+                    if len(groups)<2:
+                        global_ALE.global_ALE_single(feature, groups[0],None,option)
+                    else:
+                        global_ALE.global_ALE_mult(feature, groups[0], groups[1], option)
+                except:
+                    st.warning(
+                        "Please select at least a group.")
+
         elif method == 'PDP (SHAP)':
             st.write("#### Partial Dependence Plot (PDP) by SHAP")
             st.write("The partial dependence plot (PDP) calculated by SHAP shows "
                      "the marginal effect that one or two features, that might interact with each other,"
-                     " have on the predictions (AAC response) of the ML model.  "
+                     " have on the predictions made by the ML model (the predicted AAC response to the drug).  "
                      )
             features = feature_inter.SHAP_results(values)
             transcript2 = st.selectbox("Select feature/transcript", features['Transcript'], key="transcript2")

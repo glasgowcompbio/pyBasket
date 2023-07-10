@@ -24,8 +24,8 @@ if "data" in st.session_state:
     subgroup, size = analysis_data.findInteraction(cluster, basket)
 
     if menu == "All interactions":
-        st.write("This page shows results and information about the interactions between clusters and baskets/tissues. Below what information to "
-                 "display can be selected, such as the number of samples, the number of responsive samples or the inferred response in each basket*cluster interaction.")
+        st.write("""This page shows results and information about the interactions between clusters and baskets/tissues. Below what information to 
+                 display can be selected, such as the number of samples, the number of responsive samples or the inferred response in each basket*cluster interaction.""")
         variable = st.radio("Select information to display",
                             ['Number of samples', 'Number of responsive samples', "Inferred response"],
                             key="HM_info", horizontal=True)

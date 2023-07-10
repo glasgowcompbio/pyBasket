@@ -8,8 +8,6 @@ import shap
 import numpy as np
 import pandas as pd
 from common import savePlot, saveTable, openGeneCard,alt_hor_barplot
-import seaborn as sns
-from PyALE import ale
 from alibi.explainers import ALE, plot_ale
 import altair as alt
 
@@ -234,7 +232,7 @@ class Global(FI):
             group2, num2 = super(Global, self).displaySamples("None",g2)
         samples_g1 = group1.values
         samples_g2 = group2.values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
         df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
@@ -251,22 +249,37 @@ class Global(FI):
         max1 = max(values1)
         max2 = max(values2)
         max_limit = max1 if max1 > max2 else max2
-        ax.set_ylim(min_limit+(min_limit*2), max_limit+(max_limit/5))
+        ax.set_ylim(min_limit+(min_limit*2), max_limit+max_limit*2)
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, g1, g2))
+        change1 = max1 - min1
+        change2 = max2 - min2
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction is for samples in {} is {}.".format(g2,
+                round(change2.tolist()[0], 6)))
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction is for samples in {} is {}.".format(g1,
+                round(change1.tolist()[0], 6)))
         st.pyplot(fig)
 
     def global_ALE(self,feature):
+        np.set_printoptions(precision=10)
         rf = super(Global, self).prepareData(self.drug_response)
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
-        self.expr_df_selected = self.expr_df_selected.to_numpy()
-        lr_exp = lr_ale.explain(self.expr_df_selected)
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
+        df = self.expr_df_selected.to_numpy()
+        lr_exp = lr_ale.explain(df)
         index = self.transcripts.index(feature)
         values = lr_exp.data['ale_values'][index]
         fig, ax = plt.subplots(figsize=(12, 6))
         plot_ale(lr_exp, features=[feature], ax=ax)
-        ax.set_ylim(min(values) - 0.01, max(values) + 0.01)
+        ax.set_ylim(min(values)+min(values)*2, max(values)+max(values)*2)
         plt.title("ALE for transcript {}".format(feature))
+        change = max(values) - min(values)
+        st.write("##### The magnitude of impact of the feature in the model's prediction is {}.".format(round(change.tolist()[0],6)))
+        savePlot(fig, "ALE-all")
         st.pyplot(fig)
+        st.caption(
+            "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+            " model's predictions.")
 
     def global_ALE_single(self,feature,g1,g2,option):
         rf = super(Global, self).prepareData(self.drug_response)
@@ -277,29 +290,34 @@ class Global(FI):
         elif option == "interaction":
             group1, num1 = super(Global, self).displaySamples(g1,g2)
         samples_g1 = group1.values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
         index = self.transcripts.index(feature)
         values = lr_exp1.data['ale_values'][index]
         fig, ax = plt.subplots(figsize=(12, 6))
         plot_ale(lr_exp1, features=[feature], ax=ax)
-        ax.set_ylim(min(values) +min(values)*2, max(values) +max(values)/5)
+        ax.set_ylim(min(values)+min(values)*2, max(values)+max(values)*2)
         plt.title("ALE for transcript {} in group {}".format(feature,option))
+        change = max(values) - min(values)
+        st.write("##### The magnitude of impact of the feature in the model's prediction is {}.".format(
+            round(change.tolist()[0], 6)))
+        savePlot(fig, "ALE-single")
         st.pyplot(fig)
+        st.caption("The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+                   " model's predictions.")
 
     def splitResponse(self, resp):
         self.patient_df = self.patient_df.reset_index()
         selection = self.patient_df[(self.patient_df['responsive'] == resp)]
         samples = selection["samples"]
-        transcript_df = self.expr_df_selected.loc[samples]
         return samples
 
     def global_ALE_resp(self,feature):
         rf = super(Global, self).prepareData(self.drug_response)
-        samples_g1 = Global.splitResponse(self,0).values
-        samples_g2 = Global.splitResponse(self,1).values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        samples_g1 = Global.splitResponse(self,'Responsive').values
+        samples_g2 = Global.splitResponse(self,'Non-responsive').values
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
         df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
@@ -316,9 +334,18 @@ class Global(FI):
         max1 = max(values1)
         max2 = max(values2)
         max_limit = max1 if max1 > max2 else max2
-        ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit / 5))
+        ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit *2))
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
+        change1 = max1 - min1
+        change2 = max2-min2
+        st.write("##### The magnitude of impact of the feature in the model's prediction is for Responsive samples is {}.".format(
+            round(change2.tolist()[0], 6)))
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction is for Non-responsive samples is {}.".format(
+                round(change1.tolist()[0], 6)))
+        savePlot(fig, "ALE-resp")
         st.pyplot(fig)
-
-
+        st.caption(
+            "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+            " model's predictions.")
 

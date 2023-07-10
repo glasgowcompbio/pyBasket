@@ -6,7 +6,6 @@ from loguru import logger
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
-from analysis import *
 import webbrowser
 from altair_saver import save
 import altair as alt
