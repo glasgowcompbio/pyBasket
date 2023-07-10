@@ -135,6 +135,8 @@ def alt_boxplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
 
 def searchTranscripts(transcripts):
     transcript = st.selectbox("Select feature/transcript", transcripts, key="transcript")
+    st.caption("Transcripts ordered by decreasing significance.")
     st.write(" ")
     st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
     st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
+    return transcript

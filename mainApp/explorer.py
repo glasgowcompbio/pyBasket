@@ -8,9 +8,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 from common import savePlot,saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot
 import altair as alt
 
@@ -91,7 +88,7 @@ class Data():
         if RD:
             df_grouped = self.patient_df.groupby(["responsive", feature]).size().reset_index(name='Count')
             alt_ver_barplot(df_grouped, feature, 'Count', 2, x_lab, "Number of samples", "responsive", title, "NumSamples",
-                            ["responsive", feature])
+                            ["responsive", feature, 'Count'])
             st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the number of samples."
                        " Within levels, the number of samples that are responsive (blue) or non-responsive (red) to treatment are shown.")
         else:

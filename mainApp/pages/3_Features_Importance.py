@@ -99,20 +99,20 @@ if "data" in st.session_state:
                                      'Select only samples in tissue/basket'],
                                 key="global_samples", horizontal=True)
             transcripts = global_ALE.transcripts
-            feature = st.selectbox("Select a transcript/feature", transcripts, key="global_feature")
+            feature = searchTranscripts(transcripts)
             if gsamples == 'All samples':
                 global_ALE.global_ALE(feature)
             elif gsamples == 'Use samples in the selected interaction':
                 basket, cluster = basket, cluster
                 option = "interaction"
                 response = st.checkbox("Split by Responsive vs Non-responsive samples")
-                #try:
-                if response:
-                    global_ALE.global_ALE_resp(feature)
-                else:
-                    global_ALE.global_ALE_single(feature, cluster,basket, option)
-               # except:
-                   # st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
+                try:
+                    if response:
+                        global_ALE.global_ALE_resp(feature)
+                    else:
+                        global_ALE.global_ALE_single(feature, cluster,basket, option)
+                except:
+                    st.warning("Not enough samples in the selected basket*cluster interaction. Please try a different combination.")
             else:
                 if gsamples == 'Select only samples in cluster':
                     groups = st.multiselect(
@@ -192,7 +192,7 @@ if "data" in st.session_state:
                 with col42:
                     st.write(" ")
                     st.write(" ")
-                    searchTranscripts(limedf['Feature'].tolist())
+                    feature = searchTranscripts(limedf['Feature'].tolist())
             elif local_model == "SHAP":
                 st.write("  ")
                 st.subheader("SHAP")
@@ -216,7 +216,7 @@ if "data" in st.session_state:
                     RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
                     transcripts = feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
                 with col36:
-                    searchTranscripts(transcripts)
+                    feature = searchTranscripts(transcripts)
                 st.write("##### Decision plot")
                 st.write("The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
                          "chosen sample {}. They are a linear representation of SHAP values.".format(n_features,sample))

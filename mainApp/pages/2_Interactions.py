@@ -1,7 +1,7 @@
 import streamlit as st
 from analysis import Analysis, heatMap
 from interpretation import Prototypes, DEA
-from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt
+from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt,searchTranscripts
 from streamlit_option_menu import option_menu
 
 add_logo()
@@ -22,7 +22,6 @@ if "data" in st.session_state:
     if "cluster" in st.session_state:
         cluster = st.session_state["cluster"]
     subgroup, size = analysis_data.findInteraction(cluster, basket)
-
     if menu == "All interactions":
         st.write("""This page shows results and information about the interactions between clusters and baskets/tissues. Below what information to 
                  display can be selected, such as the number of samples, the number of responsive samples or the inferred response in each basket*cluster interaction.""")
@@ -134,11 +133,11 @@ if "data" in st.session_state:
             st.write("The prototype sample of the selected basket*cluster interaction for the Responsive and the"
                     " Non-responsive groups has been calculated using KMedoids. KMedoids finds the sample that is"
                      "the closest to the rest of samples in the group. ")
-            ##try:
-            sub_prototypes = Prototypes(data)
-            sub_prototypes.findPrototypes_sub(subgroup)
-            #except:
-              #  st.warning("Not enough samples. Please try a different combination.")
+            try:
+                sub_prototypes = Prototypes(data)
+                sub_prototypes.findPrototypes_sub(subgroup)
+            except:
+                st.warning("Not enough samples. Please try a different combination.")
         with tab4:
             st.subheader("Differential expression analysis (DEA)")
             st.write("")
@@ -180,14 +179,10 @@ if "data" in st.session_state:
                     st.write(
                         "The difference in the expression level of a transcript/feature and the individual results from "
                         "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
-
                     col53, col54 = st.columns((2, 4))
                     with col53:
-                        transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
+                        transcript= searchTranscripts(results["Feature"])
                         dea.infoTranscript(transcript)
-                        st.write(" ")
-                        st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                        st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
                     with col54:
                         dea.boxplot_inter(subgroup, transcript)
                 except:
@@ -205,16 +200,12 @@ if "data" in st.session_state:
                         st.write(
                             "The difference in the expression level of a transcript/feature and the individual results from "
                             "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
-
                         col53, col54 = st.columns((2, 4))
                         with col53:
-                            transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                            dea.infoTranscript(transcript)
-                            st.write(" ")
-                            st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                            st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
+                            feature = searchTranscripts(results["Feature"])
+                            dea.infoTranscript(feature)
                         with col54:
-                            dea.boxplot_resp(subgroup, transcript)
+                            dea.boxplot_resp(subgroup, feature)
                     except:
                         st.warning("Not enough samples. Please try a different combination.")
                 else:

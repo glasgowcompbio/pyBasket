@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import streamlit as st
 from analysis import Analysis,heatMap
-from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
+from common import add_logo, hideRows, savePlot,sideBar, openGeneCard,searchTranscripts
 from interpretation import Prototypes, DEA
 from streamlit_option_menu import option_menu
 
@@ -137,7 +137,6 @@ if "data" in st.session_state:
             if len(groups)<2:
                 st.write("")
             else:
-                #st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
                 with col51:
                     pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
                     logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
@@ -154,12 +153,8 @@ if "data" in st.session_state:
                 st.write("")
                 col53, col54 = st.columns((2,4))
                 with col53:
-                    transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                    st.caption("Transcripts ordered by decreasing significance.")
+                    transcript = searchTranscripts(results["Feature"])
                     dea.infoTranscript(transcript)
-                    st.write(" ")
-                    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                    st.button('Open GeneCards',on_click=openGeneCard, args=(transcript,))
                 with col54:
                     dea.boxplot(groups[0], groups[1], feature, transcript)
 

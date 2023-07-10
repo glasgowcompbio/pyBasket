@@ -101,6 +101,7 @@ if menu == "Data Upload":
         st.write(file_name)
     if "File Name" in st.session_state:
         st.success('Analysis ready', icon="✅")
+        st.write("#### Current file: {}".format(st.session_state['File Name']))
 
 def openDrugBank(num):
     webpage_link = "https://go.drugbank.com/drugs/" + num
@@ -120,9 +121,8 @@ def openPubMed(drug):
 
 if menu == "File information":
     st.subheader("File information")
-
     if "File Name" in st.session_state:
-        st.session_state["Results"].fileInfo()
+        st.session_state["data"].fileInfo()
 
 
 if menu == 'Drug information':
