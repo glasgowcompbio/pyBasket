@@ -338,10 +338,10 @@ class Global(FI):
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
         change1 = max1 - min1
         change2 = max2-min2
-        st.write("##### The magnitude of impact of the feature in the model's prediction is for Responsive samples is {}.".format(
+        st.write("##### The magnitude of impact of the feature in the model's prediction for Responsive samples is {}.".format(
             round(change2.tolist()[0], 6)))
         st.write(
-            "##### The magnitude of impact of the feature in the model's prediction is for Non-responsive samples is {}.".format(
+            "##### The magnitude of impact of the feature in the model's prediction for Non-responsive samples is {}.".format(
                 round(change1.tolist()[0], 6)))
         savePlot(fig, "ALE-resp")
         st.pyplot(fig)

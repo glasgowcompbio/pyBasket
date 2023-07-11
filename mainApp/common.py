@@ -139,4 +139,5 @@ def searchTranscripts(transcripts):
     st.write(" ")
     st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
     st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
+    st.write(" ")
     return transcript

@@ -179,9 +179,10 @@ if "data" in st.session_state:
                     st.write(
                         "The difference in the expression level of a transcript/feature and the individual results from "
                         "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
-                    col53, col54 = st.columns((2, 4))
+                    transcript = searchTranscripts(results["Feature"])
+                    col53, col54 = st.columns((2, 3))
                     with col53:
-                        transcript= searchTranscripts(results["Feature"])
+                        st.write(" ")
                         dea.infoTranscript(transcript)
                     with col54:
                         dea.boxplot_inter(subgroup, transcript)
@@ -200,9 +201,10 @@ if "data" in st.session_state:
                         st.write(
                             "The difference in the expression level of a transcript/feature and the individual results from "
                             "DEA can be explored below. Further information about the transcript can be found in the button that links to its GeneCard profile.")
+                        feature = searchTranscripts(results["Feature"])
                         col53, col54 = st.columns((2, 4))
                         with col53:
-                            feature = searchTranscripts(results["Feature"])
+                            st.write(" ")
                             dea.infoTranscript(feature)
                         with col54:
                             dea.boxplot_resp(subgroup, feature)

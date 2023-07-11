@@ -262,6 +262,8 @@ class DEA():
         df = pd.DataFrame(data=df_info).T
         df.style.hide(axis='index')
         df.style.hide(axis='columns')
+        st.write(" ")
+        st.write("##### DEA results for {}".format(transcript))
         st.dataframe(df, use_container_width=True)
 
     def volcanoPlot(self, thresh, logthresh):
