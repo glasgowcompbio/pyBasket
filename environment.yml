@@ -23,8 +23,8 @@ dependencies:
   - mpld3
   - shap
   - lime
-  - PyALE
   - altair
+  - webbrowser
   - pip:
     - pymc
     - arviz
@@ -35,5 +35,6 @@ dependencies:
     - mkdocstrings
     - streamlit_option_menu
     - alibi
+    
     
     
