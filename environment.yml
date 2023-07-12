@@ -33,3 +33,7 @@ dependencies:
     - build
     - mkdocs
     - mkdocstrings
+    - streamlit_option_menu
+    - alibi
+    
+    
