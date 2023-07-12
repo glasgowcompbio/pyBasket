@@ -1,10 +1,7 @@
 import streamlit as st
-from analysis import Analysis
-from explorer import Data
 from importance import FI, Global
 from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard,searchTranscripts
 from streamlit_option_menu import option_menu
-import webbrowser
 
 add_logo()
 sideBar()
@@ -186,15 +183,12 @@ if "data" in st.session_state:
                          "sample prediction."
                          )
                 RawD = st.checkbox("Show raw data", key="raw-data-LIME")
-                col41, col42 = st.columns((4,2))
-                with col41:
-                    limedf = feature_inter.limeInterpretation(sample,n_features,RawD)
-                    st.caption(
-                        "Green values: positive effect on prediction. Red values: negative effect on prediction. ")
-                with col42:
-                    st.write(" ")
-                    st.write(" ")
-                    feature = searchTranscripts(limedf['Feature'].tolist())
+                limedf = feature_inter.limeInterpretation(sample,n_features,RawD)
+                st.caption("The x-axis represents the feature's importance on the model's prediction. The y-axis represents the features with highest importance in decreasing order."
+                    "Green values: positive effect on prediction. Red values: negative effect on prediction. ")
+                st.write(" ")
+                st.write("##### Further information about the features displayed: ")
+                feature = searchTranscripts(limedf['Feature'].tolist())
             elif local_model == "SHAP":
                 st.write("  ")
                 st.subheader("SHAP")
@@ -211,12 +205,14 @@ if "data" in st.session_state:
                 st.write(" ")
                 st.write("##### Decision plot for {}".format(sample))
                 st.write(
-                    "The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
-                    "chosen sample {}. They are a linear representation of SHAP values.".format(n_features, sample))
+                    "The SHAP decision plot shows the relationshop between the {} most influential features/transcripts and the model's prediction for the "
+                    "individual cell line {}. "
+                    "They are a linear representation of SHAP values.".format(n_features, sample))
                 st.write("")
                 RawD = st.checkbox("Show raw data", key="raw-data-SHAP-dec")
                 transcripts = feature_inter.SHAP_decision(sample, explainer, values, n_features, RawD)
                 st.caption(
+                    "The x-axis represents the model's AAC prediction. The y-axis represents the model's features. "
                     "The grey vertical line represents the base value. Coloured line is the prediction and how each feature impacts it."
                     " Bracket values are the real features values for the chosen sample.")
                 st.write("##### Further information about the features displayed: ")

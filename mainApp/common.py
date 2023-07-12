@@ -1,13 +1,6 @@
-import gzip
-import pickle
-import mpld3
-import numpy as np
-from loguru import logger
 import seaborn as sns
-import matplotlib.pyplot as plt
 import streamlit as st
 import webbrowser
-from altair_saver import save
 import altair as alt
 
 def add_logo():

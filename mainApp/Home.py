@@ -1,15 +1,10 @@
-import streamlit as st
 import tempfile
-from analysis import *
 from common import add_logo,sideBar
-import base64
 import webbrowser
 from interpretation import *
 from streamlit_option_menu import option_menu
 from explorer import Data, readPickle
 from analysis import Analysis
-import streamlit.components.v1 as components
-
 
 st.set_page_config(
     page_title="pyBasket",

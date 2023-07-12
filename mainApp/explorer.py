@@ -1,15 +1,11 @@
 import os
 import gzip
 import pickle
-import mpld3
 import numpy as np
 from loguru import logger
-import seaborn as sns
-import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 from common import savePlot,saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot
-import altair as alt
 
 genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 

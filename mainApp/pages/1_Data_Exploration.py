@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import streamlit as st
 from analysis import Analysis,heatMap
 from common import add_logo, hideRows, savePlot,sideBar, openGeneCard,searchTranscripts

@@ -2,11 +2,9 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 from scipy.stats import ttest_ind
-from sklearn_extra.cluster import KMedoids
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
 from common import savePlot, saveTable,alt_boxplot

@@ -1,17 +1,13 @@
 import matplotlib.pyplot as plt
 from lime import lime_tabular
 from sklearn.inspection import permutation_importance
-#from rfpimp import permutation_importances
 import streamlit as st
 import sklearn
 import shap
-import streamlit.components
 import numpy as np
 import pandas as pd
 from common import savePlot, saveTable, openGeneCard,alt_hor_barplot
 from alibi.explainers import ALE, plot_ale
-import altair as alt
-
 
 if "data" in st.session_state:
     data = st.session_state["data"]

@@ -1,7 +1,6 @@
 import streamlit as st
 from common import add_logo, sideBar
 
-
 add_logo()
 sideBar()
 st.header("About")

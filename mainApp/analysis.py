@@ -11,7 +11,6 @@ import altair as alt
 from explorer import Data
 from scipy.cluster import hierarchy
 
-
 genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 
 class Analysis(Data):
