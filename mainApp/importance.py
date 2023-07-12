@@ -5,6 +5,7 @@ from sklearn.inspection import permutation_importance
 import streamlit as st
 import sklearn
 import shap
+import streamlit.components
 import numpy as np
 import pandas as pd
 from common import savePlot, saveTable, openGeneCard,alt_hor_barplot
@@ -71,8 +72,6 @@ class FI():
         else:
             savePlot(fig,sample+"LIME")
             st.pyplot(fig)
-            st.caption(
-            "Green values: positive effect on prediction. Red values: negative effect on prediction. ")
         return raw_data
 
     def permutationImportance(self, num_feats, RawD):
@@ -110,8 +109,7 @@ class FI():
         index = df[df["index"] == sample].index
         shap_values = explainer(self.expr_df_selected)
         fig, ax = plt.subplots(figsize=(6, 6))
-        shap.plots.bar(shap_values[index], show=True, max_display=n_features)
-        #shap.waterfall_plot(shap_values[index].base_values[0], values[0], self.expr_df_selected.iloc[0])
+        shap.plots.bar(shap_values[index], show=True, max_display = n_features)
         mean_values = np.abs(values[index]).mean(0)
         raw_df = pd.DataFrame({'Feature': self.expr_df_selected.columns, 'mean |SHAP value|': mean_values})
         raw_df = raw_df.sort_values(by=['mean |SHAP value|'], ascending=False)
@@ -139,17 +137,18 @@ class FI():
         index = df[df["index"]==sample].index
         selected_shap_values = values[index, :n_features]
         selected_features = round(self.expr_df_selected.iloc[index, :n_features],2)
-        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
-        fig = shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",matplotlib=True, show=False)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'Feature value': selected_features.iloc[0].values, 'SHAP value': selected_shap_values[0]})
+        fig, ax = plt.subplots()
+        shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",show=True)
         st.write("  ")
         if RawD:
             saveTable(raw_data, sample + "SHAP_force")
             st.write("  ")
             st.dataframe(raw_data)
         else:
-            savePlot(fig, sample + "SHAP_force")
+            #savePlot(fig, sample + "SHAP_force")
             st.write("  ")
-            st.pyplot(fig)
+            st.pyplot(fig,bbox_inches='tight',dpi=300,pad_inches=0)
 
     def SHAP_decision(self, sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
@@ -158,16 +157,17 @@ class FI():
         selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
         raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
         fig, ax = plt.subplots(figsize=(5, 3))
+        transcripts = raw_data['Feature']
         shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
-        st.write("  ")
         if RawD:
             saveTable(raw_data, sample + "SHAP_dec")
-            st.write("  ")
             st.dataframe(raw_data)
         else:
             savePlot(fig, sample + "_SHAP_dec")
-            st.write("  ")
             st.pyplot(fig)
+        return transcripts
+
+
 
     def SHAP_summary(self,values,num_feats):
         fig, ax = plt.subplots()

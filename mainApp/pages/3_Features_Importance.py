@@ -51,8 +51,8 @@ if "data" in st.session_state:
             st.subheader("SHAP values")
             st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
                          "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
-                         " as it uses fair allocation results from cooperative game to allocate credit for a model's output among its input features."
-                         "Below, the top {} features that most influence the prediction of the AAC response are shown".format(num_feat))
+                         " as it uses fair allocation results from cooperative game to quantify the contribution that each feature makes to the model's prediction."
+                         "Below, the top {} features that most influence the prediction of the AAC response to the drug are shown".format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-SHAP")
             if RawD:
                 raw_df = feature_inter.SHAP_results(values)
@@ -189,6 +189,8 @@ if "data" in st.session_state:
                 col41, col42 = st.columns((4,2))
                 with col41:
                     limedf = feature_inter.limeInterpretation(sample,n_features,RawD)
+                    st.caption(
+                        "Green values: positive effect on prediction. Red values: negative effect on prediction. ")
                 with col42:
                     st.write(" ")
                     st.write(" ")
@@ -207,35 +209,16 @@ if "data" in st.session_state:
                 st.write("**Model's predicted AAC response is:** {} ".format(pred))
                 st.write("**True AAC response is:** {} ".format(true_value))
                 st.write(" ")
-                st.write("##### Bar plot for {}".format(sample))
-                st.write("  ")
-                st.write("The SHAP bar plot displays the mean absolute Shapley values for each feature (transcript). Below, the "
-                         "top {} most influential features in the model's prediction of AAC response for the chosen sample {} are shown.".format(n_features, sample))
-                col36, col37 = st.columns((2,4))
-                with col37:
-                    RawD_bar = st.checkbox("Show raw data", key="raw-data-SHAP_bar")
-                    transcripts = feature_inter.SHAP_bar_indiv(sample, explainer, values, n_features, RawD_bar)
-                with col36:
-                    feature = searchTranscripts(transcripts)
-                st.write("##### Decision plot")
-                st.write("The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
-                         "chosen sample {}. They are a linear representation of SHAP values.".format(n_features,sample))
+                st.write("##### Decision plot for {}".format(sample))
+                st.write(
+                    "The SHAP decision plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
+                    "chosen sample {}. They are a linear representation of SHAP values.".format(n_features, sample))
                 st.write("")
                 RawD = st.checkbox("Show raw data", key="raw-data-SHAP-dec")
-                feature_inter.SHAP_decision(sample, explainer, values, n_features, RawD)
-                st.caption("The grey vertical line represents the base value. Coloured line is the prediction and how each feature impacts it."
-                           " Bracket values are the real features values for the chosen sample.")
-                st.write(" ")
-                st.write("##### Forces plot")
-                st.write("  ")
-                st.write("The SHAP forces plot shows how these top {} most influential features/transcripts contributed to the model's prediction for the "
-                         "chosen sample {}. Features that had more impact on the score are located closer to the dividing boundary between red and blue."
-                         " The size of the impact in the model's prediction is represented by the size of the bar.".format(n_features,sample))
+                transcripts = feature_inter.SHAP_decision(sample, explainer, values, n_features, RawD)
+                st.caption(
+                    "The grey vertical line represents the base value. Coloured line is the prediction and how each feature impacts it."
+                    " Bracket values are the real features values for the chosen sample.")
+                st.write("##### Further information about the features displayed: ")
+                feature = searchTranscripts(transcripts)
 
-                RawD = st.checkbox("Show raw data", key="raw-data-SHAP")
-                feature_inter.SHAP_forces(sample, explainer, values, n_features, RawD)
-                st.caption("The bold number represents the model's average or expected predicted AAC response across the dataset."
-                           " Base values represent the value that would be predicted if no features were known. "
-                           "Values on plot arrows represent the value of the feature for the chosen sample."
-                           " Red values represent features that pushed the model's prediction higher."
-                           " Blue values present the features that pushed the score lower.")
