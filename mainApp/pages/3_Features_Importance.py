@@ -78,7 +78,8 @@ if "data" in st.session_state:
         st.write(" ")
         st.subheader("Global MA methods")
         st.write(" ")
-        st.write('Global Model-Agnostic methods are used to describe the average behaviour of a Machine Learning model. ')
+        st.write('Global Model-Agnostic (MA) methods are used to describe the average behaviour of a Machine Learning model. Here, the transcripts that have the highest'
+                 ' impact on the AAC response prediction for a group of cell lines on average can be explored.  ')
         method = st.selectbox("Select a global method", ['ALE', 'PDP (SHAP)'], key ='global')
         st.write("---")
         if method == 'ALE':
@@ -142,7 +143,8 @@ if "data" in st.session_state:
     elif menu == "Local methods":
         st.subheader("Local MA methods")
         st.write(" ")
-        st.write("Local Model-Agnostic interpretation methods aim to explain individual predictions made by a Machine Learning model.")
+        st.write("Local Model-Agnostic (MA) interpretation methods aim to explain individual predictions made by a Machine Learning model. The transcripts that have the highest impact"
+                 " on the prediction of the AAC response of individual cell lines can be explored. ")
         col31, col32 = st.columns((2, 2))
         with col31:
             local_model = st.selectbox("Select a local interpretable method", ["LIME", "SHAP"], key="model2")

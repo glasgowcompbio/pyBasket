@@ -7,7 +7,7 @@ from streamlit_option_menu import option_menu
 add_logo()
 sideBar()
 hide_rows = hideRows()
-st.header("Basket*Cluster interaction")
+st.header("Basket*Cluster interactions")
 st.write("---")
 menu = option_menu(None, ["All interactions", "Selected interaction"],
     icons=["bi bi-asterisk", "bi bi-braces-asterisk"],
@@ -114,7 +114,6 @@ if "data" in st.session_state:
                     st.caption(
                         "The x-axis represents all transcripts. The y-axis represents some of the samples in the selected basket*cluster interaction."
                         " The colour bar represents the expression level of the transcript for each sample.")
-
             except:
                 st.warning("Not enough samples. Please try a different combination.")
         with tab2:
@@ -156,8 +155,8 @@ if "data" in st.session_state:
                 option = st.selectbox("Select analysis", (
                 "Samples in interaction vs rest of samples", "Within interaction: responsive vs non-responsive"), key="DEA")
                 pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value=0.05)
+                st.caption("Applied on corrected p-values.")
                 logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
-
             if option == "Samples in interaction vs rest of samples":
                 st.write(" ")
                 st.subheader("Samples in interaction vs all other interactions")

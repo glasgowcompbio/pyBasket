@@ -148,7 +148,7 @@ class Data():
                 alt_boxplot(self.patient_df, feature, "responses", size, x_lab, "AAC response", feature, "AAC response", "AAC")
                 st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the real AAC response to the drug.")
 
-    def barInferredProb(self, feature):
+    def barInferredProb(self, feature,RawD_prob):
         stacked = self.stacked_posterior
         if feature == 'baskets':
             len_colors = len(self.baskets_names)
@@ -164,6 +164,12 @@ class Data():
             title = 'Clusters'
             feature = 'cluster'
             subheader = "Inferred cluster response"
-        alt_ver_barplot(df, feature, 'prob', len_colors, title, "Inferred response probability", feature, subheader, "Inferred", [feature, 'prob'])
-        st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
-                    )
+        if RawD_prob:
+            saveTable(df, "raw-prob")
+            st.dataframe(df, use_container_width=True)
+        else:
+            alt_ver_barplot(df, feature, 'prob', len_colors, title, "Inferred response probability", feature, subheader, "Inferred", [feature, 'prob'])
+            st.caption(
+            "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
+            )
+

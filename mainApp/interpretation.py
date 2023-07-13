@@ -163,28 +163,28 @@ class DEA():
             ttest_results.append((column, t, p, l2fc))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value', 'LFC'])
         dea_results = dea_results.dropna()
-        dea_results['Adjusted P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
-        #_, dea_results['Adjusted P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
+        dea_results['Corrected P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
+        #_, dea_results['Corrected P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
                                                                      #method='fdr_bh')
-        dea_results = dea_results.sort_values(by=['Adjusted P-value'])
-        dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) #& (abs(dea_results['LFC']) > logthresh)
+        dea_results = dea_results.sort_values(by=['Corrected P-value'])
+        dea_results['Significant'] = (dea_results['Corrected P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
         return dea_results
 
     def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
-        self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
+        self.ttest_res.sort_values(by='Corrected P-value', ascending=True)
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         st.subheader("Volcano plot")
         st.write(
             "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
-            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (corrected P value) vs the magnitude"
             " of change (LFC) between the two conditions. Below, results are shown for {} vs {}.".format(option1, option2))
         savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
         st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
-                   "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                    "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def diffAnalysis_response(self,results,subgroup,pthresh, logthresh):
@@ -198,13 +198,13 @@ class DEA():
             st.subheader("Volcano plot")
             st.write(
                 "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
-                " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+                " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (corrected P value) vs the magnitude"
                 " of change (LFC) between the two conditions. Below, results are shown for responsive vs non-responsive samples within the selected basket*cluster"
                 " interaction.")
             savePlot(base, "DEA:resp")
             st.altair_chart(base, theme="streamlit", use_container_width=True)
             st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
-                       "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                       "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                        "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
         else:
@@ -214,7 +214,7 @@ class DEA():
         st.subheader("Results")
         st.write("Results from Fold Change (FC) and T-test analyses for each transcript/feature are shown below. Significant features are those features whose adjusted "
                  "p-value is beyond the selected adjusted p-value threshold, either up or down regulated.")
-        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
+        self.ttest_res['Corrected P-value'] = self.ttest_res['Corrected P-value'].apply('{:.6e}'.format)
         self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
         only_sig = st.checkbox('Show only significant transcripts.')
         num_sig = len(self.ttest_res[self.ttest_res["Significant"] == True])
@@ -242,21 +242,21 @@ class DEA():
         st.write("#### Volcano plot")
         st.write(
             "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
-            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (P value) vs the magnitude"
+            " statistical significance thresholds (corrected p-value and LFC threshold). It shows statistical significance (Corrected P value) vs the magnitude"
             " of change (LFC) between the two conditions. Below, results are shown for samples in the selected basket*cluster interaction"
             " vs any other sample.")
         base = DEA.volcanoPlot(self,pthresh,logthresh)
         savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
         st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
-                   "statistical significance by p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                    "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def infoTranscript(self, transcript):
         info = self.ttest_res[self.ttest_res['Feature']==transcript].values.flatten().tolist()
         df_info = {'Feature': {'information': info[0]},'T-test result': {'information': round(info[1],3)},
                                 'P-value' : {'information': info[2]}, 'LFC': {'information': round(info[3],3)},
-                                'Adjusted P-value': {'information': info[4]}, 'Significant': {'information': info[5]}}
+                                'Corrected P-value': {'information': info[4]}, 'Significant': {'information': info[5]}}
         df = pd.DataFrame(data=df_info).T
         df.style.hide(axis='index')
         df.style.hide(axis='columns')
@@ -266,18 +266,17 @@ class DEA():
 
     def volcanoPlot(self, thresh, logthresh):
         df = self.ttest_res
-        direction = [((df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)),((df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)),
+        direction = [(df['LFC'] <= -logthresh),(df['LFC'] >= logthresh),
                      ((df['LFC'] > -logthresh)&(df['LFC'] < logthresh))]
         values = ['down-regulated', 'up-regulated', 'non-significant']
         df['direction'] = np.select(direction, values)
-        df['P-Value'] = df['P-Value'].apply(lambda x: -np.log10(x))
+        df['Corrected P-value'] = df['Corrected P-value'].apply(lambda x: -np.log10(x))
         base = alt.Chart(df, title = "Volcano plot").mark_circle(size=100).encode(
             x=alt.Y('LFC', title = "log2FC"),
-            y=alt.Y('P-Value', title = '-log10(p-value)'),
+            y=alt.Y('Corrected P-value', title = '-log10(corrected p-value)'),
             color=alt.Color('direction:O',
-                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC', 'P-Value','Feature']
+                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC','Corrected P-value','Feature']
         ).interactive().properties(height=700, width=400)
-
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold2 = alt.Chart(pd.DataFrame({'x': [logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold3 = alt.Chart(pd.DataFrame({'y': [-np.log10(thresh)]})).mark_rule(strokeDash=[10, 10]).encode(y='y')
@@ -300,10 +299,10 @@ class DEA():
         filtered_df = self.expr_df_selected.drop(indexes)
         self.df_group1 = subgroup
         self.df_group2 = filtered_df
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "Group" : 'Samples in interaction'})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "Group" : 'All samples'})
         full_df = pd.concat([df1, df2])
-        alt_boxplot(full_df, "class", transcript, 2, "Group","Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA_"+transcript)
+        alt_boxplot(full_df, "Group", transcript, 2, "Group","Expression level", "Group", "Expression level of transcript {}".format(transcript), "DEA_"+transcript)
         st.caption(
             "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
@@ -319,10 +318,10 @@ class DEA():
     def boxplot(self, option1, option2, feature, transcript):
         self.df_group1 = DEA.selectGroups(self, option1, feature)
         self.df_group2 = DEA.selectGroups(self, option2, feature)
-        df1 = pd.DataFrame({transcript: self.df_group1[transcript], "class": option1})
-        df2 = pd.DataFrame({transcript: self.df_group2[transcript], "class": option2})
+        df1 = pd.DataFrame({transcript: self.df_group1[transcript], "Group": option1})
+        df2 = pd.DataFrame({transcript: self.df_group2[transcript], "Group": option2})
         full_df = pd.concat([df1, df2])
-        alt_boxplot(full_df, "class:N", transcript+':Q', 2, "Response", "Expression level", "class",
+        alt_boxplot(full_df, "Group:N", transcript+':Q', 2, "Group", "Expression level", "Group",
                     "Expression level of transcript {}".format(transcript), "DEA_" + transcript)
         st.caption("The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 

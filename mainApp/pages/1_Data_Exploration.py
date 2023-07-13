@@ -17,6 +17,7 @@ if "data" in st.session_state:
     data = st.session_state["data"]
     heatmap = heatMap(st.session_state["saved data"],st.session_state["File Name"])
     analysis = st.session_state["Analysis"]
+    print(data.stacked_posterior)
     if menu == "Samples information":
         st.subheader("Number of samples")
         st.write(
@@ -29,7 +30,7 @@ if "data" in st.session_state:
                                        key="option-tab1")
         with col12:
             st.write(" ")
-            RD = st.checkbox("Group by responsiveness", key="responsive")
+            RD = st.checkbox("Group by response", key="responsive")
             RawD = st.checkbox("Show raw data", key="raw-data")
         if option_tab1 == "Clusters":
             if RawD:
@@ -64,7 +65,7 @@ if "data" in st.session_state:
             data.AAC_scatterplot(RawD_AAC)
         else:
             with col22:
-                RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
+                RD_AAC = st.checkbox("Group by response", key="responsive-AAC")
             if option_tab2 == "Clusters":
                 data.AAC_response("cluster_number", RD_AAC, "Cluster number", RawD_AAC)
             elif option_tab2 == 'Baskets/Tissues':
@@ -75,12 +76,11 @@ if "data" in st.session_state:
                  " overall probability of each basket or cluster to be responsive to the treatment.")
         option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
                                    key="option-page2")
+        RawD_prob = st.checkbox("Show raw data", key="raw-data-prob")
         if option_page2 == 'Baskets/Tissues':
-            st.write("Plot of the inferred response probability per basket (tissue).")
-            data.barInferredProb("baskets")
+            data.barInferredProb("baskets",RawD_prob)
         elif option_page2 == "Clusters":
-            st.write("Plot of the inferred response probability per cluster.")
-            data.barInferredProb("clusters")
+            data.barInferredProb("clusters",RawD_prob)
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
@@ -89,7 +89,7 @@ if "data" in st.session_state:
                      "dimensional subspace while preserving the essence of the data and the maximum amount of information.")
             st.write("Principal Component Analysis (PCA) is a dimensionality reduction method that enables the visualisation"
                      " of high-dimensional data. The results for PCA on the data can be explored for the data grouped by "
-                     "clusters, baskets/tissues or responsiveness.")
+                     "clusters, baskets/tissues or response.")
             st.write(" ")
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
             RawD = st.checkbox("Show raw data", key="raw-data-PCA")
@@ -138,6 +138,7 @@ if "data" in st.session_state:
             else:
                 with col51:
                     pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
+                    st.caption("Applied on corrected p-values.")
                     logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
                 dea = DEA(data)
                 dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh,logthresh)
