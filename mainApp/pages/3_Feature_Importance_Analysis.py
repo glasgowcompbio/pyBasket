@@ -9,7 +9,7 @@ hide_rows = hideRows()
 st.header("Features importance")
 
 st.write("---")
-menu = option_menu(None, ["Overview", "Global methods", "Local methods"],
+menu = option_menu(None, ["Overview", "Global MA methods", "Local MA methods"],
     icons=["bi bi-bar-chart", "bi bi-globe", "bi bi-pin-map"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
@@ -26,7 +26,7 @@ if "data" in st.session_state:
         st.write(" ")
         st.subheader("Overview")
         st.write('Feature Importance is a technique to describe how relevant an input feature is and its effect on the model '
-                 'being used to predict an outcome. Here, the feature importance is calculated using several Model-Agnostic '
+                 'being used to predict an outcome. Here, the feature importance is calculated using several Model-Agnostic (MA) '
                  'methods to find the transcripts that are mostly driving the prediction of the AAC response for each sample or samples. '
                  )
         col11, col12 = st.columns((3,2))
@@ -61,20 +61,19 @@ if "data" in st.session_state:
                 st.pyplot(fig)
                 st.caption("The x-axis represents the magnitude of the feature's impact on the model's output."
                            " The y-axis shows the features with the highest impact ordered in decreasing order."
-                           "Each point is a Shapley value of an instance per feature/transcript and the colour represents the direction of the feature's effect."
-                           " Red colour represents positive impact (higher values of the feature contributes to higher model predictions."
-                           " Blue values represents negative impact (lower values contribute to higher model predictions)."
-                           )
+                           "Each point is a Shapley value of an instance per feature/transcript and the colour represents the feature's value.")
         elif global_model == "Permutation Based":
             st.subheader("Permutation based feature importance")
             st.write('Permutation based feature importance is a MA method that measures'
-                     ' the importance of a feature by calculating the increase in the model’s prediction'
-                     'error when re-shuffling each predictor. Below is shown how much impact have the top {} features have in the model’s prediction for AAC response.'.format(num_feat))
+                     ' the importance of a feature by calculating the increase in the model’s prediction '
+                     'error when re-shuffling each predictor. '
+                     ''
+                     'Below is shown how much impact have the top {} features have in the model’s prediction for AAC response.'.format(num_feat))
             RawD = st.checkbox("Show raw data", key="rd-PBI")
             feature_inter.permutationImportance(num_feat,RawD)
             st.caption("The x-axis represents the feature's importance for the model's prediction. The y-axis represents the features ordered in decreasing order"
                        " of importance.")
-    elif menu == "Global methods":
+    elif menu == "Global MA methods":
         st.write(" ")
         st.subheader("Global MA methods")
         st.write(" ")
@@ -91,7 +90,6 @@ if "data" in st.session_state:
                      "In addition, the impact of a feature in two different groups of samples, i.e. two clusters, can also be compared. ")
             st.write(
                 "The resulting ALE plot shows how the model's predictions change as the feature's values move across different bins.")
-
             global_ALE = Global(data)
             gsamples = st.radio("", ['All samples','Use samples in the selected interaction', 'Select only samples in cluster',
                                      'Select only samples in tissue/basket'],
@@ -99,7 +97,11 @@ if "data" in st.session_state:
             transcripts = global_ALE.transcripts
             feature = searchTranscripts(transcripts)
             if gsamples == 'All samples':
-                global_ALE.global_ALE(feature)
+                response = st.checkbox("Split by Responsive vs Non-responsive samples")
+                if response:
+                    global_ALE.global_ALE_resp(feature)
+                else:
+                    global_ALE.global_ALE(feature)
             elif gsamples == 'Use samples in the selected interaction':
                 basket, cluster = basket, cluster
                 option = "interaction"
@@ -114,7 +116,7 @@ if "data" in st.session_state:
             else:
                 if gsamples == 'Select only samples in cluster':
                     groups = st.multiselect(
-                        'Please select a cluster or up to 2 cluster to compare.', data.clusters_names, max_selections=2)
+                        'Please select a cluster or up to 2 clusters to compare.', data.clusters_names, max_selections=2)
                     option = "clusters"
                 elif gsamples == 'Select only samples in tissue/basket':
                     groups = st.multiselect(
@@ -140,7 +142,7 @@ if "data" in st.session_state:
             st.caption("Values ordered by decreasing importance by SHAP")
             st.write("#### SHAP dependence plot")
             feature_inter.SHAP_dependence(values, transcript2)
-    elif menu == "Local methods":
+    elif menu == "Local MA methods":
         st.subheader("Local MA methods")
         st.write(" ")
         st.write("Local Model-Agnostic (MA) interpretation methods aim to explain individual predictions made by a Machine Learning model. The transcripts that have the highest impact"
