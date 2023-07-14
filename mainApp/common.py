@@ -3,6 +3,13 @@ import streamlit as st
 import webbrowser
 import altair as alt
 
+def colours(num):
+    if num > 2:
+        palette = sns.color_palette("colorblind", num).as_hex()
+    else:
+        palette = ['#e50000','#02c14d']
+    return palette
+
 def add_logo():
     st.markdown(
         """
@@ -74,7 +81,7 @@ def sideBar():
             st.warning("Results not found. Please upload in a results file in Home.")
 
 def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
-    palette = sns.color_palette("Paired", num_cols).as_hex()
+    palette = colours(num_cols)
     base = alt.Chart(df).mark_bar().encode(
         alt.X(x, title=title_x),
         alt.Y(y+':N', title=title_y).sort('-x'), alt.Color(colors +':N')
@@ -87,10 +94,7 @@ def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save
     st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 def alt_ver_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save, tooltip):
-    if num_cols>2:
-        palette = sns.color_palette("Paired", num_cols).as_hex()
-    else:
-        palette = ["#F72585", "#4CC9F0"]
+    palette = colours(num_cols)
     base = alt.Chart(df).mark_bar().encode(
         alt.X(x +':N', title=title_x),
         alt.Y(y+':Q', title=title_y,axis=alt.Axis(grid=False)), alt.Color(colors+':N'), tooltip = tooltip
@@ -115,10 +119,7 @@ def alt_scatterplot(df, x, y, title_x, title_y,main_title,save,tooltip ):
     st.altair_chart(base, theme="streamlit", use_container_width=True)
 
 def alt_boxplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
-    if num_cols>2:
-        palette = sns.color_palette("Paired", num_cols).as_hex()
-    else:
-        palette = ["#F72585", "#4CC9F0"]
+    palette = colours(num_cols)
     base = alt.Chart(df, title="AAC response").mark_boxplot(extent='min-max', ticks=True, size=60).encode(
         x=alt.X(x, title=title_x),
         y=alt.Y(y, title=title_y), color=alt.Color(colors + ':N')

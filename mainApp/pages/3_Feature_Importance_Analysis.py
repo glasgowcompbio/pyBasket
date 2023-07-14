@@ -209,7 +209,7 @@ if "data" in st.session_state:
                 st.write(" ")
                 st.write("##### Decision plot for {}".format(sample))
                 st.write(
-                    "The SHAP decision plot shows the relationshop between the {} most influential features/transcripts and the model's prediction for the "
+                    "The SHAP decision plot shows the relationship between the {} most influential features/transcripts and the model's prediction for the "
                     "individual cell line {}. "
                     "They are a linear representation of SHAP values.".format(n_features, sample))
                 st.write("")

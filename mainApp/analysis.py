@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from common import savePlot,saveTable,alt_ver_barplot
+from common import savePlot,saveTable,alt_ver_barplot, colours
 import altair as alt
 from explorer import Data
 from scipy.cluster import hierarchy
@@ -87,9 +87,9 @@ class Analysis(Data):
         df = self.pca_adv if adv == True else self.pca_df
         df = df.reset_index()
         if feature == "responsive":
-            palette = ["#F72585", "#4CC9F0"]
+            palette = colours(2)
         else:
-            palette = sns.color_palette("Paired",25).as_hex()
+            palette = colours(25)
         base = alt.Chart(df, title = "Principal Component Analysis").mark_circle(size=60).encode(
             x='PC1',
             y='PC2',
@@ -179,7 +179,7 @@ class heatMap(Analysis):
         dendrogram = hierarchy.dendrogram(Z, labels=labels, orientation='right', color_threshold=0)
         reordered_df = df_scaled.iloc[dendrogram['leaves']]
         reordered_df.index = df.index
-        sns.heatmap(reordered_df, cmap="RdBu_r", cbar_kws={'label': 'Expression Level'}, xticklabels=False)
+        sns.heatmap(reordered_df, cmap="vlag", cbar_kws={'label': 'Expression Level'}, xticklabels=False)
         plt.title('Transcriptional expression per sample')
         plt.xlabel('Transcripts')
         plt.ylabel('Samples')
@@ -212,7 +212,7 @@ class heatMap(Analysis):
         x_highlight = self.clusters_names.index(x_highlight)
         y_highlight = self.baskets_names.index(y_highlight)
         fig = plt.figure(figsize=(10, 10))
-        ax = sns.heatmap(data=df, cmap='Blues', yticklabels='auto')
+        ax = sns.heatmap(data=df, cmap="coolwarm", yticklabels='auto')
         plt.title(title)
         plt.xlabel('Clusters')
         plt.ylabel('Baskets')

@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.stats import ttest_ind
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
-from common import savePlot, saveTable,alt_boxplot
+from common import savePlot, saveTable,alt_boxplot, colours
 import altair as alt
 
 np.set_printoptions(suppress=True, precision=3)
@@ -63,9 +63,8 @@ class Prototypes():
 
     @staticmethod
     def plotMedoids(self,X,sample_medoids, feature):
-        num_palette = len(np.unique(feature))
         labels = np.unique(feature)
-        palette = ["#F72585", "#4CC9F0"] if num_palette<3 else sns.color_palette("Paired", num_palette).as_hex()
+        palette = colours(len(np.unique(feature)))
         df = pd.DataFrame({'X': X[:, 0], 'Y': X[:, 1], 'class':feature})
         df2 = self.patient_df.reset_index()
         df = pd.merge(df, df2, left_index=True, right_index=True)

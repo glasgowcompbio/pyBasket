@@ -21,8 +21,8 @@ if "data" in st.session_state:
     if menu == "Samples information":
         st.subheader("Number of samples")
         st.write(
-            "The number of samples is shown by cluster or basket/tissue. The number of responsive and non-responsive"
-            " samples within groups can also be explored.")
+            "The number of samples can be shown either by cluster or basket/tissue. The number of responsive and non-responsive"
+            " samples within groups can also be explored by selecting 'Group by response'.")
         st.write(" ")
         col11, col12 = st.columns((1, 1))
         with col11:
