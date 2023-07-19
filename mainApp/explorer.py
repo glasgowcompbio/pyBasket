@@ -187,7 +187,7 @@ class Data():
             cluster_data = self.stacked_posterior.cluster_p[index]
             pct, pct_val = ecdf(cluster_data,intervals)
             title = 'Cluster '+ str(choice)
-        st.write("""##### {}th, 50th and {}th Percentile values are""".format(intervals[0],intervals[2]) + ": {0:.2f}, {1:.2f} and {2:.2f}".format(intervals[0],intervals[1], *pct_val['x']))
+        st.write("""##### {}th, 50th and {}th Percentile values are""".format(intervals[0],intervals[2]) + ": {0:.2f}, {1:.2f} and {2:.2f}".format(*pct_val['x']))
         if RawD:
             saveTable(pct, "raw-ecdf")
             st.dataframe(pct, use_container_width=True)
