@@ -177,19 +177,17 @@ class Data():
             "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
             )
 
-    def ecdf_indiv(self, feature, choice, index, RawD):
+    def ecdf_indiv(self, feature, choice, index, RawD,cred_inter):
+        intervals = np.array([100-cred_inter-5, 50, cred_inter+5])
         if feature == 'baskets':
             basket_data = self.stacked_posterior.basket_p[index]
-            pct, pct_val = ecdf(basket_data)
+            pct, pct_val = ecdf(basket_data,intervals)
             title = 'Basket ' + choice
         elif feature == "clusters":
             cluster_data = self.stacked_posterior.cluster_p[index]
-            pct, pct_val = ecdf(cluster_data)
+            pct, pct_val = ecdf(cluster_data,intervals)
             title = 'Cluster '+ str(choice)
-        st.write("""
-        ##### 5th, 50th and 90th Percentile values are: {0:.2f}, {1:.2f} and {2:.2f}
-        """.format(*pct_val['x']))
-        print(pct_val)
+        st.write("""##### {}th, 50th and {}th Percentile values are""".format(intervals[0],intervals[2]) + ": {0:.2f}, {1:.2f} and {2:.2f}".format(intervals[0],intervals[1], *pct_val['x']))
         if RawD:
             saveTable(pct, "raw-ecdf")
             st.dataframe(pct, use_container_width=True)

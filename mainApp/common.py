@@ -164,8 +164,8 @@ def searchTranscripts(transcripts):
     st.write(" ")
     return transcript
 
-def ecdf(data):
-    percentiles = np.array([5, 50, 90])
+def ecdf(data,intervals):
+    percentiles = intervals
     pct_val = np.percentile(data, percentiles)
     x, y = dcst.ecdf(data)
     pct = pd.DataFrame({'Probability': x, 'Percent': y * 100})

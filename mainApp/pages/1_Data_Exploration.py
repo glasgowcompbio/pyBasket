@@ -70,6 +70,7 @@ if "data" in st.session_state:
             elif option_tab2 == 'Baskets/Tissues':
                 data.AAC_response("tissues", RD_AAC, "Tissue/Basket", RawD_AAC)
     elif menu == "pyBasket results":
+
         option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
                                     key="option-page2")
         st.subheader("Inferred response (mean) probability")
@@ -81,16 +82,22 @@ if "data" in st.session_state:
         elif option_page2 == "Clusters":
             data.barInferredProb("clusters",RawD_prob)
         st.subheader("Empirical Cumulative Distribution")
+        col1, col2 = st.columns((2, 2))
+        with col2:
+            cred_inter = st.number_input('Credible interval', value = 90)
+            st.caption("90% credible interval shown by default")
         if option_page2 == "Clusters":
-            clusterA = st.selectbox("Select cluster", data.clusters_names)
+            with col1:
+                clusterA = st.selectbox("Select cluster", data.clusters_names)
             RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
             cluster_choice = data.clusters_names.index(clusterA)
-            data.ecdf_indiv("clusters",clusterA,cluster_choice,RawD_ecdf)
+            data.ecdf_indiv("clusters",clusterA,cluster_choice,RawD_ecdf,cred_inter)
         elif option_page2 == 'Baskets/Tissues':
-            basketA = st.selectbox("Select basket", data.baskets_names)
+            with col1:
+                basketA = st.selectbox("Select basket", data.baskets_names)
             RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
             basket_choice = data.baskets_names.index(basketA)
-            data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf)
+            data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf,cred_inter)
 
 
     elif menu == "Statistics":

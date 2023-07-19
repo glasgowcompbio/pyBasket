@@ -103,8 +103,10 @@ if "data" in st.session_state:
                     analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
                 st.write("#### ECDF")
+                cred_inter = st.number_input('Credible interval', value=90)
+                st.caption("90% credible interval shown by default")
                 RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
-                analysis_data.ecdf_interaction(basket, cluster, RawD_ecdf)
+                analysis_data.ecdf_interaction(basket, cluster, RawD_ecdf, cred_inter)
                 st.write("#### Transcriptional expression")
                 RawD = st.checkbox("Show raw data", key="raw-data-HM1")
                 if RawD:

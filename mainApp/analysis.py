@@ -150,15 +150,15 @@ class Analysis(Data):
         except:
             st.warning("Not enough samples. Please try a different combination.")
 
-    def ecdf_interaction(self, basket,cluster,RawD):
+    def ecdf_interaction(self, basket,cluster,RawD, cred_inter):
+        intervals = np.array([100-cred_inter-5, 50, cred_inter+5])
         basket_index = self.baskets_names.index(basket)
         cluster_index = self.clusters_names.index(cluster)
         inferred_prob = self.stacked_posterior.joint_p[basket_index][cluster_index]
-        pct, pct_val = ecdf(inferred_prob)
+        pct, pct_val = ecdf(inferred_prob, intervals)
         title = "ECDF for "+ basket + "*" + str(cluster)+ " interaction"
-        st.write("""
-        ##### 5th, 50th and 90th Percentile values are: {0:.2f}, {1:.2f} and {2:.2f}
-        """.format(*pct_val['x']))
+        st.write("""##### {}th, 50th and {}th Percentile values are""".format(intervals[0], intervals[
+            2]) + ": {0:.2f}, {1:.2f} and {2:.2f}".format(intervals[0], intervals[1], *pct_val['x']))
         if RawD:
             saveTable(pct, "raw-ecdf")
             st.dataframe(pct, use_container_width=True)
