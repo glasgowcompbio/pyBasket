@@ -102,6 +102,9 @@ if "data" in st.session_state:
                 with col22:
                     analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
+                st.write("#### ECDF")
+                RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
+                analysis_data.ecdf_interaction(basket, cluster, RawD_ecdf)
                 st.write("#### Transcriptional expression")
                 RawD = st.checkbox("Show raw data", key="raw-data-HM1")
                 if RawD:
@@ -116,6 +119,7 @@ if "data" in st.session_state:
                         " The colour bar represents the expression level of the transcript for each sample.")
             except:
                 st.warning("Not enough samples. Please try a different combination.")
+
         with tab2:
             st.subheader("Advanced PCA")
             st.write("")

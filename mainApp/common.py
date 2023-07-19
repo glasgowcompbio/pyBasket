@@ -2,6 +2,9 @@ import seaborn as sns
 import streamlit as st
 import webbrowser
 import altair as alt
+import numpy as np
+import pandas as pd
+import dc_stat_think as dcst
 
 def colours(num):
     if num > 2:
@@ -80,6 +83,31 @@ def sideBar():
         with st.sidebar:
             st.warning("Results not found. Please upload in a results file in Home.")
 
+def alt_line_chart(df, df2, x, y, title_x, title_y, main_title,save):
+    base = alt.Chart(df).mark_line().encode(
+        alt.X(x+':Q', title=title_x),
+        alt.Y(y+':Q', title=title_y)
+    ).properties(
+        height=650,
+        title=main_title,
+    )
+
+    percentiles =alt.Chart(df2).mark_point(filled=True, size=300).encode(
+        alt.X('x' + ':Q', title=title_x),
+        alt.Y('y' + ':Q', title=title_y),color=alt.value('red')
+        )
+    labels = percentiles.mark_text(
+        align='left',
+        baseline='middle',
+        dx=25,
+        fontSize=15
+    ).encode(
+        text='y'
+    )
+    base = base + percentiles + labels
+    savePlot(base, save)
+    st.altair_chart(base, theme="streamlit", use_container_width=True)
+
 def alt_hor_barplot(df, x, y, num_cols, title_x, title_y, colors,main_title,save):
     palette = colours(num_cols)
     base = alt.Chart(df).mark_bar().encode(
@@ -135,3 +163,11 @@ def searchTranscripts(transcripts):
     st.button('Open GeneCards', on_click=openGeneCard, args=(transcript,))
     st.write(" ")
     return transcript
+
+def ecdf(data):
+    percentiles = np.array([5, 50, 90])
+    pct_val = np.percentile(data, percentiles)
+    x, y = dcst.ecdf(data)
+    pct = pd.DataFrame({'Probability': x, 'Percent': y * 100})
+    pct_val = pd.DataFrame({'x': np.round(pct_val,3), 'y': percentiles})
+    return pct, pct_val

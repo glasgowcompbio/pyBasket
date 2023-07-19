@@ -1,11 +1,15 @@
 import os
 import gzip
 import pickle
+
+import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 import streamlit as st
+from scipy.stats import norm
 import pandas as pd
-from common import savePlot,saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot
+import arviz as az
+from common import savePlot,saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot, ecdf,alt_line_chart
 
 genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 
@@ -173,3 +177,21 @@ class Data():
             "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
             )
 
+    def ecdf_indiv(self, feature, choice, index, RawD):
+        if feature == 'baskets':
+            basket_data = self.stacked_posterior.basket_p[index]
+            pct, pct_val = ecdf(basket_data)
+            title = 'Basket ' + choice
+        elif feature == "clusters":
+            cluster_data = self.stacked_posterior.cluster_p[index]
+            pct, pct_val = ecdf(cluster_data)
+            title = 'Cluster '+ str(choice)
+        st.write("""
+        ##### 5th, 50th and 90th Percentile values are: {0:.2f}, {1:.2f} and {2:.2f}
+        """.format(*pct_val['x']))
+        print(pct_val)
+        if RawD:
+            saveTable(pct, "raw-ecdf")
+            st.dataframe(pct, use_container_width=True)
+        else:
+            alt_line_chart(pct,pct_val, 'Probability', 'Percent', 'Probability', 'Percent', "Cumulative distribution for "+title,"ecdf")

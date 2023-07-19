@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from common import savePlot,saveTable,alt_ver_barplot, colours
+from common import savePlot,saveTable,alt_ver_barplot, colours,alt_line_chart, ecdf
 import altair as alt
 from explorer import Data
 from scipy.cluster import hierarchy
@@ -150,6 +150,21 @@ class Analysis(Data):
         except:
             st.warning("Not enough samples. Please try a different combination.")
 
+    def ecdf_interaction(self, basket,cluster,RawD):
+        basket_index = self.baskets_names.index(basket)
+        cluster_index = self.clusters_names.index(cluster)
+        inferred_prob = self.stacked_posterior.joint_p[basket_index][cluster_index]
+        pct, pct_val = ecdf(inferred_prob)
+        title = "ECDF for "+ basket + "*" + str(cluster)+ " interaction"
+        st.write("""
+        ##### 5th, 50th and 90th Percentile values are: {0:.2f}, {1:.2f} and {2:.2f}
+        """.format(*pct_val['x']))
+        if RawD:
+            saveTable(pct, "raw-ecdf")
+            st.dataframe(pct, use_container_width=True)
+        else:
+            alt_line_chart(pct,pct_val,'Probability', 'Percent', 'Probability', 'Percent', "Cumulative distribution for "+title,"ecdf")
+
 class heatMap(Analysis):
     def __init__(self, file,name):
         super().__init__(file,name)
@@ -176,10 +191,10 @@ class heatMap(Analysis):
         Z = hierarchy.linkage(distance_matrix, method='ward')
         labels = df.index.values
         fig = plt.figure(figsize=(10, 10))
-        dendrogram = hierarchy.dendrogram(Z, labels=labels, orientation='right', color_threshold=0)
+        dendrogram = hierarchy.dendrogram(Z, labels=labels, orientation='right', color_threshold=np.inf,no_plot=True)
         reordered_df = df_scaled.iloc[dendrogram['leaves']]
         reordered_df.index = df.index
-        sns.heatmap(reordered_df, cmap="vlag", cbar_kws={'label': 'Expression Level'}, xticklabels=False)
+        sns.heatmap(reordered_df, cmap="coolwarm", cbar_kws={'label': 'Expression Level'}, xticklabels=False)
         plt.title('Transcriptional expression per sample')
         plt.xlabel('Transcripts')
         plt.ylabel('Samples')
@@ -217,7 +232,6 @@ class heatMap(Analysis):
         plt.xlabel('Clusters')
         plt.ylabel('Baskets')
         plt.yticks(fontsize=8)
-
         for i, c in enumerate(df):
             for j, v in enumerate(df[c]):
                 if v >= num_Sum:
@@ -226,5 +240,4 @@ class heatMap(Analysis):
             plt.gca().add_patch(
                 plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
 
-        plt.show()
         return fig

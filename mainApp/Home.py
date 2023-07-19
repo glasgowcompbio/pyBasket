@@ -96,7 +96,7 @@ if menu == "Data Upload":
         st.write(file_name)
     if "File Name" in st.session_state:
         st.success('Analysis ready', icon="✅")
-        st.write("#### Current file: {}".format(st.session_state['File Name']))
+        st.info("Current file: {}".format(st.session_state['File Name']))
 
 def openDrugBank(num):
     webpage_link = "https://go.drugbank.com/drugs/" + num

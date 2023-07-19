@@ -17,7 +17,6 @@ if "data" in st.session_state:
     data = st.session_state["data"]
     heatmap = heatMap(st.session_state["saved data"],st.session_state["File Name"])
     analysis = st.session_state["Analysis"]
-    print(data.stacked_posterior)
     if menu == "Samples information":
         st.subheader("Number of samples")
         st.write(
@@ -71,16 +70,29 @@ if "data" in st.session_state:
             elif option_tab2 == 'Baskets/Tissues':
                 data.AAC_response("tissues", RD_AAC, "Tissue/Basket", RawD_AAC)
     elif menu == "pyBasket results":
-        st.subheader("Inferred response probability")
-        st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
-                 " overall probability of each basket or cluster to be responsive to the treatment.")
         option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
-                                   key="option-page2")
+                                    key="option-page2")
+        st.subheader("Inferred response (mean) probability")
+        st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
+                 " overall mean probability of each basket or cluster to be responsive to the treatment.")
         RawD_prob = st.checkbox("Show raw data", key="raw-data-prob")
         if option_page2 == 'Baskets/Tissues':
             data.barInferredProb("baskets",RawD_prob)
         elif option_page2 == "Clusters":
             data.barInferredProb("clusters",RawD_prob)
+        st.subheader("Empirical Cumulative Distribution")
+        if option_page2 == "Clusters":
+            clusterA = st.selectbox("Select cluster", data.clusters_names)
+            RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
+            cluster_choice = data.clusters_names.index(clusterA)
+            data.ecdf_indiv("clusters",clusterA,cluster_choice,RawD_ecdf)
+        elif option_page2 == 'Baskets/Tissues':
+            basketA = st.selectbox("Select basket", data.baskets_names)
+            RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
+            basket_choice = data.baskets_names.index(basketA)
+            data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf)
+
+
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
