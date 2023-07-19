@@ -193,3 +193,5 @@ class Data():
             st.dataframe(pct, use_container_width=True)
         else:
             alt_line_chart(pct,pct_val, 'Probability', 'Percent', 'Probability', 'Percent', "Cumulative distribution for "+title,"ecdf")
+            st.caption(
+                "The x-axis represents the probabilities points. The y-axis represents the proportion or fraction of data points that are less than or equal to a given value.")

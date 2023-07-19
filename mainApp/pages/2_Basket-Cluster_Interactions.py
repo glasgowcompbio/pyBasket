@@ -94,7 +94,7 @@ if "data" in st.session_state:
         tab1, tab2, tab3, tab4 = st.tabs(["Overview", "PCA", "Prototypes", "Differential Expression"])
         with tab1:
             try:
-                st.write("#### Response to drug")
+                st.subheader("Response to drug")
                 st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(str(cluster), basket, size))
                 col21, col22 = st.columns((2, 2))
                 with col21:
@@ -102,7 +102,7 @@ if "data" in st.session_state:
                 with col22:
                     analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
-                st.write("#### ECDF")
+                st.subheader("ECDF")
                 st.write(
                     "The Hierarchical Bayesian model returns a single (mean) value rather than the real distribution. The Empirical Cumulative "
                     "Distribution Function (ECDF) provides an empirical approximation of the underlying distribution of the data and assigns "
@@ -112,12 +112,12 @@ if "data" in st.session_state:
                     "The ECDF is constructed by arranging the observed data points in ascending order and assigning a cumulative probability to each point. "
                     "The cumulative probability for a sample is calculated as the fraction of data points that are less than or equal to that value."
                     " The credible interval can be chosen below, which is the range containing a particular percentage of probable values.")
-
                 cred_inter = st.number_input('Credible interval', value=90)
                 st.caption("90% credible interval shown by default")
                 RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
                 analysis_data.ecdf_interaction(basket, cluster, RawD_ecdf, cred_inter)
-                st.write("#### Transcriptional expression")
+                st.subheader("Transcriptional expression")
+                st.write("The heatmap below shows the expression of transcripts across the samples included in the chosen basket*cluster interaction.")
                 RawD = st.checkbox("Show raw data", key="raw-data-HM1")
                 if RawD:
                     saveTable(subgroup, str(cluster) + "_" + basket)

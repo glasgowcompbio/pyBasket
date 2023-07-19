@@ -107,7 +107,6 @@ if "data" in st.session_state:
             basket_choice = data.baskets_names.index(basketA)
             data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf,cred_inter)
 
-
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
