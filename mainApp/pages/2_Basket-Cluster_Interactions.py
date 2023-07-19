@@ -103,6 +103,16 @@ if "data" in st.session_state:
                     analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
                 st.write("#### ECDF")
+                st.write(
+                    "The Hierarchical Bayesian model returns a single (mean) value rather than the real distribution. The Empirical Cumulative "
+                    "Distribution Function (ECDF) provides an empirical approximation of the underlying distribution of the data and assigns "
+                    "probabilities taking into account the number of samples. "
+                    )
+                st.write(
+                    "The ECDF is constructed by arranging the observed data points in ascending order and assigning a cumulative probability to each point. "
+                    "The cumulative probability for a sample is calculated as the fraction of data points that are less than or equal to that value."
+                    " The credible interval can be chosen below, which is the range containing a particular percentage of probable values.")
+
                 cred_inter = st.number_input('Credible interval', value=90)
                 st.caption("90% credible interval shown by default")
                 RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")

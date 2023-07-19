@@ -82,6 +82,14 @@ if "data" in st.session_state:
         elif option_page2 == "Clusters":
             data.barInferredProb("clusters",RawD_prob)
         st.subheader("Empirical Cumulative Distribution")
+        st.write("The Hierarchical Bayesian model returns a single (mean) value rather than the real distribution. The Empirical Cumulative "
+                 "Distribution Function (ECDF) provides an empirical approximation of the underlying distribution of the data and assigns "
+                 "probabilities taking into account the number of samples. "
+                 )
+        st.write("The ECDF is constructed by arranging the observed data points in ascending order and assigning a cumulative probability to each point. "
+                 "The cumulative probability for a sample is calculated as the fraction of data points that are less than or equal to that value."
+                 " The credible interval can be chosen below, which is the range containing a particular percentage of probable values.")
+
         col1, col2 = st.columns((2, 2))
         with col2:
             cred_inter = st.number_input('Credible interval', value = 90)
