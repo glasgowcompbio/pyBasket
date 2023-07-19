@@ -35,6 +35,7 @@ dependencies:
     - mkdocstrings
     - streamlit_option_menu
     - alibi
+    - dc_stat_think
     
     
     
