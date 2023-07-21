@@ -207,9 +207,8 @@ if "data" in st.session_state:
                 st.write(" ")
                 st.subheader("Responsive vs non-responsive samples within basket*cluster interaction")
                 st.write("DEA has been performed within samples in the selected interaction and comparing Responsive vs Non-responsive samples.")
-                dea = DEA(data)
-                dea.diffAnalysis_response(data,subgroup, pthresh, logthresh)
                 if subgroup.size > 0:
+                    dea.diffAnalysis_response(subgroup, pthresh, logthresh)
                     try:
                         results = dea.showResults("interaction")
                         st.subheader("Individual transcripts DEA")

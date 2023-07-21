@@ -186,7 +186,7 @@ class DEA():
                    "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                    "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
-    def diffAnalysis_response(self,results,subgroup,pthresh, logthresh):
+    def diffAnalysis_response(self,subgroup,pthresh, logthresh):
         DEA.splitResponses(self, subgroup)
         if len(self.df_group1) >1 and len(self.df_group2) >1:
             self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
@@ -205,7 +205,6 @@ class DEA():
             st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
                        "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                        "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
-
         else:
             st.warning("There are not enough samples to do DEA. Please choose another combination")
 
