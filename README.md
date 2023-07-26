@@ -10,7 +10,7 @@ Bayesian basket trial simulation in Python.
 ### App
 >>>>>>> marina
 
-The App for the pyBasket is being developed in Streamlit. To run the App, navigate to mainApp directory and from command line run: streamlit run Home.py.
+The App for the pyBasket is being developed in Streamlit. To run the App, navigate to mainApp directory and from command line run: sh runApp.sh.
 
 <<<<<<< HEAD
 We provide several ways to manage your dependencies to run pyBasket.
