@@ -3,7 +3,7 @@ channels:
   - defaults
 dependencies:
   - python==3.9
-  - numpy==1.23
+  - numpy<1.24
   - pandas
   - scipy
   - matplotlib
@@ -22,9 +22,7 @@ dependencies:
   - streamlit
   - mpld3
   - shap
-  - lime
   - altair
-  - webbrowser
   - pip:
     - pymc
     - arviz
@@ -36,6 +34,7 @@ dependencies:
     - streamlit_option_menu
     - alibi
     - dc_stat_think
+    - lime
     
     
     
