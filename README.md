@@ -1,48 +1,40 @@
-# pyBasket
+# pyBasket: Omics Design For Basket Trial in Precision Medicine
 
-This project provides codes to accompany the draft manuscript 'Omics Design For Basket Trial in Precision Medicine'.
+pyBasket is an open-source Python project designed to improve the design and analysis of basket trials in precision medicine. Instead of focusing on a single disease, as in traditional clinical trials, basket trials identify patients sharing a common biomarker and assess their treatments across multiple diseases (or baskets) simultaneously. This method increases efficiency, reduces cost, and aligns well with the objectives of personalized medicine. However, basket trials may suffer from diminished statistical power in the context of smaller patient groups or rare diseases.
 
-**Abstract:**
-> Unlike traditional clinical trials, which focus on a single disease, basket trials identify patients sharing a common biomarker and evaluate their treatments across multiple diseases (baskets) simultaneously. This increases efficiency, reduces cost, and offers better compatibility with personalised medicine. Despite their efficiency, these trials can struggle with reduced statistical power in smaller patient groups. i.e., in the case of rare diseases. Omics measurements, which encompass large-scale molecular data, offer a way to enhance basket trials through better stratification of patients' molecular profiles, but their use in basket trials remain limited. Here, we introduce pyBasket, a two-stage approach that utilises omics data to improve basket trial design. First, patients are grouped based their omics profiles using techniques like k-means clustering, then a hierarchical Bayesian model is used to estimate overall basket response rates and the interactions between baskets and omics clusters. Simulated results indicate that pyBasket outperforms conventional baseline methods, reducing prediction error and increasing statistical power. Crucially, our method provides insights into different patient subgroups, stratified according to omics profiles, within the same basket that exhibit varying responses to treatment. This is a result not readily available from existing alternatives that exclude omics data. We also applied pyBasket to a real-world Genomics of Drug Sensitivity in Cancer (GDSC) dataset, which mirrors a single-step large basket trial, and discovered basket-cluster combinations that are significantly more responsive to treatment. Our novel integration of omics into basket trial design enhances patient stratification in personalised medicine and uncovers molecular reasons for diverse treatment responses.
-=======
-Bayesian basket trial simulation in Python.
- 
-### App
->>>>>>> marina
+Enter pyBasket: a two-stage approach that integrates omics measurements—large-scale molecular data—to bolster patient stratification in basket trials. This process begins by grouping patients based on their omics profiles, using techniques such as k-means clustering. A hierarchical Bayesian model is then employed to estimate overall basket response rates and interactions between baskets and omics clusters. The end result is an increased statistical power and reduction in prediction error, surpassing conventional methods. Moreover, pyBasket provides valuable insights into patient subgroups with varying responses to treatment within the same basket—information that existing alternatives, which exclude omics data, do not readily provide.
 
-The App for the pyBasket is being developed in Streamlit. To run the App, navigate to mainApp directory and from command line run: sh runApp.sh.
+pyBasket was tested with the Genomics of Drug Sensitivity in Cancer (GDSC) dataset, emulating a single-step large basket trial. This revealed basket-cluster combinations significantly more responsive to treatment, suggesting our method's potential to uncover molecular reasons for diverse treatment responses. In summary, pyBasket aims to streamline the design of basket trials, enabling more targeted and efficient precision medicine.
 
-<<<<<<< HEAD
-We provide several ways to manage your dependencies to run pyBasket.
+## Installation
 
-***A. Managing Dependencies using Pipenv***
+pyBasket can be installed via several methods to suit your needs. Regardless of the method, you'll need to clone our GitHub repository as the first step.
 
-1. Install pipenv (https://pipenv.readthedocs.io).
-2. In the cloned Github repo, run `$ pipenv install`.
-3. Enter virtual environment using `$ pipenv shell`.
+***Using Pipenv:***
+1. Install pipenv. Visit the [official Pipenv documentation](https://pipenv.readthedocs.io) for guidance.
+2. Run `$ pipenv install` in the repo.
+3. Activate the virtual environment with `$ pipenv shell`.
 
-***B. Managing Dependencies using Poetry***
+***Using Poetry:***
+1. Install poetry. For installation help, refer to the [Python Poetry website](https://python-poetry.org/).
+2. Run `$ poetry install` in the repo.
+3. Activate the virtual environment with `$ poetry shell`.
 
-1. Install poetry (https://python-poetry.org/).
-2. In the cloned Github repo, run `$ poetry install`.
-3. Enter virtual environment using `$ poetry shell`.
+***Using Anaconda Python:***
+1. Install Anaconda Python. See [Anaconda's download page](https://www.anaconda.com/products/individual) for details.
+2. Run `$ conda env create --file environment.yml` in the repo.
+3. Activate the virtual environment with `$ conda activate pyBasket`.
 
-***B. Managing Dependencies using Anaconda Python***
+After activating the virtual environment, you can run Jupyter Lab (`$ jupyter lab`) to develop in the environment, train models, etc. If necessary, install [Graphviz](https://graphviz.org/download/) to generate plate diagram plots in notebooks.
 
-1. Install Anaconda Python (https://www.anaconda.com/products/individual).
-2. In the cloned Github repo, run `$ conda env create --file environment.yml`.
-3. Enter virtual environment using `$ conda activate pyBasket`.
+## Exploring Examples & Utilizing the Interactive Viewer
 
-Once you have activated the virtual environment, you could develop run the environment, train models etc by running
-   notebooks (`$ jupyter lab`). Be sure to also install graphviz if necessary https://graphviz.org/download/ to generate plots of plate diagram in notebooks.
+Our [repository](https://github.com/glasgowcompbio/pyBasket/tree/main/notebooks) contains example notebooks as well as the pyBasket Viewer, an interactive application designed to help users delve into inference results. This tool is particularly effective for identifying basket-cluster combinations that show a high responsiveness to treatment.
 
-## Examples
+To access the app, simply move to the `mainApp` directory and run the following command: `$ sh runApp.sh`.
 
-Example notebooks can be found [here](https://github.com/glasgowcompbio/pyBasket/tree/main/notebooks).
-This includes a demonstration of the environment, as well as other notebooks to train models and
-evaluate the results.
+Please make sure you have the necessary pyBasket pipeline results saved in pickle format (e.g., patient_analysis_Erlotinib_cluster_5.p) to operate the app. These results can be sourced from our [OneDrive folder](https://gla-my.sharepoint.com/:f:/g/personal/ronan_daly_glasgow_ac_uk/Eod_I6-9hDtCgJ1CmKdBJCAB66sciwg58zlxDHD2fgtsMw?e=0MA2gb).
 
-## Interactive Viewer
+## Conference Talks and Presentations
 
-Required to run the App:
-- Results from the pyBasket pipeline in pickle format e.g. patient_analysis_Erlotinib_cluster_5.p
+pyBasket has been presented to the scientific community at the [Glasgow University Computational Biology Conference 2023](https://cbc.dcs.gla.ac.uk/). For those interested in learning more about our project and its potential, the presentation slides can be accessed [here](https://gla-my.sharepoint.com/:b:/g/personal/ronan_daly_glasgow_ac_uk/EbXn2HJu-upIqVC-2GApkGcBOPxUfFCYqsk_jniZdZHN0A?e=LT0ZqN).
