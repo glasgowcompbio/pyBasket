@@ -1,4 +1,4 @@
-# pyBasket: Omics Design For Basket Trial in Precision Medicine
+## About
 
 pyBasket is an open-source Python project designed to improve the design and analysis of basket trials in precision medicine. Instead of focusing on a single disease, as in traditional clinical trials, basket trials identify patients sharing a common biomarker and assess their treatments across multiple diseases (or baskets) simultaneously. This method increases efficiency, reduces cost, and aligns well with the objectives of personalized medicine. However, basket trials may suffer from diminished statistical power in the context of smaller patient groups or rare diseases.
 
