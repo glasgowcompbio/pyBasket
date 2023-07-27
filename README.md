@@ -33,6 +33,8 @@ Our [repository](https://github.com/glasgowcompbio/pyBasket/tree/main/notebooks)
 
 To access the app, simply move to the `mainApp` directory and run the following command: `$ sh runApp.sh`.
 
+![Screenshot](viewer.png)
+
 Please make sure you have the necessary pyBasket pipeline results saved in pickle format (e.g., patient_analysis_Erlotinib_cluster_5.p) to operate the app. These results can be sourced from our [OneDrive folder](https://gla-my.sharepoint.com/:f:/g/personal/ronan_daly_glasgow_ac_uk/Eod_I6-9hDtCgJ1CmKdBJCAB66sciwg58zlxDHD2fgtsMw?e=0MA2gb).
 
 ## Conference Talks and Presentations
