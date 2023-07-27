@@ -1,22 +1,24 @@
 import matplotlib.pyplot as plt
 from lime import lime_tabular
 from sklearn.inspection import permutation_importance
-#from rfpimp import permutation_importances
 import streamlit as st
 import sklearn
+import warnings
+warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 import shap
 import numpy as np
 import pandas as pd
-from common import savePlot, saveTable, openGeneCard
-import seaborn as sns
-from PyALE import ale
+from common import savePlot, saveTable, alt_hor_barplot,savePlot_plt
 from alibi.explainers import ALE, plot_ale
-import altair as alt
-
 
 if "data" in st.session_state:
     data = st.session_state["data"]
 
+
+"""
+Class: FI (Feature Importance): includes several Model-Agnostic methods to interpret Machine Learning models and predictions
+Input: needs a Results object to be initialised.
+"""
 class FI():
     def __init__(self, Results):
         self.expr_df_selected = Results.expr_df_selected
@@ -29,34 +31,26 @@ class FI():
         self.X_test = None
         self.y_train = None
         self.y_test = None
+        self.model = None
 
+    #Method to plot the features importance calculated by the Random Forest for feature selection in the pyBasket pipeline.
     def plotImportance(self, RawD, num_feats):
         importance_sort = self.importance.sort_values('importance_score', ascending=False)
-        #importance_sort = importance_sort[::-1]
         importance_vals= importance_sort['importance_score'].values[:num_feats]
         importance_vals = importance_vals[::-1]
-
         importance_feats = importance_sort.index[:num_feats]
         importance_feats = importance_feats[::-1]
-        palette = sns.color_palette("Paired", 25).as_hex()
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         raw_D = raw_D.sort_values(by='Importance score', ascending=False)
-        base = alt.Chart(raw_D).mark_bar().encode(
-            alt.X('Importance score', title='Importance score'),
-            alt.Y('Features:O', title="Features").sort('-x'), alt.Color('Features:O')
-        ).properties(
-            height=650,
-            title="Feature Importance by Random Forest"
-        ).configure_range(
-            category=alt.RangeScheme(palette))
         if RawD:
             saveTable(raw_D,"RF-FI")
             st.dataframe(raw_D)
         else:
-            savePlot(base, "RF-FI")
-            st.altair_chart(base, theme="streamlit", use_container_width=True)
+            alt_hor_barplot(raw_D, 'Importance score', 'Features', num_feats, 'Importance score', "Features",
+                            'Features', "Feature Importance by Random Forest", "RF-FI")
 
-    def prepareData(self, y):
+    #Function to split data into training and testing sets and train a Random Forest Regressor
+    def trainRF(self, y):
         train_size = int(len(self.expr_df_selected) * .8)
         self.X_train, self.X_test = self.expr_df_selected.iloc[:train_size], self.expr_df_selected.iloc[train_size:]
         y_train, self.y_test = y.iloc[:train_size], y.iloc[train_size:]
@@ -69,8 +63,8 @@ class FI():
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
         df = df.drop("index",axis = 1)
-        rf = FI.prepareData(self,self.drug_response)
-        explainer = lime_tabular.LimeTabularExplainer(self.X_train.values, feature_names=self.X_train.columns, class_names=["drug response"],
+        rf = FI.trainRF(self,self.drug_response)
+        explainer = lime_tabular.LimeTabularExplainer(self.expr_df_selected.values, feature_names=self.expr_df_selected.columns, class_names=["drug response"],
                                                       verbose=True, mode='regression')
         exp = explainer.explain_instance(df.iloc[index[0]], rf.predict, num_features=n_features,)
         fig = exp.as_pyplot_figure()
@@ -83,61 +77,52 @@ class FI():
         else:
             savePlot(fig,sample+"LIME")
             st.pyplot(fig)
-            st.caption(
-            "Green values: positive impact, increase model score. Red values: negative impact, decreases model score. ")
+        return raw_data
 
-    def permutationImportance(self, num_feats):
-        rf = FI.prepareData(self, self.drug_response)
-
-        # the permutation based importance
-        perm_importance = permutation_importance(rf, self.X_test, self.y_test,n_repeats=10, random_state=42)
-
-        #sorted_idx = perm_importance.importances_mean.argsort()
+    #Function to implement Permutation Importance MA method. Input: number of features, option to show Raw data
+    def permutationImportance(self, num_feats, RawD):
+        rf = FI.trainRF(self, self.drug_response)
+        perm_importance = permutation_importance(rf, self.X_test.values, self.y_test.values,n_repeats=10, random_state=42)
         perm_sorted_idx = perm_importance.importances_mean.argsort()
-        perm_sorted_idx = perm_sorted_idx[:num_feats]
         perm_sorted_idx = perm_sorted_idx[::-1]
-        #top_positive_indices = sorted_idx[-15:]
+        perm_sorted_idx = perm_sorted_idx[:num_feats]
+        raw_D = pd.DataFrame({'Features': self.X_test.columns[perm_sorted_idx], 'Importance': perm_importance.importances_mean[perm_sorted_idx]})
+        if RawD:
+            saveTable(raw_D, "PBI")
+            st.dataframe(raw_D)
+        else:
+            alt_hor_barplot(raw_D, 'Importance', 'Features', num_feats, 'Mean Importance score', "Features", 'Features', "Feature Importance by Permutation based", "PIB")
 
-        # Get the indices of the top 50 negative values
-        #top_negative_indices = sorted_idx[:15]
-
-        # Combining the indices of top positive and negative values
-        #top_indices = np.concatenate((top_negative_indices, top_positive_indices))
-
-        # The top 50 values (both negative and positive) can be accessed using:
-        #top_values = perm_importance.importances_mean[top_indices]
-        fig = plt.figure(figsize = (10,8))
-        plt.boxplot(
-            perm_importance.importances[perm_sorted_idx].T,
-            vert=False,
-            labels=self.X_test.columns[perm_sorted_idx],
-        )
-        #plt.barh(self.X_train.columns[top_indices], perm_importance.importances_mean[top_indices])
-        plt.xlabel("Permutation Importance")
-        savePlot(fig)
-        st.pyplot(fig)
-
-
-        #perm = PermutationImportance(rf, cv=None, refit=False, n_iter=50).fit(X_train, y_train)
-        #perm_imp_eli5 = imp_df(X_train.columns, perm.feature_importances_)
-
+    #Function to use a TreeExplainer to find SHAP values for a trained RF regressor. Returns explainer and shap values
     def SHAP(self):
-        rf = FI.prepareData(self, self.drug_response)
+        rf = FI.trainRF(self, self.drug_response)
         explainer = shap.TreeExplainer(rf)
         shap_values = explainer.shap_values(self.expr_df_selected)
+        self.model = rf
         return explainer, shap_values
+
+    #Function to get the predicted AAC response by the RF regressor model
+    def SHAP_pred(self, sample):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index[0]
+        X_array = np.array([self.expr_df_selected.iloc[index, :]])
+        pred = self.model.predict(X_array)
+        pred = round(pred[0], 4)
+        true_label = self.drug_response.iloc[index]
+        true_label = round(true_label[0],4)
+        return pred, true_label
 
     def SHAP_bar_indiv(self,sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
         shap_values = explainer(self.expr_df_selected)
-        fig, ax = plt.subplots()
-        shap.plots.bar(shap_values[index], show=True, max_display=n_features)
-        #shap.waterfall_plot(shap_values[index].base_values[0], values[0], self.expr_df_selected.iloc[0])
+        fig, ax = plt.subplots(figsize=(6, 6))
+        shap.plots.bar(shap_values[index], show=True, max_display = n_features)
         mean_values = np.abs(values[index]).mean(0)
         raw_df = pd.DataFrame({'Feature': self.expr_df_selected.columns, 'mean |SHAP value|': mean_values})
         raw_df = raw_df.sort_values(by=['mean |SHAP value|'], ascending=False)
         raw_df = raw_df.iloc[:n_features]
+        transcripts = raw_df['Feature']
         if RawD:
             saveTable(raw_df, sample + "SHAP_bar")
             st.write("  ")
@@ -146,7 +131,9 @@ class FI():
             savePlot(fig, sample + "SHAP_bar")
             st.write("  ")
             st.pyplot(fig)
+        return transcripts
 
+    #Function to show SHAP results in a table
     def SHAP_results(self,values):
         shap_sum = np.abs(values).mean(axis=0)
         importance_df = pd.DataFrame([self.expr_df_selected.columns.tolist(), shap_sum.tolist()]).T
@@ -157,37 +144,53 @@ class FI():
     def SHAP_forces(self, sample, explainer,values,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"]==sample].index
-        #top_feature_indices = np.argsort(np.abs(values[index]))[::-1]
-        #top_feature_indices = top_feature_indices[0][:n_features+1]
-
         selected_shap_values = values[index, :n_features]
         selected_features = round(self.expr_df_selected.iloc[index, :n_features],2)
-        #raw_data = pd.DataFrame({'Feature': selected_features.columns,'SHAP value': selected_features.iloc[0].values})
-        #fig = shap.force_plot(explainer.expected_value, selected_shap_values, selected_features, matplotlib=True, show=False)
-        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
-        fig = shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",matplotlib=True, show=False)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'Feature value': selected_features.iloc[0].values, 'SHAP value': selected_shap_values[0]})
+        fig, ax = plt.subplots()
+        shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",show=True)
         st.write("  ")
         if RawD:
-            saveTable(raw_data, sample + "SHAP")
+            saveTable(raw_data, sample + "SHAP_force")
             st.write("  ")
             st.dataframe(raw_data)
         else:
-            savePlot(fig, sample + "SHAP_force")
+            #savePlot(fig, sample + "SHAP_force")
             st.write("  ")
+            st.pyplot(fig,bbox_inches='tight',dpi=300,pad_inches=0)
+
+    #Function for decision plot by SHAP. Input: sample chosen, explainer and values calculated by SHAP, number of features to display, option for raw data or plot
+    def SHAP_decision(self, sample, explainer,values,n_features,RawD):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index
+        selected_shap_values = values[index, :n_features]
+        selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
+        fig, ax = plt.subplots(figsize=(5, 3))
+        transcripts = raw_data['Feature']
+        shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
+        if RawD:
+            saveTable(raw_data, sample + "SHAP_dec")
+            st.dataframe(raw_data)
+        else:
+            savePlot(fig, sample + "_SHAP_dec")
+            st.pyplot(fig)
+        return transcripts
+
+    #Summary plot by SHAP. Input: SHAP values, number of features, option to show Raw data
+    def SHAP_summary(self,values,num_feats, RawD):
+        if RawD:
+            raw_df = FI.SHAP_results(self,values)
+            saveTable(raw_df, "SHAP")
+            st.dataframe(raw_df, use_container_width=True)
+        else:
+            fig, ax = plt.subplots()
+            shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b',
+                              max_display=num_feats)
+            savePlot_plt(fig, "summary_SHAP")
             st.pyplot(fig)
 
-    def SHAP_bar(self,explainer,sample):
-        shap_values = explainer(self.expr_df_selected)
-        fig, ax = plt.subplots()
-        shap.plots.bar(shap_values, max_display=15)
-        #shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b')
-        return fig
-
-    def SHAP_summary(self,values,num_feats):
-        fig, ax = plt.subplots()
-        shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b', max_display = num_feats)
-        return fig
-
+    #Function to filter samples by chosen criteria (cluster or basket, or both). Input: cluster choice, basket choice
     def displaySamples(self,cluster,basket):
         transcripts = self.expr_df_selected
         self.patient_df = self.patient_df.reset_index()
@@ -204,6 +207,7 @@ class FI():
         num = len(transcript_df)
         return samples,num
 
+    #Function to filter samples by responsiveness. Input: list of samples, response to show
     def filterSamples(self,samples,response):
         df = self.patient_df.loc[self.patient_df["samples"].isin(samples.tolist())]
         if response == 'Only responsive samples':
@@ -216,7 +220,16 @@ class FI():
             df = df
         return df
 
-class Global(FI):
+    #Function for Partial Dependence Plot by SHAP. Input: SHAP values, feature chosen
+    def SHAP_dependence(self,values, feature):
+        st.set_option('deprecation.showPyplotGlobalUse', False)
+        fig, ax = plt.subplots()
+        shap.dependence_plot(feature, values, self.expr_df_selected, feature_names=self.expr_df_selected.columns, ax= ax)
+        savePlot(fig, "PDP")
+        st.pyplot(fig)
+
+"""Subclass: ALE method functionalities. Input: Results object with uploaded data"""
+class Global_ALE(FI):
     def __init__(self, Results):
         super().__init__(Results)
         self.X_train = None
@@ -225,17 +238,18 @@ class Global(FI):
         self.y_test = None
         self.transcripts = self.expr_df_selected.columns.tolist()
 
+    #Function to compute ALE for a feature on samples from two subgroups. Input: feature chosen, subgroup 1, subgroup 2, flag
     def global_ALE_mult(self, feature, g1, g2, option):
-        rf = super(Global, self).prepareData(self.drug_response)
+        rf = super(Global_ALE, self).trainRF(self.drug_response)
         if option =="clusters":
-            group1, num1 = super(Global,self).displaySamples(g1, "None")
-            group2, num2 = super(Global, self).displaySamples(g2, "None")
+            group1, num1 = super(Global_ALE,self).displaySamples(g1, "None")
+            group2, num2 = super(Global_ALE, self).displaySamples(g2, "None")
         elif option == "baskets":
-            group1, num1 = super(Global, self).displaySamples("None",g1)
-            group2, num2 = super(Global, self).displaySamples("None",g2)
+            group1, num1 = super(Global_ALE, self).displaySamples("None",g1)
+            group2, num2 = super(Global_ALE, self).displaySamples("None",g2)
         samples_g1 = group1.values
         samples_g2 = group2.values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
         df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
@@ -252,57 +266,80 @@ class Global(FI):
         max1 = max(values1)
         max2 = max(values2)
         max_limit = max1 if max1 > max2 else max2
-        ax.set_ylim(min_limit+(min_limit*2), max_limit+(max_limit/5))
+        ax.set_ylim(min_limit+(min_limit*2), max_limit+max_limit*2)
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, g1, g2))
-        return st.pyplot(fig)
+        change1 = max1 - min1
+        change2 = max2 - min2
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction is for samples in {} is {}.".format(g2,
+                round(change2.tolist()[0], 6)))
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction is for samples in {} is {}.".format(g1,
+                round(change1.tolist()[0], 6)))
+        st.pyplot(fig)
 
+    #Function to compute ALE for a feature on all samples. Input: feature chosen
     def global_ALE(self,feature):
-        rf = super(Global, self).prepareData(self.drug_response)
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
-        self.expr_df_selected = self.expr_df_selected.to_numpy()
-        lr_exp = lr_ale.explain(self.expr_df_selected)
+        np.set_printoptions(precision=10)
+        rf = super(Global_ALE, self).trainRF(self.drug_response)
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
+        df = self.expr_df_selected.to_numpy()
+        lr_exp = lr_ale.explain(df)
         index = self.transcripts.index(feature)
         values = lr_exp.data['ale_values'][index]
         fig, ax = plt.subplots(figsize=(12, 6))
         plot_ale(lr_exp, features=[feature], ax=ax)
-        ax.set_ylim(min(values) - 0.01, max(values) + 0.01)
+        ax.set_ylim(min(values)+min(values)*2, max(values)+max(values)*2)
         plt.title("ALE for transcript {}".format(feature))
-        return st.pyplot(fig)
+        change = max(values) - min(values)
+        st.write("##### The magnitude of impact of the feature in the model's prediction is {}.".format(round(change.tolist()[0],6)))
+        savePlot(fig, "ALE-all")
+        st.pyplot(fig)
+        st.caption(
+            "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+            " model's predictions.")
 
+    #Function to compute ALE on a chosen feature for a selected group of samples. Input: chosen feature, cluster (if chosen), basket(if chosen), flag to use both for samples in interaction
     def global_ALE_single(self,feature,g1,g2,option):
-        rf = super(Global, self).prepareData(self.drug_response)
+        rf = super(Global_ALE, self).trainRF(self.drug_response)
         if option =="clusters":
-            group1, num1 = super(Global,self).displaySamples(g1, "None")
+            group1, num1 = super(Global_ALE,self).displaySamples(g1, "None")
         elif option == "baskets":
-            group1, num1 = super(Global, self).displaySamples("None",g1)
+            group1, num1 = super(Global_ALE, self).displaySamples("None",g1)
         elif option == "interaction":
-            group1, num1 = super(Global, self).displaySamples(g1,g2)
+            group1, num1 = super(Global_ALE, self).displaySamples(g1,g2)
         samples_g1 = group1.values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
         index = self.transcripts.index(feature)
         values = lr_exp1.data['ale_values'][index]
         fig, ax = plt.subplots(figsize=(12, 6))
         plot_ale(lr_exp1, features=[feature], ax=ax)
-        ax.set_ylim(min(values) +min(values)*2, max(values) +max(values)/5)
+        ax.set_ylim(min(values)+min(values)*2, max(values)+max(values)*2)
         plt.title("ALE for transcript {} in group {}".format(feature,option))
-        return st.pyplot(fig)
+        change = max(values) - min(values)
+        st.write("##### The magnitude of impact of the feature in the model's prediction is {}.".format(
+            round(change.tolist()[0], 6)))
+        savePlot(fig, "ALE-single")
+        st.pyplot(fig)
+        st.caption("The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+                   " model's predictions.")
 
+    #Function to split samples by responsive vs non-responsive
     def splitResponse(self, resp):
         self.patient_df = self.patient_df.reset_index()
         selection = self.patient_df[(self.patient_df['responsive'] == resp)]
         samples = selection["samples"]
-        transcript_df = self.expr_df_selected.loc[samples]
         return samples
 
+    #Function to calculate ALE for a chosen feature for responsive vs non-responsive samples
     def global_ALE_resp(self,feature):
-        rf = super(Global, self).prepareData(self.drug_response)
-        samples_g1 = Global.splitResponse(self,0).values
-        samples_g2 = Global.splitResponse(self,1).values
-        lr_ale = ALE(rf.predict, feature_names=self.X_train.columns, target_names=['drug response'])
+        rf = super(Global_ALE, self).trainRF(self.drug_response)
+        samples_g1 = Global_ALE.splitResponse(self,'Responsive').values
+        samples_g2 = Global_ALE.splitResponse(self,'Non-responsive').values
+        lr_ale = ALE(rf.predict, feature_names=self.transcripts, target_names=['drug response'])
         df1 = self.expr_df_selected.loc[samples_g1].to_numpy()
-        print(df1)
         df2 = self.expr_df_selected.loc[samples_g2].to_numpy()
         lr_exp1 = lr_ale.explain(df1)
         lr_exp2 = lr_ale.explain(df2)
@@ -318,7 +355,18 @@ class Global(FI):
         max1 = max(values1)
         max2 = max(values2)
         max_limit = max1 if max1 > max2 else max2
-        ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit / 5))
+        ax.set_ylim(min_limit + (min_limit * 2), max_limit + (max_limit *2))
         plt.title("ALE for transcript {} in groups {} vs {}".format(feature, "Non-responsive", "Responsive"))
-        return st.pyplot(fig)
+        change1 = max1 - min1
+        change2 = max2-min2
+        st.write("##### The magnitude of impact of the feature in the model's prediction for Responsive samples is {}.".format(
+            round(change2.tolist()[0], 6)))
+        st.write(
+            "##### The magnitude of impact of the feature in the model's prediction for Non-responsive samples is {}.".format(
+                round(change1.tolist()[0], 6)))
+        savePlot(fig, "ALE-resp")
+        st.pyplot(fig)
+        st.caption(
+            "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
+            " model's predictions.")
 

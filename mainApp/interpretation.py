@@ -1,23 +1,13 @@
-import gzip
-import pickle
-import statistics
-
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import seaborn as sns
-import matplotlib
-import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 from scipy.stats import ttest_ind
-import mpld3
-import streamlit.components.v1 as components
-from sklearn_extra.cluster import KMedoids
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
-from common import savePlot, saveTable
+from common import savePlot, saveTable,alt_boxplot, colours
 import altair as alt
 
 np.set_printoptions(suppress=True, precision=3)
@@ -25,48 +15,6 @@ np.set_printoptions(suppress=True, precision=3)
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-
-def Kmedoids():
-        rawX = data.expr_df_selected
-        #x_scaled = StandardScaler().fit_transform(rawX)
-        y = data.patient_df["responsive"]
-        pca_2 = PCA(n_components=5)
-        X = pca_2.fit_transform(rawX)
-        cobj = KMedoids(n_clusters=5).fit(X)
-        labels = cobj.labels_
-        unique_labels = set(labels)
-        colors = [
-            plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))
-        ]
-        fig = plt.figure(figsize=(10, 6))
-        for k, col in zip(unique_labels, colors):
-            class_member_mask = labels == k
-
-            xy = X[class_member_mask]
-            plt.plot(
-                xy[:, 0],
-                xy[:, 1],
-                "o",
-                markerfacecolor=tuple(col),
-                markeredgecolor="k",
-                markersize=6,label=k
-            )
-        plt.plot(
-            cobj.cluster_centers_[:, 0],
-            cobj.cluster_centers_[:, 1],
-            "o",
-            markerfacecolor="cyan",
-            markeredgecolor="k",
-            markersize=6,
-        )
-        for i, label in enumerate(unique_labels):
-            plt.annotate(label, (cobj.cluster_centers_[i, 0],  cobj.cluster_centers_[i, 1]), textcoords="offset points",
-                        xytext=(0, 10), ha='center', zorder=10)
-        plt.legend()
-        plt.title("Real KMedoids clustering. Medoids are represented in cyan.")
-        st.pyplot(fig)
-
-
 class Prototypes():
     def __init__(self, Results):
         self.expr_df_selected = Results.expr_df_selected
@@ -113,18 +61,18 @@ class Prototypes():
         self.pseudo_medoids = pseudo_medoids
         return X, sample_medoids
 
-
     @staticmethod
-    def plotMedoids(X,sample_medoids, feature):
-        num_palette = len(np.unique(feature))
+    def plotMedoids(self,X,sample_medoids, feature):
         labels = np.unique(feature)
-        palette = ["#F72585", "#4CC9F0"] if num_palette<3 else sns.color_palette("Paired", num_palette).as_hex()
+        palette = colours(len(np.unique(feature)))
         df = pd.DataFrame({'X': X[:, 0], 'Y': X[:, 1], 'class':feature})
+        df2 = self.patient_df.reset_index()
+        df = pd.merge(df, df2, left_index=True, right_index=True)
         df3 = pd.merge(df, sample_medoids, left_index=True, right_index=True)
         scale = alt.Scale(domain=labels, range = palette)
         base = alt.Chart(df,title="Prototypes samples").mark_circle(size=100).encode(
-            x='X',
-            y='Y',color = alt.Color('class:N', scale = scale)
+            x=alt.X('X', title='PC1'),
+            y=alt.X('Y', title = 'PC2'),color = alt.Color('class:N', scale = scale), tooltip = ['samples', 'class']
         ).interactive().properties(height=700, width = 550)
         plotMedoids =alt.Chart(df3).mark_point(filled=True, size=150).encode(
             x='PC1',
@@ -156,11 +104,13 @@ class Prototypes():
     def findPrototypes(self, option):
         feature = self.cluster_labels if option == 'Clusters' else self.class_labels
         data,sampleMedoids = Prototypes.pseudoMedoids(self,self.expr_df_selected,feature)
-        base = Prototypes.plotMedoids(data,sampleMedoids,feature)
+        base = Prototypes.plotMedoids(self,data,sampleMedoids,feature)
         savePlot(base,option)
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The prototypical sample of each level is marked in black.")
         table = Prototypes.showMedoids(self,feature)
         st.subheader("Prototype samples")
+        st.write("The full transcriptional expression profile of the prototypical samples is shown below. ")
         saveTable(table, option)
         st.dataframe(table)
 
@@ -170,11 +120,13 @@ class Prototypes():
         feature = fulldf['responsive'].values
         fulldf = fulldf.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
         data, sampleMedoids = Prototypes.pseudoMedoids(self,fulldf, feature)
-        plot,base = Prototypes.plotMedoids(data, sampleMedoids, feature)
-        savePlot(plot, "subgroup")
+        base = Prototypes.plotMedoids(self,data, sampleMedoids, feature)
+        savePlot(base, "subgroup")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The prototypical sample of each level is marked in black.")
         st.subheader("Prototype samples")
         table = Prototypes.showMedoids(self, feature)
+        st.write("The full transcriptional expression profile of the prototypical samples is shown below. ")
         saveTable(table, "subgroup")
         st.dataframe(table, use_container_width=True)
 
@@ -190,6 +142,11 @@ class DEA():
         self.ttest_res = None
         self.transcripts = None
 
+    def splitResponses(self,subgroup):
+        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
+        self.df_group1 = subgroup_df[subgroup_df["responsive"] == "Non-responsive"]
+        self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
+
     def selectGroups(self,option,feature):
         transcripts= self.expr_df_selected
         sub_patients = self.patient_df[self.patient_df[feature] == option]
@@ -200,56 +157,77 @@ class DEA():
     def ttest_results(self,df1,df2,pthresh,logthresh):
         ttest_results = []
         for column in df1.columns:
-            t, p = ttest_ind(df1[column], df2[column])
+            t, p = ttest_ind(df1[column], df2[column], nan_policy='omit')
             l2fc = np.mean(df1[column].values) - np.mean(df2[column].values)
             ttest_results.append((column, t, p, l2fc))
         dea_results = pd.DataFrame(ttest_results, columns=['Feature', 'T-Statistic', 'P-Value', 'LFC'])
-        dea_results['Adjusted P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
-        #_, dea_results['Adjusted P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
+        dea_results = dea_results.dropna()
+        dea_results['Corrected P-value'] = fdrcorrection(dea_results['P-Value'].values)[1]
+        #_, dea_results['Corrected P-value'],_, _ = fdrcorrection(dea_results['P-Value'].values)
                                                                      #method='fdr_bh')
-        dea_results = dea_results.sort_values(by=['Adjusted P-value'])
-        dea_results['Significant'] = (dea_results['Adjusted P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
+        dea_results = dea_results.sort_values(by=['Corrected P-value'])
+        dea_results['Significant'] = (dea_results['Corrected P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
         return dea_results
 
     def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
-        self.ttest_res.sort_values(by='Adjusted P-value', ascending=True)
-        fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
-        savePlot(fig,"DEA")
+        self.ttest_res.sort_values(by='Corrected P-value', ascending=True)
+        base = DEA.volcanoPlot(self,pthresh,logthresh)
+        st.subheader("Volcano plot")
+        st.write(
+            "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+            " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (corrected P value) vs the magnitude"
+            " of change (LFC) between the two conditions. Below, results are shown for {} vs {}.".format(option1, option2))
+        savePlot(base,"DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                   "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def diffAnalysis_response(self,subgroup,pthresh, logthresh):
-        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"]==0]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
-        self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
-        self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
-                                             axis=1)
-        self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
-        fig,base = DEA.volcanoPlot(self, pthresh, logthresh)
-        st.subheader("Volcano plot")
-        savePlot(fig, "DEA:resp")
-        st.altair_chart(base, theme="streamlit", use_container_width=True)
+        DEA.splitResponses(self, subgroup)
+        if len(self.df_group1) >1 and len(self.df_group2) >1:
+            self.df_group1 = self.df_group1.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'], axis=1)
+            self.df_group2 = self.df_group2.drop(['tissues', 'responses', 'basket_number', 'cluster_number', 'responsive'],
+                                                 axis=1)
+            self.ttest_res = DEA.ttest_results(self, self.df_group1, self.df_group2, pthresh, logthresh)
+            base = DEA.volcanoPlot(self, pthresh, logthresh)
+            st.subheader("Volcano plot")
+            st.write(
+                "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+                " statistical significance thresholds (adjusted p-value and LFC threshold). It shows statistical significance (corrected P value) vs the magnitude"
+                " of change (LFC) between the two conditions. Below, results are shown for responsive vs non-responsive samples within the selected basket*cluster"
+                " interaction.")
+            savePlot(base, "DEA:resp")
+            st.altair_chart(base, theme="streamlit", use_container_width=True)
+            st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                       "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                       "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
+        else:
+            st.warning("There are not enough samples to do DEA. Please choose another combination")
 
     def showResults(self,feature):
         st.subheader("Results")
-        self.ttest_res['Adjusted P-value'] = self.ttest_res['Adjusted P-value'].apply('{:.6e}'.format)
+        st.write("Results from Fold Change (FC) and T-test analyses for each transcript/feature are shown below. Significant features are those features whose adjusted "
+                 "p-value is beyond the selected adjusted p-value threshold, either up or down regulated.")
+        self.ttest_res['Corrected P-value'] = self.ttest_res['Corrected P-value'].apply('{:.6e}'.format)
         self.ttest_res['P-Value'] = self.ttest_res['P-Value'].apply('{:.6e}'.format)
-        only_sig = st.checkbox('Show only significant transcripts')
+        only_sig = st.checkbox('Show only significant transcripts.')
         num_sig = len(self.ttest_res[self.ttest_res["Significant"] == True])
         if only_sig and num_sig >0:
-            numShow = st.slider('Select transcripts to show', 0,)
-            show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
+            numShow = st.slider('Select number of transcripts to show', 0,)
+            df_show = self.ttest_res[self.ttest_res["Significant"] == True][:numShow]
         elif only_sig:
             st.warning("No significant transcripts found.")
-            show = None
+            df_show = None
         else:
-            numShow = st.slider('Select transcripts to show', 0,len(self.ttest_res))
-            show = self.ttest_res[:numShow]
-        saveTable(show, feature)
-        st.dataframe(show, use_container_width=True)
+            numShow = st.slider('Select number of transcripts to show', 0,len(self.ttest_res))
+            df_show = self.ttest_res[:numShow]
+        df_show = df_show.drop('direction', axis = 1)
+        saveTable(df_show, feature)
+        st.dataframe(df_show, use_container_width=True)
         st.caption("Ordered by most significantly different (highest adj p-value).")
         return self.ttest_res
 
@@ -258,62 +236,50 @@ class DEA():
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
-        fig,base = DEA.volcanoPlot(self,pthresh,logthresh)
-        savePlot(fig, "DEA")
+
+        st.write("#### Volcano plot")
+        st.write(
+            "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
+            " statistical significance thresholds (corrected p-value and LFC threshold). It shows statistical significance (Corrected P value) vs the magnitude"
+            " of change (LFC) between the two conditions. Below, results are shown for samples in the selected basket*cluster interaction"
+            " vs any other sample.")
+        base = DEA.volcanoPlot(self,pthresh,logthresh)
+        savePlot(base, "DEA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
+        st.caption("The x-axis represents the magnitude of change by the log of the FC. The y-axis represents the "
+                   "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
+                   "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
     def infoTranscript(self, transcript):
         info = self.ttest_res[self.ttest_res['Feature']==transcript].values.flatten().tolist()
         df_info = {'Feature': {'information': info[0]},'T-test result': {'information': round(info[1],3)},
                                 'P-value' : {'information': info[2]}, 'LFC': {'information': round(info[3],3)},
-                                'Adjusted P-value': {'information': info[4]}, 'Significant': {'information': info[5]}}
+                                'Corrected P-value': {'information': info[4]}, 'Significant': {'information': info[5]}}
         df = pd.DataFrame(data=df_info).T
         df.style.hide(axis='index')
         df.style.hide(axis='columns')
+        st.write(" ")
+        st.write("##### DEA results for {}".format(transcript))
         st.dataframe(df, use_container_width=True)
-
-    def pPlot(self):
-        fig =plt.figure(figsize=(9,5))
-        self.ttest_res.reset_index()
-        ax = sns.scatterplot(self.ttest_res,x= self.ttest_res.index,y = -np.log10(self.ttest_res['P-Value']), s = 15,hue='Significant', palette=['darkgrey',"#F72585"])
-        plt.xlabel('Features')
-        plt.ylabel('-log10(p-value)')
-        ax.legend(title="Significance", title_fontsize=12, fontsize=12, bbox_to_anchor=(1.1,1),  markerscale=0.5)
-        return fig
 
     def volcanoPlot(self, thresh, logthresh):
         df = self.ttest_res
-        fig = plt.figure(figsize=(10, 5))
-        plt.scatter(x=df['LFC'], y=df['P-Value'].apply(lambda x: -np.log10(x)), s=5,color="black")
-        direction = [((df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)),((df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)),
+        direction = [(df['LFC'] <= -logthresh),(df['LFC'] >= logthresh),
                      ((df['LFC'] > -logthresh)&(df['LFC'] < logthresh))]
         values = ['down-regulated', 'up-regulated', 'non-significant']
         df['direction'] = np.select(direction, values)
-        down = df[(df['LFC'] <= -logthresh) & (df['P-Value'] <= thresh)]
-        up = df[(df['LFC'] >= logthresh) & (df['P-Value'] <= thresh)]
-        df['P-Value'] = df['P-Value'].apply(lambda x: -np.log10(x))
-        plt.scatter(x=down['LFC'], y=down['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Down-regulated",
-                   color="blue")
-        plt.scatter(x=up['LFC'], y=up['P-Value'].apply(lambda x: -np.log10(x)), s=5, label="Up-regulated",
-                   color="red")
-        plt.xlabel("log2FC")
-        plt.ylabel('-log10(p-value)')
-        plt.axvline(x=-logthresh,color="grey",linestyle="--")
-        plt.axvline(x=logthresh, color="grey", linestyle="--")
-        plt.axhline(y=-np.log10(thresh), color="grey", linestyle="--")
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+        df['Corrected P-value'] = df['Corrected P-value'].apply(lambda x: -np.log10(x))
         base = alt.Chart(df, title = "Volcano plot").mark_circle(size=100).encode(
             x=alt.Y('LFC', title = "log2FC"),
-            y=alt.Y('P-Value', title = '-log10(p-value)'),
+            y=alt.Y('Corrected P-value', title = '-log10(corrected p-value)'),
             color=alt.Color('direction:O',
-                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black']))
+                            scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC','Corrected P-value','Feature']
         ).interactive().properties(height=700, width=400)
-
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold2 = alt.Chart(pd.DataFrame({'x': [logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold3 = alt.Chart(pd.DataFrame({'y': [-np.log10(thresh)]})).mark_rule(strokeDash=[10, 10]).encode(y='y')
         base = base +threshold1 + threshold2 + threshold3
-        return fig,base
+        return base
 
     def infoTest(self,group1,group2,feature,pthresh,logthresh):
         size = len(self.ttest_res[self.ttest_res['Significant']==True])
@@ -331,61 +297,31 @@ class DEA():
         filtered_df = self.expr_df_selected.drop(indexes)
         self.df_group1 = subgroup
         self.df_group2 = filtered_df
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : 'Samples in interaction'})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : 'All samples'})
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "Group" : 'Samples in interaction'})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "Group" : 'All samples'})
         full_df = pd.concat([df1, df2])
-        fig,axs= plt.subplots(figsize=(8,7))
-        sns.boxplot(x="class", y=transcript, data=full_df, hue = "class",palette=["#F72585", "#4CC9F0"], ax = axs)
-        sns.stripplot(x="class", y=transcript, data=full_df, hue = "class",palette=["#F72585", "#4CC9F0"],ax = axs)
-        plt.legend([],[], frameon=False)
-        plt.ylabel("Expression level")
-        plt.xlabel("Group")
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True,size=100).encode(
-            x=alt.X("class", title="Group"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width = 300)
-        return fig,base
+        alt_boxplot(full_df, "Group", transcript, 2, "Group","Expression level", "Group", "Expression level of transcript {}".format(transcript), "DEA_"+transcript)
+        st.caption(
+            "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
     def boxplot_resp(self, subgroup, transcript):
-        subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
-        self.df_group1 = subgroup_df[subgroup_df["responsive"] == 0]
-        self.df_group2 = subgroup_df[subgroup_df["responsive"] == 1]
-        self.df_group1["Response"] = "Non-responsive"
-        self.df_group2["Response"] = "Responsive"
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["Response"]})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["Response"]})
+        DEA.splitResponses(self, subgroup)
+        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["responsive"]})
+        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : self.df_group2["responsive"]})
         full_df = pd.concat([df1, df2])
-        fig, axs = plt.subplots(figsize=(8, 7))
-        sns.boxplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        sns.stripplot(x="class", y=transcript, data=full_df, hue="class", palette=["#F72585", "#4CC9F0"], ax=axs)
-        plt.legend([], [], frameon=False)
-        plt.ylabel("Expression level")
-        plt.xlabel("Response to treatment")
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
-            x=alt.X("class:N", title="Group"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width=300)
-        return fig,base
+        alt_boxplot(full_df, "class", transcript, 2, "Group", "Expression level", "class", "Expression level of transcript {}".format(transcript), "DEA"+transcript)
+        st.caption(
+        "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
-    def boxplot(self, option1, option2,feature,transcript):
+    def boxplot(self, option1, option2, feature, transcript):
         self.df_group1 = DEA.selectGroups(self, option1, feature)
         self.df_group2 = DEA.selectGroups(self, option2, feature)
-        df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : option1})
-        df2 = pd.DataFrame({transcript : self.df_group2[transcript], "class" : option2})
+        df1 = pd.DataFrame({transcript: self.df_group1[transcript], "Group": option1})
+        df2 = pd.DataFrame({transcript: self.df_group2[transcript], "Group": option2})
         full_df = pd.concat([df1, df2])
-        base = alt.Chart(full_df, title="Expression level of transcript {}".format(transcript)).mark_boxplot(extent='min-max', ticks=True, size=100).encode(
-            x=alt.X("class:N", title="Response"),
-            y=alt.Y(transcript, title="Expression level"),
-            color=alt.Color("class:N", scale=alt.Scale(range=["#F72585", "#4CC9F0"])
-                            )).properties(height=650, width=300)
-        return base
-
-
-
-
-
+        alt_boxplot(full_df, "Group:N", transcript+':Q', 2, "Group", "Expression level", "Group",
+                    "Expression level of transcript {}".format(transcript), "DEA_" + transcript)
+        st.caption("The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
 
 

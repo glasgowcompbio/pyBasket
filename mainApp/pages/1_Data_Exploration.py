@@ -1,8 +1,7 @@
-import matplotlib.pyplot as plt
 import streamlit as st
-from processing import readPickle, Results, Analysis, dim_PCA
-from common import add_logo, hideRows, savePlot,sideBar, openGeneCard
-from interpretation import Prototypes, Kmedoids,DEA
+from analysis import Analysis,heatMap
+from common import add_logo, hideRows, savePlot,sideBar, openGeneCard,searchTranscripts
+from interpretation import Prototypes, DEA
 from streamlit_option_menu import option_menu
 
 hide_rows = hideRows()
@@ -10,109 +9,132 @@ add_logo()
 sideBar()
 st.header("Data exploration")
 st.write("---")
-menu = option_menu(None, ["Samples information", "Statistics"],
-    icons=["bi bi-clipboard-data", "bi bi-graph-up"],
+menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"],
+    icons=["bi bi-clipboard-data", "bi bi-basket","bi bi-graph-up"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
 if "data" in st.session_state:
     data = st.session_state["data"]
-
+    heatmap = heatMap(st.session_state["saved data"],st.session_state["File Name"])
+    analysis = st.session_state["Analysis"]
     if menu == "Samples information":
-        tab11, tab12 = st.tabs(["Number of samples", "AAC response"])
-        with tab11:
-            st.subheader("Number of samples")
-            st.write(
-                "The number of samples is shown by cluster or basket/tissue. The number of responsive and non-responsive"
-                " samples within groups can also be explored.")
+        st.subheader("Number of samples")
+        st.write(
+            "The number of samples can be shown either by cluster or basket/tissue. The number of responsive and non-responsive"
+            " samples within groups can also be explored by selecting 'Group by response'.")
+        st.write(" ")
+        col11, col12 = st.columns((1, 1))
+        with col11:
+            option_tab1 = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'),
+                                       key="option-tab1")
+        with col12:
             st.write(" ")
-            col11, col12 = st.columns((1, 1))
-            with col11:
-                option_tab1 = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'),
-                                           key="option-tab1")
-            with col12:
-                st.write(" ")
-                RD = st.checkbox("Group by responsiveness", key="responsive")
-                RawD = st.checkbox("Show raw data", key="raw-data")
-            if option_tab1 == "Clusters":
-                data.displayNums("cluster_number", "Cluster number", RD, RawD, "Samples per cluster")
-            elif option_tab1 == 'Baskets/Tissues':
-                data.displayNums("tissues", "Tissue", RD, RawD, "Samples per tissue")
-        with tab12:
-            st.subheader("AAC response")
-            st.write(
-                "The Area Above the Curve (AAC) is a measure used to analyse drug response and quantify the effect of"
-                " a drug over a period of time. In the context of he GDSC dataset, the AAC is the measure of the cell"
-                " or cell line overall survival in response to the drug: the larger the AAC, the more resistance to the"
-                " drug is shown."
-                " "
-                "The AAC values per cluster o basket/tissue is shown, as well as within these for Responsive and Non-"
-                "responsive samples.")
-            st.write(" ")
-            col21, col22 = st.columns((1, 1))
-            with col21:
-                option_tab2 = st.selectbox("Select how to group samples", ('None', 'Clusters', 'Baskets/Tissues'),
-                                           key="option-tab2")
-            with col22:
-                st.write(" ")
-                st.write(" ")
-                RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
-            if option_tab2 == 'None':
-                with col21:
-                    option_tab3 = st.selectbox("Show subgroups", ('None', 'Clusters', 'Baskets/Tissues'),
-                                               key="option-tab3")
-                if option_tab3 == "None":
-                    data.non_group_plot(None, RawD_AAC)
-                elif option_tab3 == "Clusters":
-                    data.non_group_plot("cluster_number", RawD_AAC)
-                elif option_tab3 == 'Baskets/Tissues':
-                    data.non_group_plot("tissues", RawD_AAC)
+            RD = st.checkbox("Group by response", key="responsive")
+            RawD = st.checkbox("Show raw data", key="raw-data")
+        if option_tab1 == "Clusters":
+            if RawD:
+                data.showRawData("cluster_number","Cluster number", RD)
             else:
-                with col22:
-                    RD_AAC = st.checkbox("Group by responsiveness", key="responsive-AAC")
-                if option_tab2 == "Clusters":
-                    data.displayAAC("cluster_number", "Cluster number", RD_AAC, RawD_AAC, "AAC response per cluster")
-                elif option_tab2 == 'Baskets/Tissues':
-                    data.displayAAC("tissues", "Tissue", RD_AAC, RawD_AAC, "AAC response per tissue")
-    if menu == "Statistics":
+                data.countPlot(RD,"Number of samples","cluster_number","Cluster number")
+        elif option_tab1 == 'Baskets/Tissues':
+            if RawD:
+                data.showRawData("tissues", "Tissue/Basket", RD)
+            else:
+                data.countPlot(RD, "Number of samples per tissue", "tissues", "Tissues")
+        st.write("---")
+        st.subheader("AAC response")
+        st.write(
+            "The Area Above the Curve (AAC) is a measure used to analyse drug response and quantify the effect of"
+            " a drug over a period of time. In the context of he GDSC dataset, the AAC is the measure of the cell"
+            " or cell line overall survival in response to the drug: the larger the AAC, the more resistance to the"
+            " drug is shown."
+            " "
+            "The AAC values per cluster o basket/tissue is shown, as well as within these for Responsive and Non-"
+            "responsive samples.")
+        st.write(" ")
+        col21, col22 = st.columns((1, 1))
+        with col21:
+            option_tab2 = st.selectbox("Select how to group samples", ('None', 'Clusters', 'Baskets/Tissues'),
+                                       key="option-tab2")
+        with col22:
+            st.write(" ")
+            st.write(" ")
+            RawD_AAC = st.checkbox("Show raw data", key="raw-data-AAC")
+        if option_tab2 == 'None':
+            data.AAC_scatterplot(RawD_AAC)
+        else:
+            with col22:
+                RD_AAC = st.checkbox("Group by response", key="responsive-AAC")
+            if option_tab2 == "Clusters":
+                data.AAC_response("cluster_number", RD_AAC, "Cluster number", RawD_AAC)
+            elif option_tab2 == 'Baskets/Tissues':
+                data.AAC_response("tissues", RD_AAC, "Tissue/Basket", RawD_AAC)
+    elif menu == "pyBasket results":
+
+        option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
+                                    key="option-page2")
+        st.subheader("Inferred response (mean) probability")
+        st.write("In the second stage of the pyBasket pipeline, a Hierarchical Bayesian model is used to estimate the"
+                 " overall mean probability of each basket or cluster to be responsive to the treatment.")
+        RawD_prob = st.checkbox("Show raw data", key="raw-data-prob")
+        if option_page2 == 'Baskets/Tissues':
+            data.barInferredProb("baskets",RawD_prob)
+        elif option_page2 == "Clusters":
+            data.barInferredProb("clusters",RawD_prob)
+        st.subheader("Empirical Cumulative Distribution")
+        st.write("The Hierarchical Bayesian model returns a single (mean) value rather than the real distribution. The Empirical Cumulative "
+                 "Distribution Function (ECDF) provides an empirical approximation of the underlying distribution of the data and assigns "
+                 "probabilities taking into account the number of samples. "
+                 )
+        st.write("The ECDF is constructed by arranging the observed data points in ascending order and assigning a cumulative probability to each point. "
+                 "The cumulative probability for a sample is calculated as the fraction of data points that are less than or equal to that value."
+                 " The credible interval can be chosen below, which is the range containing a particular percentage of probable values.")
+
+        col1, col2 = st.columns((2, 2))
+        with col2:
+            cred_inter = st.number_input('Credible interval', value = 90)
+            st.caption("90% credible interval shown by default")
+        if option_page2 == "Clusters":
+            with col1:
+                clusterA = st.selectbox("Select cluster", data.clusters_names)
+            RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
+            cluster_choice = data.clusters_names.index(clusterA)
+            data.ecdf_indiv("clusters",clusterA,cluster_choice,RawD_ecdf,cred_inter)
+        elif option_page2 == 'Baskets/Tissues':
+            with col1:
+                basketA = st.selectbox("Select basket", data.baskets_names)
+            RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
+            basket_choice = data.baskets_names.index(basketA)
+            data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf,cred_inter)
+
+    elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         with tab21:
-            analysis_data = Analysis(data)
-            pca = dim_PCA(data)
             st.subheader("Dimensionality reduction")
             st.write("The goal of dimensionality reduction techniques is to project high-dimensionality data to a lower "
                      "dimensional subspace while preserving the essence of the data and the maximum amount of information.")
             st.write("Principal Component Analysis (PCA) is a dimensionality reduction method that enables the visualisation"
                      " of high-dimensional data. The results for PCA on the data can be explored for the data grouped by "
-                     "clusters, baskets/tissues or responsiveness.")
+                     "clusters, baskets/tissues or response.")
             st.write(" ")
-            col31, col32 = st.columns((2,2))
-            with col31:
-                technique = st.selectbox("Choose a Dimensionality Reduction technique", ('PCA', 't-SNE'), key="technique")
-                option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
-                RawD = st.checkbox("Show raw data", key="raw-data-PCA")
-            with col32:
-                st.write(" ")
-                st.write(" ")
-                pca.infoPCA(option)
+            option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="PCA")
+            RawD = st.checkbox("Show raw data", key="raw-data-PCA")
             if option == "Clusters":
-                choices = analysis_data.patient_df["cluster_number"].unique()
-                pca.PCA_analysis("cluster_number", RawD)
+                analysis.PCA_analysis("cluster_number", RawD)
             elif option == "Responsive":
-                pca.PCA_analysis("responsive", RawD)
-                choices = analysis_data.patient_df["responsive"].unique()
+                analysis.PCA_analysis("responsive", RawD)
             elif option == 'Baskets/Tissues':
-                pca.PCA_analysis("tissues", RawD)
-                choices = analysis_data.patient_df["tissues"].unique()
+                analysis.PCA_analysis("tissues", RawD)
         with tab22:
             st.subheader("Prototypes")
             st.write("The prototypical sample of each cluster, basket/tissue or pattern of response has been calculated using"
                      " KMedoids. KMedoids is a partitioning technique that finds the sample (medoid or prototype)"
-                    " that is the closest to the rest of samples in the same group.")
+                    " that is the closest to the rest of samples in the same group. The dimension of the expression level of transcripts"
+                     " has been reduced and plotted using Principal Component Analysis (PCA). ")
             st.write(" ")
             option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues'), key="Prototypes")
             prototype = Prototypes(data)
             prototype.findPrototypes(option)
-            #Kmedoids()
 
         with tab23:
             st.subheader("Differential expression")
@@ -127,10 +149,10 @@ if "data" in st.session_state:
             with col51:
                 option = st.selectbox("Select how to group samples", ('Clusters', 'Baskets/Tissues', 'Responsive'), key="DEA")
                 if option == 'Clusters':
-                    subgroups = data.setClusters()
+                    subgroups = data.clusters_names
                     feature = "cluster_number"
                 elif option == 'Baskets/Tissues':
-                    subgroups = data.setBaskets()
+                    subgroups = data.baskets_names
                     feature = "tissues"
                 else:
                     subgroups = ['0','1']
@@ -140,9 +162,9 @@ if "data" in st.session_state:
             if len(groups)<2:
                 st.write("")
             else:
-                #st.write("Groups {} and {} have been chosen for Differential Expression Analysis".format(groups[0],groups[1]))
                 with col51:
                     pthresh = st.number_input('P-value threshold for significance (0.05 by default)', value = 0.05)
+                    st.caption("Applied on corrected p-values.")
                     logthresh = st.number_input('log2 FC threshold for significance (1 by default)', value=1.0)
                 dea = DEA(data)
                 dea.diffAnalysis_simple(groups[0],groups[1],feature,pthresh,logthresh)
@@ -152,18 +174,17 @@ if "data" in st.session_state:
                     st.write(" ")
                     dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
                 st.subheader("Single Transcript DEA")
+                st.write("The difference in the expression level of a selected transcript between groups being compared can be explored below."
+                         "Further information about the transcript can be found by using the GeneCards button. ")
                 st.write("")
+                transcript = searchTranscripts(results["Feature"])
                 col53, col54 = st.columns((2,4))
                 with col53:
-                    transcript = st.selectbox("Select transcript", results["Feature"], key="transcript")
-                    dea.infoTranscript(transcript)
                     st.write(" ")
-                    st.write("Click button to search for feature {} in GeneCards database.".format(transcript))
-                    st.button('Open GeneCards',on_click=openGeneCard, args=(transcript,))
-                base = dea.boxplot(groups[0],groups[1],feature,transcript)
+                    dea.infoTranscript(transcript)
                 with col54:
-                    savePlot(base , "DEA" + transcript)
-                    st.altair_chart(base, theme="streamlit", use_container_width=True)
+                    dea.boxplot(groups[0], groups[1], feature, transcript)
+
 
 
 
