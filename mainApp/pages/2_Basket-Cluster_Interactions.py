@@ -1,12 +1,11 @@
 import streamlit as st
 from analysis import Analysis, heatMap
 from interpretation import Prototypes, DEA
-from common import add_logo,hideRows,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt,searchTranscripts
+from common import add_logo,savePlot,sideBar, saveTable, openGeneCard,savePlot_plt,searchTranscripts
 from streamlit_option_menu import option_menu
 
 add_logo()
 sideBar()
-hide_rows = hideRows()
 st.header("Basket*Cluster interactions")
 st.write("---")
 menu = option_menu(None, ["All interactions", "Selected interaction"],

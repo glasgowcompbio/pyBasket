@@ -116,34 +116,38 @@ def openPubMed(drug):
 
 if menu == "File information":
     st.subheader("File information")
-    if "File Name" in st.session_state:
+    if "data" in st.session_state:
         st.session_state["data"].fileInfo()
+    else:
+        st.warning("No data found. Please upload results in the 'Data Upload' tab")
 
 
 if menu == 'Drug information':
-    name = st.session_state["File Name"].split('_')
-    drug = name[2]
     st.subheader("Drug information")
-    st.write("#### The drug used in this basket trials was: **{}**".format(drug))
-    st.write("Further information about the drug used in the pyBasket analysis.")
-    accession_num = "0"
-    if drug == "Erlotinib":
-        accession_num = "DB00530"
-    elif drug == "Docetaxel":
-        accession_num = "DB01248"
-    st.write("#### _DrugBank_")
-    st.write("_DrugBank_ is a freely accesible online database containing information on drugs and drugs targets. It combined chemical,"
-             " pharmacological and pharmaceutical data with information about drug target (sequence, structure, pathway, etc."
-             " Further pharmacological and chemical information about {} can be found in the link to _DrugBank_ below.".format(drug))
-    st.button('Open DrugBank', on_click=openDrugBank, args=(accession_num,))
+    if "data" in st.session_state:
+        name = st.session_state["File Name"].split('_')
+        drug = name[2]
+        st.write("#### The drug used in this basket trial was: **{}**".format(drug))
+        st.write("Further information about the drug used in the pyBasket analysis.")
+        accession_num = "0"
+        if drug == "Erlotinib":
+            accession_num = "DB00530"
+        elif drug == "Docetaxel":
+            accession_num = "DB01248"
+        st.write("#### _DrugBank_")
+        st.write("_DrugBank_ is a freely accesible online database containing information on drugs and drugs targets. It combined chemical,"
+                 " pharmacological and pharmaceutical data with information about drug target (sequence, structure, pathway, etc."
+                 " Further pharmacological and chemical information about {} can be found in the link to _DrugBank_ below.".format(drug))
+        st.button('Open DrugBank', on_click=openDrugBank, args=(accession_num,))
 
-    st.write("#### _PubMed_")
-    st.write("_PubMed_ is a free full-text archive of biomedical and life sciences print and electronic journal literature,"
-             " and supports current biomedical and healthcare research and practice. Other research and journal literature related to "
-             "{} can be found in the link to _PubMed_ below.".format(drug))
-    st.button('Open PubMed',on_click=openPubMed, args=(drug,))
+        st.write("#### _PubMed_")
+        st.write("_PubMed_ is a free full-text archive of biomedical and life sciences print and electronic journal literature,"
+                 " and supports current biomedical and healthcare research and practice. Other research and journal literature related to "
+                 "{} can be found in the link to _PubMed_ below.".format(drug))
+        st.button('Open PubMed',on_click=openPubMed, args=(drug,))
 
-    st.write("#### _Wikipedia_")
-    st.write("_Wikipedia_ is a free online accessible encyclopedia where more general non-technical information about {} can be found".format(drug))
-    st.button('Open Wikipedia', on_click=openWikipedia, args=(drug,))
-
+        st.write("#### _Wikipedia_")
+        st.write("_Wikipedia_ is a free online accessible encyclopedia where more general non-technical information about {} can be found".format(drug))
+        st.button('Open Wikipedia', on_click=openWikipedia, args=(drug,))
+    else:
+        st.warning("No data found. Please upload results in the 'Data Upload' tab")
