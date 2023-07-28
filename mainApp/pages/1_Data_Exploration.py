@@ -174,7 +174,7 @@ if "data" in st.session_state:
                     st.write(" ")
                     dea.infoTest(groups[0],groups[1],option,pthresh,logthresh)
                 st.subheader("Single Transcript DEA")
-                st.write("The difference in the expression level of a selected transcript between groups being compared can be explored below."
+                st.write("The difference in the expression level of a selected transcript between groups being compared can be explored below. "
                          "Further information about the transcript can be found by using the GeneCards button. ")
                 st.write("")
                 transcript = searchTranscripts(results["Feature"])
