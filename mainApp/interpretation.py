@@ -172,6 +172,7 @@ class DEA():
     def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
         self.df_group1 = DEA.selectGroups(self,option1,feature)
         self.df_group2 = DEA.selectGroups(self,option2,feature)
+        print(self.df_group1)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
         self.ttest_res.sort_values(by='Corrected P-value', ascending=True)
         base = DEA.volcanoPlot(self,pthresh,logthresh)

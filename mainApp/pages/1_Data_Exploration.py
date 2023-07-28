@@ -155,10 +155,10 @@ if "data" in st.session_state:
                     subgroups = data.baskets_names
                     feature = "tissues"
                 else:
-                    subgroups = ['0','1']
+                    subgroups = ["Responsive","Non-responsive"]
                     feature = "responsive"
                 groups = st.multiselect(
-                    'Please select up to 2 Groups/Baskets to compare', subgroups, max_selections=2)
+                    'Please select up to 2 Groups to compare', subgroups, max_selections=2)
             if len(groups)<2:
                 st.write("")
             else:
