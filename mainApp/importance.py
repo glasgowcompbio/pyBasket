@@ -14,7 +14,6 @@ from alibi.explainers import ALE, plot_ale
 if "data" in st.session_state:
     data = st.session_state["data"]
 
-
 """
 Class: FI (Feature Importance): includes several Model-Agnostic methods to interpret Machine Learning models and predictions
 Input: needs a Results object to be initialised.

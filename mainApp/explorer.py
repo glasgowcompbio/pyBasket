@@ -1,29 +1,16 @@
 import os
-import gzip
-import pickle
-
-import matplotlib.pyplot as plt
 import numpy as np
-from loguru import logger
 import streamlit as st
-from scipy.stats import norm
 import pandas as pd
-import arviz as az
-from common import savePlot,saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot, ecdf,alt_line_chart
+from common import saveTable,alt_ver_barplot,alt_scatterplot,alt_boxplot, ecdf,alt_line_chart
 
 genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
 
-def readPickle(pick_file):
-    try:
-        with gzip.GzipFile(pick_file, 'rb') as f:
-            return pickle.load(f)
-    except OSError:
-        logger.warning('Old, invalid or missing pickle in %s. '
-                       'Please regenerate this file.' % pick_file)
-        raise
-
+"""
+Class: Data: creates an object with the results data contained in the uploaded pickle file
+Input: needs the pickle file data and the name of the file
+"""
 class Data():
-
     def __init__(self,pickle_data, name):
         self.file_name = name
         self.expr_df_filtered = pickle_data[list(pickle_data)[0]]
@@ -37,6 +24,7 @@ class Data():
         self.clusters_names = sorted(list(self.patient_df['cluster_number'].unique()))
         self.baskets_names = sorted(list(self.patient_df['tissues'].unique()))
 
+    #Maps genes' ENSEMBL IDs to their names
     @staticmethod
     def IdGenes(df):
         features_EN = df.columns.tolist()
@@ -55,8 +43,7 @@ class Data():
                 genes.append(col)
         return genes
 
-    #Change responsive to be categorical
-    #Change features to be by genes not by ENSEMBL ID
+    #Changes responsive feature to be categorical (Responsive vs Non-responsive) and maps ENSEMBL IDs for Genes' names
     def setData(self):
         self.patient_df["responsive"] = self.patient_df["responsive"].replace([0, 1], ['Non-responsive', 'Responsive'])
         selected_genes = Data.IdGenes(self.expr_df_selected)
@@ -65,7 +52,7 @@ class Data():
         self.importance_df.index = selected_genes
         self.expr_df_filtered.columns = filtered_genes
 
-    #Display information about the input file
+    #Displays information about the file in a table format
     def fileInfo(self):
         num_samples = len(self.expr_df_filtered.axes[0])
         num_feat_filt = len(self.expr_df_filtered.axes[1])
@@ -82,6 +69,7 @@ class Data():
         style.hide_columns()
         st.dataframe(df, use_container_width=True)
 
+    #Shows information about the number of samples per group in a bar plot. If RD (Response Data) is True, samples are grouped by response within groups.
     def countPlot(self, RD, title,feature,x_lab):
         self.patient_df[feature] = pd.Categorical(self.patient_df[feature])
         size = len(np.unique(self.patient_df[feature]))
@@ -98,6 +86,7 @@ class Data():
             st.caption(
                 "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the number of samples.")
 
+    #Displays results in a table format, option to show results grouped by response (RD) within groups
     def showRawData(self, feature, x_variable, RD):
         if RD:
             features = ["responsive", feature]
@@ -112,6 +101,7 @@ class Data():
         saveTable(raw_count, "NumOfS")
         st.dataframe(raw_count, use_container_width=True)
 
+    #Shows samples' AAC response in a scatterplot or table if RawD is True
     def AAC_scatterplot(self, RawD):
         if RawD:
             saveTable(self.patient_df, "rawAAC")
@@ -123,6 +113,7 @@ class Data():
             alt_scatterplot(reseted_df, 'index', 'responses', "Sample index", "AAC response", "AAC response", "AAC", ["samples", "responses"])
             st.caption("The x-axis shows the sample index. The y-axis shows the real AAC response of the sample to the drug.")
 
+    #Display AAC response statistics in a table format
     def raw_data_AAC(self,feature,x_variable):
         raw_count = self.patient_df[[feature, "responses"]].groupby(feature).mean()
         default_value = 0
@@ -134,6 +125,7 @@ class Data():
         raw_count.columns = [x_variable, "Mean", "SD", "Median", "Min", "Max"]
         return raw_count
 
+    #Shows samples' AAC response in a boxplot (if RawD is False) or in a table (if RawD is True). Boxplot can also be displayed grouped by response within groups
     def AAC_response(self,feature, RD, x_lab, RawD):
         size = len(np.unique(self.patient_df[feature]))
         if RawD:
@@ -147,11 +139,11 @@ class Data():
                 st.caption(
                     "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the real AAC response to the drug."
                     " Within levels, the AAC response by the responsive (blue) or non-responsive (red) samples to treatment are shown.")
-
             else:
                 alt_boxplot(self.patient_df, feature, "responses", size, x_lab, "AAC response", feature, "AAC response", "AAC")
                 st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the real AAC response to the drug.")
 
+    #Displays mean inferred response probabilities for clusters o baskets in a bar plot or table (if RawD_prob is True)
     def barInferredProb(self, feature,RawD_prob):
         stacked = self.stacked_posterior
         if feature == 'baskets':
@@ -173,10 +165,11 @@ class Data():
             st.dataframe(df, use_container_width=True)
         else:
             alt_ver_barplot(df, feature, 'prob', len_colors, title, "Inferred response probability", feature, subheader, "Inferred", [feature, 'prob'])
-            st.caption(
-            "The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). The y-axis shows the inferred response probability to the treatment."
+            st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). "
+                       "The y-axis shows the inferred response probability to the treatment."
             )
 
+    #Displays ECDF results for a chosen cluster or basket in a plot or table (if RawD is true)
     def ecdf_indiv(self, feature, choice, index, RawD,cred_inter):
         intervals = np.array([100-cred_inter-5, 50, cred_inter+5])
         if feature == 'baskets':

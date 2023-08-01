@@ -1,7 +1,6 @@
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import numpy as np
-import seaborn as sns
 import streamlit as st
 import pandas as pd
 from scipy.stats import ttest_ind

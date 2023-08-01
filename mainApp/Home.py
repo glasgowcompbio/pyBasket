@@ -1,9 +1,9 @@
 import tempfile
-from common import add_logo,sideBar
+from common import add_logo,sideBar,readPickle
 import webbrowser
 from interpretation import *
 from streamlit_option_menu import option_menu
-from explorer import Data, readPickle
+from explorer import Data
 from analysis import Analysis
 
 def openWikipedia(drug):
