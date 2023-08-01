@@ -31,7 +31,7 @@ After activating the virtual environment, you can run Jupyter Lab (`$ jupyter la
 
 Our [repository](https://github.com/glasgowcompbio/pyBasket/tree/main/notebooks) contains example notebooks as well as the pyBasket Viewer, an interactive application designed to help users delve into inference results. This tool is particularly effective for identifying basket-cluster combinations that show a high responsiveness to treatment.
 
-To access the app, simply move to the `mainApp` directory and run the following command: `$ sh runApp.sh`.
+The pyBasket app is available to use from [here](https://github.com/marinafloresp/MScDiss).
 
 ![Screenshot](viewer.png)
 
