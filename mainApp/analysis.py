@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -6,13 +5,15 @@ import streamlit as st
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from common import savePlot,saveTable,alt_ver_barplot, colours,alt_line_chart, ecdf
+from common import savePlot,saveTable,alt_ver_barplot, colours
 import altair as alt
 from explorer import Data
 from scipy.cluster import hierarchy
 
-genes_path = os.path.join('..', 'pyBasket/Data', 'Entrez_to_Ensg99.mapping_table.tsv')
-
+"""
+subclass: Analysis: creates an analysis object for PCA dimensionality reduction and other small analysis functions
+Input: an initialised Data object.
+"""
 class Analysis(Data):
     def __init__(self, file,name):
         super().__init__(file,name)
@@ -22,13 +23,7 @@ class Analysis(Data):
         self.pca_adv_var = None
         self.num_samples = None
 
-    def findSubgroup(self,feature,subgroup):
-        transcripts = self.expr_df_selected
-        sub_patients = self.patient_df[self.patient_df[feature] == subgroup]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcripts.loc[indexes]
-        return sub_transcript
-
+    #Function to find the set of samples in a basket-cluster interaction
     def findInteraction(self,cluster,basket):
         transcripts = self.expr_df_selected
         sub_patients = self.patient_df[(self.patient_df['cluster_number'] == cluster) & (self.patient_df['tissues'] == basket)]
@@ -37,6 +32,7 @@ class Analysis(Data):
         num = len(sub_transcript)
         return sub_transcript, num
 
+    #Function to show the number of responsive/non-responsive samples in a basket-cluster interaction
     def samplesCount(self,subgroup):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
         df_grouped = fulldf.groupby(['responsive']).size().reset_index(name='Count')
@@ -44,6 +40,7 @@ class Analysis(Data):
                         "NS_Inter", ["responsive", 'Count'])
         st.caption("Number of responsive and non-responsive samples in the interaction.")
 
+    #Function to show information related to the samples in a basket-cluster interaction
     def responseSamples(self,subgroup):
         fulldf = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
         fulldf = fulldf[['tissues', 'responses', 'cluster_number', 'responsive']]
@@ -53,6 +50,7 @@ class Analysis(Data):
         saveTable(fulldf, "Interaction")
         st.dataframe(fulldf, use_container_width=True)
 
+    #Static method to show PCA results in a table
     @staticmethod
     def showRawData_PCA(df, var):
         var = {'Component': ['PC1', 'PC2', 'PC3', 'PC4', 'PC5'], 'Var explained': var}
@@ -60,6 +58,7 @@ class Analysis(Data):
         pca_df = df[['PC1', 'PC2', 'PC3', 'PC4', 'PC5']]
         return pca_df, var_df
 
+    #Function to perform PCA in all samples
     def main_PCA(self, feature):
         rawX = self.expr_df_selected
         y = self.patient_df[feature]
@@ -75,14 +74,7 @@ class Analysis(Data):
         self.pca_df = pca_df
         self.pca_variance = variance
 
-    def infoPCA(self, feature):
-        info = {'Technique: ': {'information': 'Principal Component Analysis'}, 'Feature: ': {'information': feature},
-                'Number of components: ': {'information': 5}}
-        df = pd.DataFrame(data=info).T
-        style = df.style.hide_index()
-        style.hide_columns()
-        return st.dataframe(df, use_container_width=True)
-
+    #Function to plot PCA results
     def plot_PCA(self,feature,adv):
         df = self.pca_adv if adv == True else self.pca_df
         df = df.reset_index()
@@ -101,6 +93,7 @@ class Analysis(Data):
         st.caption("Axis show the first and second principal components (PC1, PC2) that capture the most variation in the expression level of transcripts."
                    "Position of each data point is the scores on PC1 and PC2.")
 
+    #Function to show PCA results in a plot or in a table (if RawD is True)
     def PCA_analysis(self, feature, RawD):
         Analysis.main_PCA(self, feature)
         if RawD is True:
@@ -117,6 +110,7 @@ class Analysis(Data):
         else:
             Analysis.plot_PCA(self, feature, adv=False)
 
+    #Function to perform PCA on the samples in the selected basket-cluster interaction
     def advanced_PCA(self, df):
         y = self.patient_df["responsive"]
         x_scaled = StandardScaler().fit_transform(df)
@@ -131,6 +125,7 @@ class Analysis(Data):
         self.pca_adv = pca_df
         self.pca_adv_var = variance
 
+    #Function to show PCA results in a plot or in a table (if RawD is True)
     def adv_PCA(self,sub_df, RawD):
         try:
             Analysis.advanced_PCA(self, sub_df)
@@ -150,26 +145,16 @@ class Analysis(Data):
         except:
             st.warning("Not enough samples. Please try a different combination.")
 
-    def ecdf_interaction(self, basket,cluster,RawD, cred_inter):
-        intervals = np.array([100-cred_inter-5, 50, cred_inter+5])
-        basket_index = self.baskets_names.index(basket)
-        cluster_index = self.clusters_names.index(cluster)
-        inferred_prob = self.stacked_posterior.joint_p[basket_index][cluster_index]
-        pct, pct_val = ecdf(inferred_prob, intervals)
-        title = "ECDF for "+ basket + "*" + str(cluster)+ " interaction"
-        st.write("""##### {}th, 50th and {}th Percentile values are""".format(intervals[0], intervals[
-            2]) + ": {0:.2f}, {1:.2f} and {2:.2f}".format(*pct_val['x']))
-        if RawD:
-            saveTable(pct, "raw-ecdf")
-            st.dataframe(pct, use_container_width=True)
-        else:
-            alt_line_chart(pct,pct_val,'Probability', 'Percent', 'Probability', 'Percent', "Cumulative distribution for "+title,"ecdf")
-            st.caption("The x-axis represents the probabilities points. The y-axis represents the proportion or fraction of data points that are less than or equal to a given value.")
+"""
+subclass of Analysis: heatMap: creates Analysis sub-object to show and filter information shown in the heatmap with interactions between clusters and baskets
+Input: an initialised Analaysis object.
+"""
 class heatMap(Analysis):
     def __init__(self, file,name):
         super().__init__(file,name)
         self.num_samples = None
 
+    #Function to return dataframe with information about the number of samples
     def heatmapNum(self):
         clusters = self.clusters_names
         baskets = self.baskets_names
@@ -184,6 +169,7 @@ class heatMap(Analysis):
         self.num_samples = df
         return df
 
+    #Function to show heatmap with the transcriptional expression of samples in the selected basket-cluster interaction
     def heatmapTranscripts(self,df):
         scaler = StandardScaler()
         df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
@@ -199,9 +185,9 @@ class heatMap(Analysis):
         plt.xlabel('Transcripts')
         plt.ylabel('Samples')
         plt.xticks(fontsize=9)
-
         return fig
 
+    #Function to return dataframe with information about the number of responsive samples
     def heatmapResponse(self):
         clusters = self.clusters_names
         baskets = self.baskets_names
@@ -216,6 +202,7 @@ class heatMap(Analysis):
         df = pd.DataFrame(data, baskets, clusters)
         return df
 
+    #Function to get the mean inferred joint probability from the pyBasket pipeline
     def HM_inferredProb(self):
         basket_coords, cluster_coords = self.baskets_names,self.clusters_names
         stacked = self.stacked_posterior
@@ -223,6 +210,8 @@ class heatMap(Analysis):
         inferred_df = pd.DataFrame(inferred_mat, index=basket_coords, columns=cluster_coords)
         return inferred_df
 
+    #Function to show interactions heatmap with the chosen information, mark the selected basket-cluster interaction and filter interactions with
+    #num_Sum number of samples
     def heatmap_interaction(self, df,title, num_Sum, x_highlight=None, y_highlight=None):
         x_highlight = self.clusters_names.index(x_highlight)
         y_highlight = self.baskets_names.index(y_highlight)
@@ -239,5 +228,5 @@ class heatMap(Analysis):
         if x_highlight is not None and y_highlight is not None:
             plt.gca().add_patch(
                 plt.Rectangle((x_highlight, y_highlight), 1, 1, fill=False, edgecolor='red', lw=3))
-
         return fig
+

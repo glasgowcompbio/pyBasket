@@ -6,27 +6,30 @@ import pandas as pd
 from scipy.stats import ttest_ind
 from scipy.spatial.distance import cdist
 from statsmodels.stats.multitest import fdrcorrection
-from common import savePlot, saveTable,alt_boxplot, colours
+from common import savePlot, saveTable,alt_boxplot, colours, findSubgroup
 import altair as alt
 
 np.set_printoptions(suppress=True, precision=3)
 
-
 if "data" in st.session_state:
     data = st.session_state["data"]
+
+"""
+Class: Prototypes: creates a Prototype object 
+Input: needs an initialised Data object
+"""
 class Prototypes():
-    def __init__(self, Results):
-        self.expr_df_selected = Results.expr_df_selected
-        self.class_labels = Results.class_labels
-        self.cluster_labels = Results.cluster_labels
+    def __init__(self, Data):
+        self.expr_df_selected = Data.expr_df_selected
+        self.class_labels = Data.class_labels
+        self.cluster_labels = Data.cluster_labels
         self.subgroup = None
-        self.patient_df = Results.patient_df
+        self.patient_df = Data.patient_df
         self.pseudo_medoids = []
 
-    @staticmethod
+    #Method to compute pseudo-medoids based on clustering results
     def pseudoMedoids(self,df,feature):
-        rawX = df
-        rawX = rawX.reset_index()
+        rawX = df.reset_index()
         rawX = rawX.drop(['index'], axis=1)
         rawX["labels"] = feature
         rawX["labels"] = rawX["labels"].astype('category').cat.codes
@@ -34,15 +37,10 @@ class Prototypes():
         labels = rawX["labels"]
         pseudo_medoids = []
         for label in unique_labels:
-            # Filter data points with the current label
             label_points = rawX[labels == label]
-            # Calculate distance between every point in the cluster
             distances = cdist(label_points, label_points, metric='euclidean')
-            # Sum distances for each point
             total_distances = np.sum(distances, axis=1)
-            # Find the index of the data point with the minimum sum of distances: the one that is supposed to be the closest to all points
             medoid_index = np.argmin(total_distances)
-            # get the sample corresponding to the medoid
             medoid = label_points.iloc[medoid_index]
             pseudo_medoids.append(medoid)
         indexes = []
@@ -60,7 +58,7 @@ class Prototypes():
         self.pseudo_medoids = pseudo_medoids
         return X, sample_medoids
 
-    @staticmethod
+    #Function to plot pseudo-medoids found
     def plotMedoids(self,X,sample_medoids, feature):
         labels = np.unique(feature)
         palette = colours(len(np.unique(feature)))
@@ -87,7 +85,7 @@ class Prototypes():
         base = base+plotMedoids+labels
         return base
 
-    @staticmethod
+    #Function to select samples that have been chosen as pseudo-medoids to show in a table
     def showMedoids(self,feature):
         pseudo_medoids = self.pseudo_medoids
         rawX = self.expr_df_selected.reset_index()
@@ -100,6 +98,7 @@ class Prototypes():
         pseudo_medoids_df.index.name = 'Sample'
         return pseudo_medoids_df
 
+    #Function to find prototypes, plot them with all samples and show them in a table
     def findPrototypes(self, option):
         feature = self.cluster_labels if option == 'Clusters' else self.class_labels
         data,sampleMedoids = Prototypes.pseudoMedoids(self,self.expr_df_selected,feature)
@@ -113,6 +112,7 @@ class Prototypes():
         saveTable(table, option)
         st.dataframe(table)
 
+    # Function to find prototypes in the basket-cluster interaction subgroup of samples , plot them and show them in a table
     def findPrototypes_sub(self,subgroup):
         self.subgroup = subgroup
         fulldf = pd.merge(self.patient_df, self.subgroup, left_index=True, right_index=True)
@@ -129,30 +129,29 @@ class Prototypes():
         saveTable(table, "subgroup")
         st.dataframe(table, use_container_width=True)
 
+"""
+Class: DEA (Differential Expression Analysis): creates an object to perform Differential Expression Analysis of samples 
+Input: needs an initialised Data object
+"""
 class DEA():
-    def __init__(self, Results):
-        self.expr_df_selected = Results.expr_df_selected
-        self.class_labels = Results.class_labels
-        self.cluster_labels = Results.cluster_labels
-        self.patient_df = Results.patient_df
+    def __init__(self, Data):
+        self.expr_df_selected = Data.expr_df_selected
+        self.class_labels = Data.class_labels
+        self.cluster_labels = Data.cluster_labels
+        self.patient_df = Data.patient_df
         self.df_group1 = None
         self.df_group2 = None
         self.subgroup = None
         self.ttest_res = None
         self.transcripts = None
 
+    #Function to split a subgroup of samples by response
     def splitResponses(self,subgroup):
         subgroup_df = pd.merge(self.patient_df, subgroup, left_index=True, right_index=True)
         self.df_group1 = subgroup_df[subgroup_df["responsive"] == "Non-responsive"]
         self.df_group2 = subgroup_df[subgroup_df["responsive"] == "Responsive"]
 
-    def selectGroups(self,option,feature):
-        transcripts= self.expr_df_selected
-        sub_patients = self.patient_df[self.patient_df[feature] == option]
-        indexes = list(sub_patients.index.values)
-        sub_transcript = transcripts.loc[indexes]
-        return sub_transcript
-
+    #Function to perform t-test between two specified groups and applying p-value and LFC thresholds
     def ttest_results(self,df1,df2,pthresh,logthresh):
         ttest_results = []
         for column in df1.columns:
@@ -168,9 +167,10 @@ class DEA():
         dea_results['Significant'] = (dea_results['Corrected P-value'] < pthresh) & (abs(dea_results['LFC']) > logthresh)
         return dea_results
 
+    #Function to perform DEA between two groups
     def diffAnalysis_simple(self,option1, option2, feature,pthresh,logthresh):
-        self.df_group1 = DEA.selectGroups(self,option1,feature)
-        self.df_group2 = DEA.selectGroups(self,option2,feature)
+        self.df_group1 = findSubgroup(option1,feature)
+        self.df_group2 = findSubgroup(option2,feature)
         self.ttest_res = DEA.ttest_results(self,self.df_group1, self.df_group2,pthresh,logthresh)
         self.ttest_res.sort_values(by='Corrected P-value', ascending=True)
         base = DEA.volcanoPlot(self,pthresh,logthresh)
@@ -185,6 +185,7 @@ class DEA():
                    "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                    "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
+    #Function to perform DEA within a group between responsive vs non-responsive samples
     def diffAnalysis_response(self,subgroup,pthresh, logthresh):
         DEA.splitResponses(self, subgroup)
         if len(self.df_group1) >1 and len(self.df_group2) >1:
@@ -207,6 +208,7 @@ class DEA():
         else:
             st.warning("There are not enough samples to do DEA. Please choose another combination")
 
+    #Function to show DEA results in a table
     def showResults(self,feature):
         st.subheader("Results")
         st.write("Results from Fold Change (FC) and T-test analyses for each transcript/feature are shown below. Significant features are those features whose adjusted "
@@ -230,12 +232,12 @@ class DEA():
         st.caption("Ordered by most significantly different (highest adj p-value).")
         return self.ttest_res
 
+    #Function to perform DEA between samples in an interaction and rest of samples
     def diffAnalysis_inter(self,subgroup,pthresh,logthresh):
         indexes = subgroup.index
         filtered_df= self.expr_df_selected.drop(indexes)
         self.subgroup = subgroup
         self.ttest_res = DEA.ttest_results(self,self.subgroup,filtered_df,pthresh,logthresh)
-
         st.write("#### Volcano plot")
         st.write(
             "The volcano plot combines results from Fold Change (FC) Analysis and T-tests to select significant features based on the selected "
@@ -249,6 +251,7 @@ class DEA():
                    "statistical significance by corrected p-value. Red represents up-regulated transcripts in the second condition compared to the first condition. "
                    "Blue values represent transcripts down-regulated in the second condition compared to the first condition.")
 
+    #Function to show information about a transcript chosen in a table
     def infoTranscript(self, transcript):
         info = self.ttest_res[self.ttest_res['Feature']==transcript].values.flatten().tolist()
         df_info = {'Feature': {'information': info[0]},'T-test result': {'information': round(info[1],3)},
@@ -261,6 +264,7 @@ class DEA():
         st.write("##### DEA results for {}".format(transcript))
         st.dataframe(df, use_container_width=True)
 
+    #Function to plot DEA results in a volcano plot
     def volcanoPlot(self, thresh, logthresh):
         df = self.ttest_res
         direction = [(df['LFC'] <= -logthresh),(df['LFC'] >= logthresh),
@@ -280,6 +284,7 @@ class DEA():
         base = base +threshold1 + threshold2 + threshold3
         return base
 
+    #Function to show information about the type of DEA being performed
     def infoTest(self,group1,group2,feature,pthresh,logthresh):
         size = len(self.ttest_res[self.ttest_res['Significant']==True])
         info = {'Test: ': {'information': 'T-test'}, 'Multi-sample correction: ': {'information': 'Benjamini/Hochberg'},
@@ -291,6 +296,7 @@ class DEA():
         df.style.hide(axis='columns')
         st.dataframe(df, use_container_width=True)
 
+    #Function to show in a boxplot differences in expression between two groups being compared
     def boxplot_inter(self, subgroup, transcript):
         indexes = subgroup.index
         filtered_df = self.expr_df_selected.drop(indexes)
@@ -303,6 +309,7 @@ class DEA():
         st.caption(
             "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
+    # Function to show in a boxplot differences in expression between two groups being compared
     def boxplot_resp(self, subgroup, transcript):
         DEA.splitResponses(self, subgroup)
         df1 = pd.DataFrame({transcript : self.df_group1[transcript], "class" : self.df_group1["responsive"]})
@@ -312,9 +319,10 @@ class DEA():
         st.caption(
         "The x-axis represents the two groups being compared. The y-axis is the expression level of the chosen transcript.")
 
+    # Function to show in a boxplot differences in expression between two groups being compared
     def boxplot(self, option1, option2, feature, transcript):
-        self.df_group1 = DEA.selectGroups(self, option1, feature)
-        self.df_group2 = DEA.selectGroups(self, option2, feature)
+        self.df_group1 = findSubgroup(option1, feature)
+        self.df_group2 = findSubgroup(option2, feature)
         df1 = pd.DataFrame({transcript: self.df_group1[transcript], "Group": option1})
         df2 = pd.DataFrame({transcript: self.df_group2[transcript], "Group": option2})
         full_df = pd.concat([df1, df2])

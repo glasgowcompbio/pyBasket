@@ -15,6 +15,7 @@ menu = option_menu(None, ["Samples information", "pyBasket results","Statistics"
 
 if "data" in st.session_state:
     data = st.session_state["data"]
+    #Create a heatmap object
     heatmap = heatMap(st.session_state["saved data"],st.session_state["File Name"])
     analysis = st.session_state["Analysis"]
     #Subpage showing information about the samples: Number and AAC response
@@ -76,6 +77,7 @@ if "data" in st.session_state:
                 data.AAC_response("cluster_number", RD_AAC, "Cluster number", RawD_AAC)
             elif option_tab2 == 'Baskets/Tissues':
                 data.AAC_response("tissues", RD_AAC, "Tissue/Basket", RawD_AAC)
+    # Subpage showing information about pyBasket pipeline results
     elif menu == "pyBasket results":
         # Option to select level of grouping: clusters or baskets
         option_page2 = st.selectbox("Select group", ('Clusters', 'Baskets/Tissues'),
@@ -117,6 +119,7 @@ if "data" in st.session_state:
             RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
             basket_choice = data.baskets_names.index(basketA)
             data.ecdf_indiv("baskets",basketA, basket_choice,RawD_ecdf,cred_inter)
+    # Subpage for analysis: PCA, prototypes and DEA
     elif menu == "Statistics":
         tab21, tab22, tab23 = st.tabs(["Dimensionality reduction", "Prototypes", "Differential expression"])
         #Dimensionality reduction subpage (PCA)

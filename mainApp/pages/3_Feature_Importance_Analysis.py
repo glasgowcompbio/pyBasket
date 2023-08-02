@@ -1,14 +1,13 @@
 import streamlit as st
-from importance import FI, Global_ALE
-from common import add_logo, hideRows, saveTable, savePlot,sideBar,openGeneCard,searchTranscripts,savePlot_plt
+from importance import FI, Global_ALE, Shap_FI
+from common import add_logo, saveTable, savePlot,sideBar,openGeneCard,searchTranscripts,savePlot_plt
 from streamlit_option_menu import option_menu
 
 add_logo()
 sideBar()
-#hide_rows = hideRows()
-st.header("Features importance")
+st.header("Transcripts (Feature) importance")
 st.write("---")
-menu = option_menu(None, ["Overview", "Global MA methods", "Local MA methods"],
+menu = option_menu(None, ["Overview", "Important Transcripts (Global)", "Important Transcripts (Local)"],
     icons=["bi bi-bar-chart", "bi bi-globe", "bi bi-pin-map"],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
@@ -21,15 +20,17 @@ if "data" in st.session_state:
     if "cluster" in st.session_state:
         cluster = st.session_state["cluster"]
     data_analysis = st.session_state["Analysis"]
+    #Create main Feature Interaction object
     feat_inter = FI(data)
-    explainer, values = feat_inter.SHAP()
+    #Create SHAP object
+    shapFI = Shap_FI(data)
+    explainer, values = shapFI.SHAP()
     if menu == "Overview":
         st.write(" ")
-        st.subheader("Overview")
-        st.write('Feature Importance is a technique to describe how relevant a feature is and its effect on the model '
-                 'being used to predict an outcome. Here, the feature importance is calculated using several Model-Agnostic (MA) '
-                 'methods to find the transcripts that are driving the prediction of the AAC response for each sample or group of samples. '
-                 )
+        st.subheader("Overview of Important Transcripts")
+        st.write('The transcripts that are driving the prediction of the AAC response of samples overall can be explored using Feature Importance Analysis. '
+                 'Feature Importance is a technique used to describe how relevant a feature is and its effect on the model '
+                 'being used to predict an outcome and can be calculated using several Model-Agnostic (MA) methods.')
         col11, col12 = st.columns((3,2))
         with col11:
             #Option to select the method to use
@@ -37,9 +38,8 @@ if "data" in st.session_state:
         with col12:
             #Option to select the number of top features to display
             num_feat = st.number_input('Select top number of features to display (<30 is encouraged)', value=10)
-        st.write("---")
         if overview_model == "RF feature importance":
-            st.subheader("Random Forest")
+            st.write("#### Random Forest")
             st.write("Ramdom Forest is a common ML model that combines the output of multiple decision trees to reach a single result. It has been used "
                      "as part of the pyBasket pipeline to select the 500 most important features. Features importance has been ranked based on the decrease in the impurity measure. "
                      "Below is shown the top {} features that are most important, i.e. their inclusion in a Random Forest will lead to a significant decrease in impurity. "
@@ -49,19 +49,19 @@ if "data" in st.session_state:
             feat_inter.plotImportance(RawD,num_feat)
             st.caption("The x-axis represents the feature's importance (decrease in impurity measure).  The y-axis represents the features with the highest importance. ")
         elif overview_model == "SHAP":
-            st.subheader("SHAP values")
+            st.write("#### SHAP values")
             st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
                          "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory: it uses fair "
                      "allocation results from cooperative game to quantify the contribution that each feature makes to the model's prediction."
                          "Below, the top {} features that most influence the prediction of the AAC response to the drug are shown".format(num_feat))
             #Option to show plot or raw data in a table
             RawD = st.checkbox("Show raw data", key="rd-SHAP")
-            fig = feat_inter.SHAP_summary(values, num_feat, RawD)
+            fig = shapFI.SHAP_summary(values, num_feat, RawD)
             st.caption("The x-axis represents the magnitude of the feature's impact on the model's output."
                        " The y-axis shows the features with the highest impact ordered in decreasing order."
                        "Each point is a Shapley value of an instance per feature/transcript and the colour represents the feature's value.")
         elif overview_model == "Permutation Based":
-            st.subheader("Permutation based feature importance")
+            st.write("#### Permutation based feature importance")
             st.write('Permutation based feature importance is a MA method that measures'
                      ' the importance of a feature by calculating the increase in the model’s prediction '
                      'error when re-shuffling each predictor or feature. '
@@ -71,15 +71,14 @@ if "data" in st.session_state:
             feat_inter.permutationImportance(num_feat,RawD)
             st.caption("The x-axis represents the feature's importance for the model's prediction. The y-axis represents the features ordered in decreasing order"
                        " of importance.")
-    elif menu == "Global MA methods":
+    elif menu == "Important Transcripts (Global)":
         st.write(" ")
-        st.subheader("Global MA methods")
+        st.subheader("Important Transcripts (Global)")
         st.write(" ")
-        st.write('Global Model-Agnostic (MA) methods are used to describe the average behaviour of a Machine Learning model. Here, the transcripts that have the highest'
-                 'impact on the AAC response prediction for a group of cell lines on average can be individually explored.  ')
+        st.write('Here, the transcripts that have the highest impact on the AAC response prediction for a group of cell lines on average can be individually explored.'
+                 'Global Model-Agnostic (MA) methods are used to describe the average behaviour of a Machine Learning model.   ')
         #Option to select the global method to use
         global_method = st.selectbox("Select a global method", ['ALE', 'PDP (SHAP)'], key ='global-method')
-        st.write("---")
         if global_method == 'ALE':
             st.write("#### Accumulated Local Effects")
             st.write(" ")
@@ -136,44 +135,40 @@ if "data" in st.session_state:
             st.write("The partial dependence plot (PDP) calculated by SHAP shows "
                      "the marginal effect that one or two features, that might interact with each other,"
                      " have on the predictions made by the ML model (the predicted AAC response to the drug).  ")
-            features = feat_inter.SHAP_results(values)
+            features = shapFI.SHAP_results(values,len(values))
             #Option to select transcript
             transcript_PDP = st.selectbox("Select feature/transcript", features['Transcript'], key="transcript_PDP")
             st.caption("values ordered by decreasing importance by SHAP")
             st.write("#### SHAP dependence plot")
-            feat_inter.SHAP_dependence(values, transcript_PDP)
+            shapFI.SHAP_dependence(values, transcript_PDP)
             st.caption("The x-axis is the actual feature value. "
                        "The y-axis represents the SHAP value for the feature: how much knowing that feature value changes the "
                        "output of the model for that prediction."
                        "The color is a second feature that interacts with the chosen feature.")
-    elif menu == "Local MA methods":
-        st.subheader("Local MA methods")
+    elif menu == "Important Transcripts (Local)":
+        st.subheader("Important Transcripts (Local)")
         st.write(" ")
-        st.write("Local Model-Agnostic (MA) interpretation methods aim to explain individual predictions made by a Machine Learning model. The transcripts that have the highest impact"
-                 " on the prediction of the AAC response of individual cell lines can be explored. ")
-        #Option to select the local MA method to use
-        local_model = st.selectbox("Select a local interpretable method", ["LIME", "SHAP"], key="local_model")
-        st.write("---")
-
+        st.write("The transcripts that have the highest impact on the prediction of the AAC response for a specific cell lines can be explored."
+                 " Local Model-Agnostic (MA) interpretation methods aim to explain individual predictions made by a Machine Learning model.  ")
         st.write("#### Filter samples")
         col31, col32, col33 = st.columns((2,2,2))
         with col31:
             #Option to filter samples to show for selection
-            group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in cluster',
-                                      'Select only samples in tissue/basket'],
-                                 key="samples")
-        if group_samples == 'Use samples in selection':
-            basket, cluster = basket, cluster
-        elif group_samples == 'Select only samples in cluster':
+            group_samples = st.radio("", ['Use samples in interaction', 'Select only samples in a cluster',
+                                      'Select only samples in a tissue/basket'],
+                                 key="Local-samples")
+        if group_samples == 'Select only samples in a cluster':
             with col33:
                 #Option to select a cluster
                 cluster= st.selectbox("Select a cluster", data.clusters_names, key="only_cluster")
             basket = "None"
-        elif group_samples == 'Select only samples in tissue/basket':
+        elif group_samples == 'Select only samples in a tissue/basket':
             with col33:
                 #Option to select a basket
                 basket = st.selectbox("Select a basket/tissue", data.baskets_names, key="only_basket")
             cluster = "None"
+        elif group_samples == 'Use samples in selection':
+            basket, cluster = basket, cluster
         transcripts, size = feat_inter.displaySamples(cluster,basket)
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
         if size >1:
@@ -187,9 +182,10 @@ if "data" in st.session_state:
                 n_features = st.number_input('Number of features', value=5)
             transc = feat_inter.filterSamples(transcripts, responses)
             sample = st.selectbox("Select a sample", transc, key="sample")
-            st.write("---")
+            # Option to select the local MA method to use
+            local_model = st.selectbox("Select a local interpretable method", ["LIME", "SHAP"], key="local_model")
             if local_model == "LIME":
-                st.subheader("LIME for individual predictions")
+                st.write("#### LIME for individual predictions")
                 st.write(" ")
                 st.write("Local interpretable model-agnostic explanations (LIME) is a technique to explain individual predictions "
                          "made by a ML model. For this, an explanation is obtained by approximating the main model with a more interpretable one."
@@ -207,7 +203,7 @@ if "data" in st.session_state:
                 feature = searchTranscripts(limedf['Feature'].tolist())
             elif local_model == "SHAP":
                 st.write("  ")
-                st.subheader("SHAP")
+                st.write("#### SHAP")
                 st.write(" ")
                 st.write("SHAP (SHapley Additive exPlanations) is a technique that explains the prediction of an observation by "
                          "computing the contribution of each feature to the prediction. It is based on Shapley values from game theory,"
@@ -215,7 +211,7 @@ if "data" in st.session_state:
                          )
                 st.write("  ")
                 st.write("##### Model's prediction")
-                pred, true_value = feat_inter.SHAP_pred(sample)
+                pred, true_value = shapFI.SHAP_pred(sample)
                 st.write("**Model's predicted AAC response is:** {} ".format(pred))
                 st.write("**True AAC response is:** {} ".format(true_value))
                 st.write(" ")
@@ -227,7 +223,7 @@ if "data" in st.session_state:
                 st.write("")
                 #Option to show plot or raw data in a table
                 RawD = st.checkbox("Show raw data", key="rd-SHAP-dec")
-                transcripts = feat_inter.SHAP_decision(sample, explainer, values, n_features, RawD)
+                transcripts = shapFI.SHAP_decision(sample, explainer, values, n_features, RawD)
                 st.caption(
                     "The x-axis represents the model's AAC prediction. The y-axis represents the model's features. "
                     "The grey vertical line represents the base value. Coloured line is the prediction and how each feature impacts it."

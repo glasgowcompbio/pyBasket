@@ -15,17 +15,17 @@ if "data" in st.session_state:
     data = st.session_state["data"]
 
 """
-Class: FI (Feature Importance): includes several Model-Agnostic methods to interpret Machine Learning models and predictions
-Input: needs a Results object to be initialised.
+Class: FI (Feature Importance): includes several Model-Agnostic methods to interpret Machine Learning models and predictions: LIME, RF and PBI
+Input: an initialised Data object.
 """
 class FI():
-    def __init__(self, Results):
-        self.expr_df_selected = Results.expr_df_selected
-        self.class_labels = Results.class_labels
-        self.cluster_labels = Results.cluster_labels
-        self.patient_df = Results.patient_df
-        self.importance = Results.importance_df
-        self.drug_response = Results.drug_response
+    def __init__(self, Data):
+        self.expr_df_selected = Data.expr_df_selected
+        self.class_labels = Data.class_labels
+        self.cluster_labels = Data.cluster_labels
+        self.patient_df = Data.patient_df
+        self.importance = Data.importance_df
+        self.drug_response = Data.drug_response
         self.X_train = None
         self.X_test = None
         self.y_train = None
@@ -41,6 +41,7 @@ class FI():
         importance_feats = importance_feats[::-1]
         raw_D = pd.DataFrame({'Features':importance_feats,'Importance score':importance_vals})
         raw_D = raw_D.sort_values(by='Importance score', ascending=False)
+        raw_D = raw_D.reset_index(drop=True)
         if RawD:
             saveTable(raw_D,"RF-FI")
             st.dataframe(raw_D)
@@ -58,6 +59,7 @@ class FI():
         rf.fit(self.X_train.values, self.y_train)
         return rf
 
+    #Function to apply LIME method on a chosen sample
     def limeInterpretation(self,sample,n_features,RawD):
         df = self.expr_df_selected.reset_index()
         index = df[df["index"] == sample].index
@@ -92,103 +94,6 @@ class FI():
         else:
             alt_hor_barplot(raw_D, 'Importance', 'Features', num_feats, 'Mean Importance score', "Features", 'Features', "Feature Importance by Permutation based", "PIB")
 
-    #Function to use a TreeExplainer to find SHAP values for a trained RF regressor. Returns explainer and shap values
-    def SHAP(self):
-        rf = FI.trainRF(self, self.drug_response)
-        explainer = shap.TreeExplainer(rf)
-        shap_values = explainer.shap_values(self.expr_df_selected)
-        self.model = rf
-        return explainer, shap_values
-
-    #Function to get the predicted AAC response by the RF regressor model
-    def SHAP_pred(self, sample):
-        df = self.expr_df_selected.reset_index()
-        index = df[df["index"] == sample].index[0]
-        X_array = np.array([self.expr_df_selected.iloc[index, :]])
-        pred = self.model.predict(X_array)
-        pred = round(pred[0], 4)
-        true_label = self.drug_response.iloc[index]
-        true_label = round(true_label[0],4)
-        return pred, true_label
-
-    def SHAP_bar_indiv(self,sample, explainer,values,n_features,RawD):
-        df = self.expr_df_selected.reset_index()
-        index = df[df["index"] == sample].index
-        shap_values = explainer(self.expr_df_selected)
-        fig, ax = plt.subplots(figsize=(6, 6))
-        shap.plots.bar(shap_values[index], show=True, max_display = n_features)
-        mean_values = np.abs(values[index]).mean(0)
-        raw_df = pd.DataFrame({'Feature': self.expr_df_selected.columns, 'mean |SHAP value|': mean_values})
-        raw_df = raw_df.sort_values(by=['mean |SHAP value|'], ascending=False)
-        raw_df = raw_df.iloc[:n_features]
-        transcripts = raw_df['Feature']
-        if RawD:
-            saveTable(raw_df, sample + "SHAP_bar")
-            st.write("  ")
-            st.dataframe(raw_df)
-        else:
-            savePlot(fig, sample + "SHAP_bar")
-            st.write("  ")
-            st.pyplot(fig)
-        return transcripts
-
-    #Function to show SHAP results in a table
-    def SHAP_results(self,values):
-        shap_sum = np.abs(values).mean(axis=0)
-        importance_df = pd.DataFrame([self.expr_df_selected.columns.tolist(), shap_sum.tolist()]).T
-        importance_df.columns = ['Transcript', 'SHAP importance']
-        importance_df = importance_df.sort_values('SHAP importance', ascending=False)
-        return importance_df
-
-    def SHAP_forces(self, sample, explainer,values,n_features,RawD):
-        df = self.expr_df_selected.reset_index()
-        index = df[df["index"]==sample].index
-        selected_shap_values = values[index, :n_features]
-        selected_features = round(self.expr_df_selected.iloc[index, :n_features],2)
-        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'Feature value': selected_features.iloc[0].values, 'SHAP value': selected_shap_values[0]})
-        fig, ax = plt.subplots()
-        shap.force_plot(explainer.expected_value, selected_shap_values,selected_features, link="logit",show=True)
-        st.write("  ")
-        if RawD:
-            saveTable(raw_data, sample + "SHAP_force")
-            st.write("  ")
-            st.dataframe(raw_data)
-        else:
-            #savePlot(fig, sample + "SHAP_force")
-            st.write("  ")
-            st.pyplot(fig,bbox_inches='tight',dpi=300,pad_inches=0)
-
-    #Function for decision plot by SHAP. Input: sample chosen, explainer and values calculated by SHAP, number of features to display, option for raw data or plot
-    def SHAP_decision(self, sample, explainer,values,n_features,RawD):
-        df = self.expr_df_selected.reset_index()
-        index = df[df["index"] == sample].index
-        selected_shap_values = values[index, :n_features]
-        selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
-        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
-        fig, ax = plt.subplots(figsize=(5, 3))
-        transcripts = raw_data['Feature']
-        shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
-        if RawD:
-            saveTable(raw_data, sample + "SHAP_dec")
-            st.dataframe(raw_data)
-        else:
-            savePlot(fig, sample + "_SHAP_dec")
-            st.pyplot(fig)
-        return transcripts
-
-    #Summary plot by SHAP. Input: SHAP values, number of features, option to show Raw data
-    def SHAP_summary(self,values,num_feats, RawD):
-        if RawD:
-            raw_df = FI.SHAP_results(self,values)
-            saveTable(raw_df, "SHAP")
-            st.dataframe(raw_df, use_container_width=True)
-        else:
-            fig, ax = plt.subplots()
-            shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b',
-                              max_display=num_feats)
-            savePlot_plt(fig, "summary_SHAP")
-            st.pyplot(fig)
-
     #Function to filter samples by chosen criteria (cluster or basket, or both). Input: cluster choice, basket choice
     def displaySamples(self,cluster,basket):
         transcripts = self.expr_df_selected
@@ -219,18 +124,91 @@ class FI():
             df = df
         return df
 
-    #Function for Partial Dependence Plot by SHAP. Input: SHAP values, feature chosen
-    def SHAP_dependence(self,values, feature):
+"""Subclass: SHAP method functionalities. 
+Input: Data object with uploaded data. SHAP methods for overview, local and global explainability"""
+class Shap_FI(FI):
+    def __init__(self, Data):
+        super().__init__(Data)
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
+        self.transcripts = self.expr_df_selected.columns.tolist()
+
+    # Function to use a TreeExplainer to find SHAP values for a trained RF regressor. Returns explainer and shap values
+    def SHAP(self):
+        rf = super(Shap_FI, self).trainRF(self.drug_response)
+        explainer = shap.TreeExplainer(rf)
+        shap_values = explainer.shap_values(self.expr_df_selected)
+        self.model = rf
+        return explainer, shap_values
+
+    # Function for Partial Dependence Plot by SHAP. Input: SHAP values, feature chosen
+    def SHAP_dependence(self, values, feature):
         st.set_option('deprecation.showPyplotGlobalUse', False)
         fig, ax = plt.subplots()
-        shap.dependence_plot(feature, values, self.expr_df_selected, feature_names=self.expr_df_selected.columns, ax= ax)
+        shap.dependence_plot(feature, values, self.expr_df_selected, feature_names=self.expr_df_selected.columns,
+                             ax=ax)
         savePlot(fig, "PDP")
         st.pyplot(fig)
 
-"""Subclass: ALE method functionalities. Input: Results object with uploaded data"""
+    #Function to show SHAP results in a table
+    def SHAP_results(self,values,n_features):
+        shap_sum = np.abs(values).mean(axis=0)
+        importance_df = pd.DataFrame([self.expr_df_selected.columns.tolist(), shap_sum.tolist()]).T
+        importance_df.columns = ['Transcript', 'SHAP importance']
+        importance_df = importance_df.sort_values('SHAP importance', ascending=False)
+        importance_df = importance_df.iloc[:n_features]
+        importance_df = importance_df.reset_index(drop = True)
+        return importance_df
+
+    # Summary plot by SHAP. Input: SHAP values, number of features, option to show Raw data
+    def SHAP_summary(self, values, num_feats, RawD):
+        if RawD:
+            raw_df = Shap_FI.SHAP_results(self, values, num_feats)
+            saveTable(raw_df, "SHAP")
+            st.dataframe(raw_df, use_container_width=True)
+        else:
+            fig, ax = plt.subplots()
+            shap.summary_plot(values, self.expr_df_selected, show=False, plot_size=(8, 6), color='b',
+                              max_display=num_feats)
+            savePlot_plt(fig, "summary_SHAP")
+            st.pyplot(fig)
+
+    #Function for decision plot by SHAP. Input: sample chosen, explainer and values calculated by SHAP, number of features to display, option for raw data or plot
+    def SHAP_decision(self, sample, explainer,values,n_features,RawD):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index
+        selected_shap_values = values[index, :n_features]
+        selected_features = round(self.expr_df_selected.iloc[index, :n_features], 2)
+        raw_data = pd.DataFrame({'Feature': selected_features.columns, 'SHAP value': selected_features.iloc[0].values})
+        fig, ax = plt.subplots(figsize=(5, 3))
+        transcripts = raw_data['Feature']
+        shap.decision_plot(explainer.expected_value, selected_shap_values, selected_features)
+        if RawD:
+            saveTable(raw_data, sample + "SHAP_dec")
+            st.dataframe(raw_data)
+        else:
+            savePlot(fig, sample + "_SHAP_dec")
+            st.pyplot(fig)
+        return transcripts
+
+    # Function to get the predicted AAC response by the RF regressor model
+    def SHAP_pred(self, sample):
+        df = self.expr_df_selected.reset_index()
+        index = df[df["index"] == sample].index[0]
+        X_array = np.array([self.expr_df_selected.iloc[index, :]])
+        pred = self.model.predict(X_array)
+        pred = round(pred[0], 4)
+        true_label = self.drug_response.iloc[index]
+        true_label = round(true_label[0], 4)
+        return pred, true_label
+
+"""Subclass: ALE method functionalities. 
+Input: Data object with uploaded data"""
 class Global_ALE(FI):
-    def __init__(self, Results):
-        super().__init__(Results)
+    def __init__(self, Data):
+        super().__init__(Data)
         self.X_train = None
         self.X_test = None
         self.y_train = None

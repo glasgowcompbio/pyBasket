@@ -6,18 +6,23 @@ from streamlit_option_menu import option_menu
 from explorer import Data
 from analysis import Analysis
 
+#Opens Wikipedia page of drug
 def openWikipedia(drug):
     webpage_link = "https://en.wikipedia.org/wiki/"+drug
     webbrowser.open(webpage_link)
+
+# Opens PubMed page of drug
 def openPubMed(drug):
     webpage_link = "https://pubmed.ncbi.nlm.nih.gov/?term={}" + drug
     webbrowser.open(webpage_link)
+
+#Opens DrugBank page of the drug
 def openDrugBank(num):
     webpage_link = "https://go.drugbank.com/drugs/" + num
     webbrowser.open(webpage_link)
 
 st.set_page_config(
-    page_title="pyBasket",
+    page_title="EMERY",
     page_icon="bi bi-basket",
     layout="wide"
 )
@@ -27,35 +32,36 @@ add_logo()
 sideBar()
 st.header("Home")
 st.write("---")
-menu = option_menu(None, ["Overview", "Data Upload", "Clinical trial information"],
+menu = option_menu(None, ["Overview", "Data Upload", "Trial information"],
     icons=["bi bi-basket", 'cloud-upload', 'capsule'],
     menu_icon="cast", default_index=0, orientation="horizontal")
 
 #Overview subpage: general information about the app and basic steps to use it
 if menu == "Overview":
-    st.subheader("Welcome 👋")
+    st.subheader("Welcome to EMERY 👋")
     st.write(" ")
-    st.write("The pyBasket App is a user-friendly interactive platform that allows the visualisation and exploration"
-             " of results obtained from the pyBasket pipeline. The main goal of this App is to aid in the investigation of"
-             " the omics profiles of the samples or patients involved in the clinical trials and gain biological insights"
-             " into the response patterns showed by the different subgroups to a drug.")
+    st.write("**EMERY** (**E**xplainable **M**achine l**E**arning fo**R** p**Y**basket) is a user-friendly interactive platform that allows the visualisation and exploration"
+             " of results obtained from the pyBasket pipeline. The main goal of EMERY is to aid in the investigation of"
+             " the omics profiles of the samples or patients involved in clinical basket trials and gain biological insights"
+             " into the response patterns showed by different subgroups of patients to a drug.")
     st.write(" ")
     st.write("##### Basket trials")
     st.write("Basket trials are a type of early phase clinical trial design that tests how well a new drug or treatment works in"
-             " groups of patients that have different types of cancer but share the same molecular or genomic mutation or biomarker."
-             " This innovative approach is more effective and cost-efficient, it requires fewer patients for the study and allows "
-             "intractable or rare cancer patients to be also included in general clinical trials."
+             " patients that are grouped based on the same molecular mutation or biomarker within a type of disease."
+             " This innovative approach is more effective and a reduced cost, as it requires fewer patients to be enrolled "
+             "for a study to be carried out and allows "
+             "intractable or rare cancer patients to also be included in general clinical trials."
              " As they allow for multiple diseases to be studied, it facilitates faster drug development for specific "
              "subpopulations of patients and allows for a more personalised treatment approach.")
     st.write(" ")
     st.write("##### pyBasket")
     url = "https://glasgowcompbio.github.io/pyBasket/"
-    st.write("pyBasket is a two-stage approach that incorporates omics data into basket trial response prediction from cancer patients."
+    st.write("pyBasket is a two-stage approach developed by other researchers that incorporates omics data into basket trial response prediction from cancer patients."
              " In the first stage, patients are clustered based on their omics profile using K-means clustering. "
              " These clusters assignments are used within a hierarchical Bayesian model along with basket response rates to "
              " estimate overall response rates and predict interaction terms between baskets and clusters. Further information about the pyBasket model can be found here: [link](%s)" % url)
     st.write("---")
-    with st.expander("##### Basic steps to use this APP"):
+    with st.expander("##### Basic steps to use EMERY"):
         st.write(" ")
         col11, col12 = st.columns((2,2))
         with col11:
@@ -78,7 +84,7 @@ if menu == "Overview":
             st.write(" ")
             st.write("##### :five: Select and analyse a basket*cluster interaction")
             st.write("In the left sidebar, select a cluster number and a basket/tissue. Samples that fall in this interaction will be selected. "
-                     "Navigate to the _Basket-Cluster_Interactions_ subpage located in the left sidebar to further explore results from the samples included in the selected basket-cluster interaction")
+                     "Navigate to the _Basket-Cluster_Interactions_ subpage located in the left sidebar to further explore results from the samples included in the selected basket-cluster interaction.")
             st.write(" ")
             st.write("##### :six: Use interpretable ML methods ")
             st.write(
@@ -113,7 +119,7 @@ if menu == "Data Upload":
         st.info("Current file: {}".format(st.session_state['File Name']))
 
 #File and drug information subpage
-if menu == "Clinical trial information":
+if menu == "Trial information":
     st.subheader("File information")
     st.write("Once a file of results is uploaded, general information about the file is displayed here.")
     if "data" in st.session_state:
