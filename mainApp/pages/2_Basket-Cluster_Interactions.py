@@ -99,7 +99,6 @@ if "data" in st.session_state:
         st.info("###### Samples in **cluster {}** & **{} basket**: {}".format(cluster, basket, size))
         st.text("")
         tab1, tab2, tab3, tab4 = st.tabs(["Overview", "PCA", "Prototypes", "Differential Expression"])
-
         #Subpage with overview of the selected basket-cluster interaction if enough samples are found
         with tab1:
             if len(subgroup) >0:
