@@ -70,7 +70,7 @@ class Prototypes():
         base = alt.Chart(df,title="Prototypes samples").mark_circle(size=100).encode(
             x=alt.X('X', title='PC1'),
             y=alt.X('Y', title = 'PC2'),color = alt.Color('class:N', scale = scale), tooltip = ['samples', 'class']
-        ).interactive().properties(height=700, width = 550)
+        ).interactive().properties(height=600, width = 650)
         plotMedoids =alt.Chart(df3).mark_point(filled=True, size=150).encode(
             x='PC1',
             y='PC2',color=alt.value('black')
@@ -277,7 +277,7 @@ class DEA():
             y=alt.Y('Corrected P-value', title = '-log10(corrected p-value)'),
             color=alt.Color('direction:O',
                             scale=alt.Scale(domain=values, range=['blue', 'red', 'black'])), tooltip = ['LFC','Corrected P-value','Feature']
-        ).interactive().properties(height=700, width=400)
+        ).interactive().properties(height=600, width=650)
         threshold1 = alt.Chart(pd.DataFrame({'x': [-logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold2 = alt.Chart(pd.DataFrame({'x': [logthresh]})).mark_rule(strokeDash=[10, 10]).encode(x='x')
         threshold3 = alt.Chart(pd.DataFrame({'y': [-np.log10(thresh)]})).mark_rule(strokeDash=[10, 10]).encode(y='y')

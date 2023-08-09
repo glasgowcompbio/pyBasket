@@ -201,9 +201,9 @@ if "data" in st.session_state:
                          "Further information about the transcript can be found by using the GeneCards button. ")
                 st.write("")
                 #Option to select transcript results to be displayed
-                transcript = searchTranscripts(results["Feature"])
                 col53, col54 = st.columns((2,4))
                 with col53:
+                    transcript = searchTranscripts(results["Feature"])
                     st.write(" ")
                     dea.infoTranscript(transcript)
                 with col54:

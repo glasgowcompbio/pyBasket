@@ -148,15 +148,25 @@ class Data():
         stacked = self.stacked_posterior
         if feature == 'baskets':
             len_colors = len(self.baskets_names)
-            inferred_basket = np.mean(stacked.basket_p.values, axis=1)
-            df = pd.DataFrame({'prob': inferred_basket, 'tissue': self.baskets_names})
+            inferred_basket = stacked.basket_p.values
+            baskets = []
+            for item in self.baskets_names:
+                for _ in range(len(inferred_basket[0])):
+                    baskets.append(item)
+            inferred_basket = inferred_basket.flatten()
+            df = pd.DataFrame({'mean probability': inferred_basket, 'tissue': baskets})
             title = 'Tissue/Basket'
             feature = 'tissue'
             subheader = "Inferred basket response"
         elif feature == "clusters":
             len_colors = len(self.clusters_names)
-            inferred_cluster = np.mean(stacked.cluster_p.values, axis=1)
-            df = pd.DataFrame({'prob': inferred_cluster, 'cluster': self.clusters_names})
+            inferred_cluster = stacked.cluster_p.values
+            clusters = []
+            for item in self.clusters_names:
+                for _ in range(len(inferred_cluster[0])):
+                    clusters.append(item)
+            inferred_cluster = inferred_cluster.flatten()
+            df = pd.DataFrame({'mean probability': inferred_cluster, 'cluster': clusters})
             title = 'Clusters'
             feature = 'cluster'
             subheader = "Inferred cluster response"
@@ -164,7 +174,8 @@ class Data():
             saveTable(df, "raw-prob")
             st.dataframe(df, use_container_width=True)
         else:
-            alt_ver_barplot(df, feature, 'prob', len_colors, title, "Inferred response probability", feature, subheader, "Inferred", [feature, 'prob'])
+
+            alt_boxplot(df, feature, 'mean probability',len_colors, title, "Inferred response probability", feature, subheader, "Inferred")
             st.caption("The x-axis shows the levels of the grouping chosen (clusters or baskets/tissues). "
                        "The y-axis shows the inferred response probability to the treatment."
             )

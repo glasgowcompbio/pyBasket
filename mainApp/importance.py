@@ -148,8 +148,8 @@ class Shap_FI(FI):
         st.set_option('deprecation.showPyplotGlobalUse', False)
         fig, ax = plt.subplots()
         shap.dependence_plot(feature, values, self.expr_df_selected, feature_names=self.expr_df_selected.columns,
-                             ax=ax)
-        savePlot(fig, "PDP")
+                             ax=ax, show= False)
+        savePlot_plt(fig, "PDP")
         st.pyplot(fig)
 
     #Function to show SHAP results in a table
@@ -253,6 +253,7 @@ class Global_ALE(FI):
         st.write(
             "##### The magnitude of impact of the feature in the model's prediction is for samples in {} is {}.".format(g1,
                 round(change1.tolist()[0], 6)))
+        savePlot_plt(fig,"ALE-comparison")
         st.pyplot(fig)
 
     #Function to compute ALE for a feature on all samples. Input: feature chosen
@@ -276,7 +277,7 @@ class Global_ALE(FI):
             "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
             " model's predictions.")
 
-    #Function to compute ALE on a chosen feature for a selected group of samples. Input: chosen feature, cluster (if chosen), basket(if chosen), flag to use both for samples in interaction
+    #Function to compute ALE on a chosen feature for a selected group of samples. Input: chosen feature, cluster (if chosen), basket (if chosen), flag to use both for samples in interaction
     def global_ALE_single(self,feature,g1,g2,option):
         rf = super(Global_ALE, self).trainRF(self.drug_response)
         if option =="clusters":
@@ -298,7 +299,7 @@ class Global_ALE(FI):
         change = max(values) - min(values)
         st.write("##### The magnitude of impact of the feature in the model's prediction is {}.".format(
             round(change.tolist()[0], 6)))
-        savePlot(fig, "ALE-single")
+        savePlot_plt(fig, "ALE-single")
         st.pyplot(fig)
         st.caption("The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"
                    " model's predictions.")
@@ -341,7 +342,7 @@ class Global_ALE(FI):
         st.write(
             "##### The magnitude of impact of the feature in the model's prediction for Non-responsive samples is {}.".format(
                 round(change1.tolist()[0], 6)))
-        savePlot(fig, "ALE-resp")
+        savePlot_plt(fig, "ALE-resp")
         st.pyplot(fig)
         st.caption(
             "The x-axis represents the values or intervals of the feature. The y-axis represents the accumulated effects or changes in the"

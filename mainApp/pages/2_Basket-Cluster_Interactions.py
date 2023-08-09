@@ -102,12 +102,12 @@ if "data" in st.session_state:
         #Subpage with overview of the selected basket-cluster interaction if enough samples are found
         with tab1:
             if len(subgroup) >0:
-                st.subheader("Response to drug")
-                st.markdown("Number of samples in **cluster {}** & **basket {}**: {} ".format(str(cluster), basket, size))
                 col21, col22 = st.columns((2, 2))
                 with col21:
+                    st.subheader("Response to drug")
                     analysis_data.samplesCount(subgroup)
                 with col22:
+                    st.subheader("Samples in interaction")
                     analysis_data.responseSamples(subgroup)
                     st.caption("Samples ordered from most to least responsive (lower AAC response)")
                 st.subheader("ECDF")
@@ -125,7 +125,7 @@ if "data" in st.session_state:
                 st.caption("90% credible interval shown by default")
                 # Option to show data in a table
                 RawD_ecdf = st.checkbox("Show raw data", key="raw-data-ecdf")
-                ecdf_interaction(basket, cluster, RawD_ecdf, cred_inter)
+                ecdf_interaction(data,basket, cluster, RawD_ecdf, cred_inter)
                 st.subheader("Transcriptional expression")
                 st.write("The heatmap below shows the expression of transcripts across the samples included in the chosen basket*cluster interaction.")
                 # Option to show data in a table

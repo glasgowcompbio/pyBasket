@@ -86,7 +86,7 @@ class Analysis(Data):
             x='PC1',
             y='PC2',
             color=feature+':N', tooltip = ['index', feature]
-        ).interactive().properties(height=650).configure_range(
+        ).interactive().properties(height=500, width = 600).configure_range(
         category=alt.RangeScheme(palette))
         savePlot(base, "PCA")
         st.altair_chart(base, theme="streamlit", use_container_width=True)
